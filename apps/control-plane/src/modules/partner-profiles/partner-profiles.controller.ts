@@ -12,6 +12,7 @@ import {
   type CreatePartnerProfileDto, type UpdatePartnerProfileDto,
 } from '@sep/schemas';
 import { SepError, ErrorCode } from '@sep/common';
+import { PageSizePipe } from '../../common/pipes/page-size.pipe';
 import type { TokenPayload } from '../auth/auth.service';
 import type { FastifyRequest } from 'fastify';
 
@@ -56,7 +57,7 @@ export class PartnerProfilesController {
   @ApiResponse({ status: 200, description: 'Partner profile list' })
   async list(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('pageSize', new DefaultValuePipe(20), ParseIntPipe) pageSize: number,
+    @Query('pageSize', new DefaultValuePipe(20), PageSizePipe) pageSize: number,
     @Query('status') status: string | undefined,
     @Query('environment') environment: string | undefined,
     @Request() req?: FastifyRequest & { user: TokenPayload },

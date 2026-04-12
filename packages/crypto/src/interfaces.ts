@@ -72,7 +72,7 @@ export interface KeyRef {
   /** Algorithm hint — used to select correct openpgp options */
   algorithm: string;
   /** Key lifecycle state — must be ACTIVE for any crypto operation */
-  state: 'DRAFT' | 'IMPORTED' | 'VALIDATED' | 'ACTIVE' | 'ROTATING' | 'EXPIRED' | 'REVOKED' | 'RETIRED';
+  state: 'DRAFT' | 'IMPORTED' | 'VALIDATED' | 'ACTIVE' | 'ROTATING' | 'EXPIRED' | 'REVOKED' | 'RETIRED' | 'SUSPENDED' | 'COMPROMISED' | 'DESTROYED';
   /** Operations this key is authorised for */
   allowedUsages: Array<'ENCRYPT' | 'DECRYPT' | 'SIGN' | 'VERIFY'>;
   /** Revocation timestamp — if set, key must not be used */

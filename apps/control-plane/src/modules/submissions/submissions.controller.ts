@@ -9,6 +9,7 @@ import { SubmissionsService } from './submissions.service';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CreateSubmissionSchema, type CreateSubmissionDto } from '@sep/schemas';
 import { SepError, ErrorCode } from '@sep/common';
+import { PageSizePipe } from '../../common/pipes/page-size.pipe';
 import type { TokenPayload } from '../auth/auth.service';
 import type { FastifyRequest } from 'fastify';
 
@@ -57,7 +58,7 @@ export class SubmissionsController {
   @ApiResponse({ status: 200, description: 'Submission list' })
   async list(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('pageSize', new DefaultValuePipe(20), ParseIntPipe) pageSize: number,
+    @Query('pageSize', new DefaultValuePipe(20), PageSizePipe) pageSize: number,
     @Query('status') status: string | undefined,
     @Query('partnerProfileId') partnerProfileId: string | undefined,
     @Query('from') from: string | undefined,

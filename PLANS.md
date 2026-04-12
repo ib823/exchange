@@ -1,7 +1,7 @@
 # PLANS.md — Milestone Tracker
 # Update this file after every session. It is the source of truth for delivery state.
 
-Version: 1.3 | Last updated: 2026-04-12 | M1 COMPLETE, pre-M2 v2 COMPLETE
+Version: 1.4 | Last updated: 2026-04-12 | M1 COMPLETE, pre-M2 v3 COMPLETE
 
 ---
 
@@ -15,6 +15,7 @@ Version: 1.3 | Last updated: 2026-04-12 | M1 COMPLETE, pre-M2 v2 COMPLETE
 | M1 Domain + control plane | 🟢 COMPLETE | Yes | Completed 2026-04-12 |
 | Pre-M2 Remediation v1 | 🟢 COMPLETE | Yes | 9 defects fixed 2026-04-12 |
 | Pre-M2 Remediation v2 | 🟢 COMPLETE | Yes | 8 defects fixed 2026-04-12 (wave 1 + wave 2) |
+| Pre-M2 Remediation v3 | 🟢 COMPLETE | Yes | 6 defects fixed 2026-04-12 (wave 3) |
 | M2 Data plane + transport | 🔴 NOT STARTED | No | Pre-M2 remediation complete, ready to start |
 | M3 Security + trust | 🔴 NOT STARTED | No | Blocked by M2 |
 | M4 Operator console | 🔴 NOT STARTED | No | Can start parallel to M3 |
@@ -285,6 +286,24 @@ Status legend: 🔴 NOT STARTED | 🟡 IN PROGRESS | 🟢 COMPLETE | 🔵 BLOCKE
 
 ---
 
+## Pre-M2 Remediation v3 — Wave 3
+
+**Objective:** Resolve 6 confirmed defects from re-audit before starting M2.
+**Completed:** 2026-04-12
+
+| Issue | Finding | Fix summary |
+|---|---|---|
+| 1 | passWithNoTests allows untested M2 code | Removed passWithNoTests from all 5 vitest configs (data-plane, control-plane, schemas, db, partner-profiles). Wrote real tests for each: queue definitions (8), schema validation (12), Prisma client (2), profile validator (7). Created tsconfig.build.json for apps to exclude test files from NestJS build. |
+| 2 | Audit RLS migration incomplete | New migration: FORCE ROW LEVEL SECURITY, explicit DENY policies for UPDATE and DELETE, SELECT allow policy, defense-in-depth triggers that RAISE EXCEPTION on UPDATE/DELETE attempts. |
+| 3 | List endpoints accept unbounded pageSize | Created PageSizePipe (max 100) and applied to all 7 list controllers. Rejects values > 100 with 400/VALIDATION_SCHEMA_FAILED before reaching service layer. |
+| 4 | TenantGuard broken for object-level routes | Guard now allows requests where tenantId is not in path/body (object-level routes like GET /submissions/:id). Service-layer assertTenantOwnership enforces tenant boundary using JWT tenantId. |
+| 5 | JWT actor identity records credential ID, not actor | TokenPayload now carries `credentialId` (API key row ID) separately. `userId` is set to `apikey:{name}@{tenantId}` — traceable to a named entity without needing to know which key was used. |
+| 6 | Key state machine missing SUSPENDED, COMPROMISED, DESTROYED | Added 3 states to KeyState enum, 4 audit actions. Implemented suspend, reinstate, markCompromised, destroy transitions in KeyReferencesService. COMPROMISED auto-creates P1 incident. All new states rejected by crypto policy enforcer. |
+
+**Test count:** 223 (up from 182). All quality gates pass: build, typecheck, lint, test:unit.
+
+---
+
 ## Formal Acceptance Register — Pre-M2
 
 Findings formally accepted as not blocking M2. Each entry includes the finding ID, acceptance date, review milestone, and justification.
@@ -318,8 +337,31 @@ Findings formally accepted as not blocking M2. Each entry includes the finding I
 | R4-003 | MEDIUM | 2026-04-12 | M3 | No transactional boundary for state + audit. Same as R2-003. |
 | R2-005 | MEDIUM | 2026-04-12 | M5 | Retention policy enforcement mechanism. Enforcement requires archival jobs. |
 
-**Resolved in this session (8):** R3-002, R3-005, R4-001, R6-004, R6-002, R2-004, R2-002a-e
-**Formally accepted (26):** See table above
+**Resolved in v2 session (8):** R3-002, R3-005, R4-001, R6-004, R6-002, R2-004, R2-002a-e
+**Resolved in v3 session (6):** passWithNoTests, audit RLS, pageSize cap, tenant guard, actor identity, key state machine
+**Formally accepted (34):** See table above + wave 3 additions below
+
+### Wave 3 Acceptance Register Additions
+
+| Finding | Severity | Acceptance date | Review milestone | Justification |
+|---|---|---|---|---|
+| R4-001 | MEDIUM | 2026-04-12 | M3 | Type assertions in security-sensitive paths. Replace with narrowing helpers before M4 adds new paths. |
+| R4-003 | MEDIUM | 2026-04-12 | M2 end | Generic Error throws in data-plane processor stubs. Intentional placeholders. Acceptance expires when M2 implementation is complete. |
+| R4-004 | MEDIUM | 2026-04-12 | M3 | State machines use string comparison, not discriminated unions. M3 scope after state machines stabilise through M2. |
+| R5-005 | MEDIUM | 2026-04-12 | M3 | class-transformer 0.5.1 stale dependency. Add to dependency risk register. Review at M3. |
+| R6-004 | HIGH | 2026-04-12 | M5 | No regulator-specific crypto capability (IRBM/LHDN). Same as R8-004. M2/M5 scope. |
+| R6-005 | MEDIUM | 2026-04-12 | M3 | Only 30-day and 7-day expiry alerting, no 90-day. Add keyExpiryWarningDays for 90-day threshold. M3 key lifecycle hardening. |
+| R7-004 | MEDIUM | 2026-04-12 | M4 | Metric labels include tenant_id and partner_profile_id. High-cardinality. Move to structured logs/traces. M4 scope. |
+
+### ADR: Application-Generated Audit Timestamps (R2-004)
+
+**Decision:** The platform generates eventTime in application code and passes it explicitly to both the hash computation and the Prisma create call. The database's `@default(now())` is overridden by the application-supplied value.
+
+**Context:** The R2 auditor prefers database-generated timestamps for clock authority. The prior implementation (pre-M2 v2 Issue 6) fixed a worse problem: the hash was computed from a timestamp that was never persisted, making the hash chain unverifiable.
+
+**Rationale:** Application-generated timestamps guarantee hash chain verifiability — the exact timestamp used in hash computation is the one stored in the database row. Database-generated timestamps guarantee clock authority but would require reading the row back after insert to know the timestamp used, adding latency and a race condition.
+
+**Review:** M3 — when distributed deployment may introduce clock skew concerns. At that point, consider NTP synchronization requirements and whether a hybrid approach (database timestamp with post-insert hash correction) is warranted.
 
 ---
 

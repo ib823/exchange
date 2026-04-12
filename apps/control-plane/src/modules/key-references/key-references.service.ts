@@ -257,6 +257,148 @@ export class KeyReferencesService {
     }
   }
 
+  async suspend(id: string, actor: TokenPayload): Promise<KeyRefRow> {
+    const keyRef = await this.assertTenantOwnership(id, actor.tenantId);
+
+    if (keyRef.state !== 'ACTIVE' && keyRef.state !== 'ROTATING') {
+      throw new SepError(ErrorCode.VALIDATION_SCHEMA_FAILED, {
+        message: `Cannot suspend key in state ${keyRef.state}. Key must be ACTIVE or ROTATING.`,
+        currentState: keyRef.state,
+        targetState: 'SUSPENDED',
+      });
+    }
+
+    const updated = await this.db.keyReference.update({
+      where: { id },
+      data: { state: 'SUSPENDED' },
+      select: KEY_REF_SELECT,
+    });
+
+    await this.audit.record({
+      tenantId: actor.tenantId,
+      actorType: 'USER',
+      actorId: actor.userId,
+      objectType: 'KeyReference',
+      objectId: id,
+      action: 'KEY_REFERENCE_SUSPENDED',
+      result: 'SUCCESS',
+      metadata: { previousState: keyRef.state },
+    });
+
+    return updated;
+  }
+
+  async reinstate(id: string, actor: TokenPayload): Promise<KeyRefRow> {
+    const keyRef = await this.assertTenantOwnership(id, actor.tenantId);
+
+    if (keyRef.state !== 'SUSPENDED') {
+      throw new SepError(ErrorCode.VALIDATION_SCHEMA_FAILED, {
+        message: `Cannot reinstate key in state ${keyRef.state}. Key must be SUSPENDED.`,
+        currentState: keyRef.state,
+        targetState: 'ACTIVE',
+      });
+    }
+
+    const updated = await this.db.keyReference.update({
+      where: { id },
+      data: { state: 'ACTIVE' },
+      select: KEY_REF_SELECT,
+    });
+
+    await this.audit.record({
+      tenantId: actor.tenantId,
+      actorType: 'USER',
+      actorId: actor.userId,
+      objectType: 'KeyReference',
+      objectId: id,
+      action: 'KEY_REFERENCE_REINSTATED',
+      result: 'SUCCESS',
+    });
+
+    return updated;
+  }
+
+  async markCompromised(id: string, actor: TokenPayload, reason: string): Promise<KeyRefRow> {
+    const keyRef = await this.assertTenantOwnership(id, actor.tenantId);
+
+    // COMPROMISED can be reached from any non-terminal state
+    const terminalStates = ['DESTROYED', 'RETIRED'];
+    if (terminalStates.includes(keyRef.state)) {
+      throw new SepError(ErrorCode.VALIDATION_SCHEMA_FAILED, {
+        message: `Cannot mark ${keyRef.state} key as compromised.`,
+        currentState: keyRef.state,
+        targetState: 'COMPROMISED',
+      });
+    }
+
+    const updated = await this.db.keyReference.update({
+      where: { id },
+      data: {
+        state: 'COMPROMISED',
+        revokedAt: new Date(),
+      },
+      select: KEY_REF_SELECT,
+    });
+
+    await this.audit.record({
+      tenantId: actor.tenantId,
+      actorType: 'USER',
+      actorId: actor.userId,
+      objectType: 'KeyReference',
+      objectId: id,
+      action: 'KEY_REFERENCE_COMPROMISED',
+      result: 'SUCCESS',
+      metadata: { previousState: keyRef.state, reason },
+    });
+
+    // Auto-create a P1 incident for compromised key
+    await this.db.incident.create({
+      data: {
+        tenantId: actor.tenantId,
+        severity: 'P1',
+        title: `Key compromised: ${keyRef.name} (${keyRef.fingerprint})`,
+        description: `Key ${id} was marked as COMPROMISED by ${actor.userId}. Reason: ${reason}`,
+        sourceType: 'KEY_COMPROMISE',
+        sourceId: id,
+      },
+    });
+
+    return updated;
+  }
+
+  async destroy(id: string, actor: TokenPayload): Promise<KeyRefRow> {
+    const keyRef = await this.assertTenantOwnership(id, actor.tenantId);
+
+    // DESTROYED can be reached from REVOKED, COMPROMISED, EXPIRED, or RETIRED
+    const allowedFromStates = ['REVOKED', 'COMPROMISED', 'EXPIRED', 'RETIRED'];
+    if (!allowedFromStates.includes(keyRef.state)) {
+      throw new SepError(ErrorCode.VALIDATION_SCHEMA_FAILED, {
+        message: `Cannot destroy key in state ${keyRef.state}. Key must be REVOKED, COMPROMISED, EXPIRED, or RETIRED.`,
+        currentState: keyRef.state,
+        targetState: 'DESTROYED',
+      });
+    }
+
+    const updated = await this.db.keyReference.update({
+      where: { id },
+      data: { state: 'DESTROYED' },
+      select: KEY_REF_SELECT,
+    });
+
+    await this.audit.record({
+      tenantId: actor.tenantId,
+      actorType: 'USER',
+      actorId: actor.userId,
+      objectType: 'KeyReference',
+      objectId: id,
+      action: 'KEY_REFERENCE_DESTROYED',
+      result: 'SUCCESS',
+      metadata: { previousState: keyRef.state },
+    });
+
+    return updated;
+  }
+
   private addExpiryFlag(keyRef: KeyRefRow): KeyRefWithExpiry {
     if (keyRef.expiresAt === null) {
       return { ...keyRef, expiringWithinDays: null };

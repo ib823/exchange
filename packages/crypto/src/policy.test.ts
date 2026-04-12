@@ -163,4 +163,24 @@ describe('enforcePolicy', () => {
       }
     });
   });
+
+  describe('new key states (SUSPENDED, COMPROMISED, DESTROYED)', () => {
+    it('rejects a SUSPENDED key (CRYPTO_KEY_INVALID_STATE)', () => {
+      const suspended = makeKeyRef({ state: 'SUSPENDED' });
+      expect(() => enforcePolicy(DEFAULT_ALGORITHM_POLICY, suspended, 'rsa', 'ENCRYPT', 'TEST'))
+        .toThrowError(expect.objectContaining({ code: ErrorCode.CRYPTO_KEY_INVALID_STATE }) as Error);
+    });
+
+    it('rejects a COMPROMISED key (CRYPTO_KEY_INVALID_STATE)', () => {
+      const compromised = makeKeyRef({ state: 'COMPROMISED', revokedAt: new Date() });
+      expect(() => enforcePolicy(DEFAULT_ALGORITHM_POLICY, compromised, 'rsa', 'ENCRYPT', 'TEST'))
+        .toThrowError(expect.objectContaining({ code: ErrorCode.CRYPTO_KEY_INVALID_STATE }) as Error);
+    });
+
+    it('rejects a DESTROYED key (CRYPTO_KEY_INVALID_STATE)', () => {
+      const destroyed = makeKeyRef({ state: 'DESTROYED' });
+      expect(() => enforcePolicy(DEFAULT_ALGORITHM_POLICY, destroyed, 'rsa', 'ENCRYPT', 'TEST'))
+        .toThrowError(expect.objectContaining({ code: ErrorCode.CRYPTO_KEY_INVALID_STATE }) as Error);
+    });
+  });
 });

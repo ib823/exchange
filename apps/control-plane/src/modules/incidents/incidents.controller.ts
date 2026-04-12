@@ -8,6 +8,7 @@ import {
 import { IncidentsService } from './incidents.service';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { SepError, ErrorCode } from '@sep/common';
+import { PageSizePipe } from '../../common/pipes/page-size.pipe';
 import type { TokenPayload } from '../auth/auth.service';
 import type { FastifyRequest } from 'fastify';
 import { z } from 'zod';
@@ -83,7 +84,7 @@ export class IncidentsController {
   @ApiResponse({ status: 200, description: 'Incident list' })
   async list(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('pageSize', new DefaultValuePipe(20), ParseIntPipe) pageSize: number,
+    @Query('pageSize', new DefaultValuePipe(20), PageSizePipe) pageSize: number,
     @Query('state') state: string | undefined,
     @Query('severity') severity: string | undefined,
     @Request() req?: FastifyRequest & { user: TokenPayload },

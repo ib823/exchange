@@ -13,6 +13,9 @@ const mockDb = {
   approval: {
     findFirst: vi.fn(),
   },
+  incident: {
+    create: vi.fn(),
+  },
 };
 
 vi.mock('@sep/db', () => ({
@@ -285,6 +288,86 @@ describe('KeyReferencesService', () => {
       const result = await service.activate('key-1', actor);
       expect(result.state).toBe('ACTIVE');
       expect(mockDb.approval.findFirst).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('key state machine — SUSPENDED, COMPROMISED, DESTROYED', () => {
+    const activeKey = { ...baseKeyRef, state: 'ACTIVE', environment: 'TEST' };
+    const suspendedKey = { ...baseKeyRef, state: 'SUSPENDED' };
+    const compromisedKey = { ...baseKeyRef, state: 'COMPROMISED', revokedAt: new Date() };
+    const revokedKey = { ...baseKeyRef, state: 'REVOKED', revokedAt: new Date() };
+
+    it('suspends an ACTIVE key', async () => {
+      mockDb.keyReference.findUnique.mockResolvedValue(activeKey);
+      mockDb.keyReference.update.mockResolvedValue(suspendedKey);
+
+      const result = await service.suspend('key-1', actor);
+      expect(result.state).toBe('SUSPENDED');
+      expect(mockAudit.record).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'KEY_REFERENCE_SUSPENDED' }),
+      );
+    });
+
+    it('rejects suspending a DRAFT key', async () => {
+      mockDb.keyReference.findUnique.mockResolvedValue(baseKeyRef);
+      await expect(service.suspend('key-1', actor)).rejects.toThrow('VALIDATION_SCHEMA_FAILED');
+    });
+
+    it('reinstates a SUSPENDED key to ACTIVE', async () => {
+      mockDb.keyReference.findUnique.mockResolvedValue(suspendedKey);
+      mockDb.keyReference.update.mockResolvedValue({ ...baseKeyRef, state: 'ACTIVE' });
+
+      const result = await service.reinstate('key-1', actor);
+      expect(result.state).toBe('ACTIVE');
+      expect(mockAudit.record).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'KEY_REFERENCE_REINSTATED' }),
+      );
+    });
+
+    it('rejects reinstating an ACTIVE key', async () => {
+      mockDb.keyReference.findUnique.mockResolvedValue(activeKey);
+      await expect(service.reinstate('key-1', actor)).rejects.toThrow('VALIDATION_SCHEMA_FAILED');
+    });
+
+    it('marks key as COMPROMISED and creates P1 incident', async () => {
+      mockDb.keyReference.findUnique.mockResolvedValue(activeKey);
+      mockDb.keyReference.update.mockResolvedValue(compromisedKey);
+      mockDb.incident.create.mockResolvedValue({ id: 'inc-1' });
+
+      const result = await service.markCompromised('key-1', actor, 'Private key exposed');
+      expect(result.state).toBe('COMPROMISED');
+      expect(mockAudit.record).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'KEY_REFERENCE_COMPROMISED' }),
+      );
+      expect(mockDb.incident.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          severity: 'P1',
+          sourceType: 'KEY_COMPROMISE',
+          sourceId: 'key-1',
+        }),
+      });
+    });
+
+    it('rejects marking a DESTROYED key as compromised', async () => {
+      const destroyedKey = { ...baseKeyRef, state: 'DESTROYED' };
+      mockDb.keyReference.findUnique.mockResolvedValue(destroyedKey);
+      await expect(service.markCompromised('key-1', actor, 'reason')).rejects.toThrow('VALIDATION_SCHEMA_FAILED');
+    });
+
+    it('destroys a REVOKED key', async () => {
+      mockDb.keyReference.findUnique.mockResolvedValue(revokedKey);
+      mockDb.keyReference.update.mockResolvedValue({ ...baseKeyRef, state: 'DESTROYED' });
+
+      const result = await service.destroy('key-1', actor);
+      expect(result.state).toBe('DESTROYED');
+      expect(mockAudit.record).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'KEY_REFERENCE_DESTROYED' }),
+      );
+    });
+
+    it('rejects destroying an ACTIVE key', async () => {
+      mockDb.keyReference.findUnique.mockResolvedValue(activeKey);
+      await expect(service.destroy('key-1', actor)).rejects.toThrow('VALIDATION_SCHEMA_FAILED');
     });
   });
 });

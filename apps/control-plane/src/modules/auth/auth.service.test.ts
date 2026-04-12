@@ -53,6 +53,7 @@ const mockJwtService = {
 const baseApiKey = {
   id: 'key-1',
   tenantId: 'tenant-1',
+  name: 'ci-integration-key',
   prefix: 'abcd1234',
   keyHash: 'hashed:abcd1234-full-key-value',
   role: 'INTEGRATION_ENGINEER',
@@ -79,10 +80,11 @@ describe('AuthService', () => {
       const result = await service.validateApiKey('abcd1234-full-key-value');
 
       expect(result).toEqual({
-        userId: 'key-1',
+        userId: 'apikey:ci-integration-key@tenant-1',
         tenantId: 'tenant-1',
         role: 'INTEGRATION_ENGINEER',
         email: 'apikey:abcd1234',
+        credentialId: 'key-1',
       });
     });
 
@@ -131,6 +133,20 @@ describe('AuthService', () => {
       await expect(
         service.validateApiKey('abcd1234-full-key-value'),
       ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('actor identity (userId) is not the API key row ID', async () => {
+      mockDb.apiKey.findMany.mockResolvedValue([baseApiKey]);
+      mockDb.tenant.findUnique.mockResolvedValue({ status: 'ACTIVE' });
+
+      const result = await service.validateApiKey('abcd1234-full-key-value');
+
+      // userId must NOT equal the API key's database row ID
+      expect(result.userId).not.toBe('key-1');
+      // userId must be traceable to a named entity
+      expect(result.userId).toContain('ci-integration-key');
+      // credentialId carries the API key row ID separately
+      expect(result.credentialId).toBe('key-1');
     });
 
     it('returns correct tenantId from the matched key', async () => {

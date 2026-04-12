@@ -120,6 +120,9 @@ export const KeyState = {
   EXPIRED: 'EXPIRED',
   REVOKED: 'REVOKED',
   RETIRED: 'RETIRED',
+  SUSPENDED: 'SUSPENDED',
+  COMPROMISED: 'COMPROMISED',
+  DESTROYED: 'DESTROYED',
 } as const;
 export type KeyState = (typeof KeyState)[keyof typeof KeyState];
 

@@ -8,6 +8,7 @@ import {
 import { WebhooksService } from './webhooks.service';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { SepError, ErrorCode } from '@sep/common';
+import { PageSizePipe } from '../../common/pipes/page-size.pipe';
 import type { TokenPayload } from '../auth/auth.service';
 import type { FastifyRequest } from 'fastify';
 import { z } from 'zod';
@@ -58,7 +59,7 @@ export class WebhooksController {
   @ApiResponse({ status: 200, description: 'Webhook list' })
   async list(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('pageSize', new DefaultValuePipe(20), ParseIntPipe) pageSize: number,
+    @Query('pageSize', new DefaultValuePipe(20), PageSizePipe) pageSize: number,
     @Request() req: FastifyRequest & { user: TokenPayload },
   ): Promise<unknown> {
     return this.service.findAll(req.user, page, pageSize);

@@ -13,6 +13,8 @@ export interface TokenPayload {
   tenantId: string;
   role: string;
   email: string;
+  /** Credential identifier — the API key ID or prefix that authenticated this session */
+  credentialId?: string;
 }
 
 export interface AuthTokens {
@@ -81,10 +83,11 @@ export class AuthService {
     });
 
     return {
-      userId: apiKey.id,
+      userId: `apikey:${apiKey.name}@${apiKey.tenantId}`,
       tenantId: apiKey.tenantId,
       role: apiKey.role,
       email: `apikey:${prefix}`,
+      credentialId: apiKey.id,
     };
   }
 

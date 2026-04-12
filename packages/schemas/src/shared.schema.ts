@@ -16,6 +16,7 @@ export const SubmissionStatusSchema = z.enum([
 ]);
 export const KeyStateSchema = z.enum([
   'DRAFT','IMPORTED','VALIDATED','ACTIVE','ROTATING','EXPIRED','REVOKED','RETIRED',
+  'SUSPENDED','COMPROMISED','DESTROYED',
 ]);
 export const PartnerProfileStatusSchema = z.enum([
   'DRAFT','TEST_READY','TEST_APPROVED','PROD_PENDING_APPROVAL',

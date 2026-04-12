@@ -5,7 +5,7 @@ export default defineConfig({
   test: {
     name: '@sep/schemas',
     globals: true,
-    passWithNoTests: true,
+
     environment: 'node',
     coverage: {
       provider: 'v8',

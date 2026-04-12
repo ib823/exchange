@@ -9,6 +9,7 @@ import { TenantsService } from './tenants.service';
 import { Roles, SkipTenantCheck } from '../../common/decorators/roles.decorator';
 import { CreateTenantSchema, UpdateTenantSchema, type CreateTenantDto, type UpdateTenantDto } from '@sep/schemas';
 import { SepError, ErrorCode } from '@sep/common';
+import { PageSizePipe } from '../../common/pipes/page-size.pipe';
 import type { TokenPayload } from '../auth/auth.service';
 import type { FastifyRequest } from 'fastify';
 
@@ -53,7 +54,7 @@ export class TenantsController {
   @ApiResponse({ status: 200, description: 'Tenant list' })
   async list(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('pageSize', new DefaultValuePipe(20), ParseIntPipe) pageSize: number,
+    @Query('pageSize', new DefaultValuePipe(20), PageSizePipe) pageSize: number,
     @Request() req: FastifyRequest & { user: TokenPayload },
   ): Promise<unknown> {
     return this.tenantsService.findAll(req.user, page, pageSize);
