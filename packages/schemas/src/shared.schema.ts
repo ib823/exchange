@@ -28,7 +28,7 @@ export const PaginationSchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });
 
-export const CuidSchema = z.string().min(1).max(64);
+export const CuidSchema = z.string().cuid();
 export const CorrelationIdSchema = z.string().uuid().or(z.string().cuid());
 export const IdempotencyKeySchema = z.string().min(1).max(255);
 export const TenantIdParamSchema = z.object({ tenantId: CuidSchema });

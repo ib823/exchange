@@ -43,7 +43,7 @@ const ConfigSchema = z.object({
     region: z.string().default('ap-southeast-1'),
     bucketPayloads: z.string().min(1),
     bucketAuditExports: z.string().min(1),
-    forcePathStyle: z.coerce.boolean().default(true),
+    forcePathStyle: z.enum(['true', 'false']).transform((v) => v === 'true').default('true'),
     maxPayloadSizeBytes: z.coerce.number().int().positive().default(52_428_800),
   }),
 
@@ -111,11 +111,11 @@ const ConfigSchema = z.object({
   }),
 
   features: z.object({
-    dualControlEnabled: z.coerce.boolean().default(true),
-    webhookEnabled: z.coerce.boolean().default(true),
-    auditExportEnabled: z.coerce.boolean().default(true),
-    keyRotationEnabled: z.coerce.boolean().default(true),
-    malwareScanEnabled: z.coerce.boolean().default(false),
+    dualControlEnabled: z.enum(['true', 'false']).transform((v) => v === 'true').default('true'),
+    webhookEnabled: z.enum(['true', 'false']).transform((v) => v === 'true').default('true'),
+    auditExportEnabled: z.enum(['true', 'false']).transform((v) => v === 'true').default('true'),
+    keyRotationEnabled: z.enum(['true', 'false']).transform((v) => v === 'true').default('true'),
+    malwareScanEnabled: z.enum(['true', 'false']).transform((v) => v === 'true').default('false'),
   }),
 });
 

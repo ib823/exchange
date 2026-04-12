@@ -60,8 +60,12 @@ export class TenantGuard implements CanActivate {
     const requestedTenantId = pathTenantId ?? bodyTenantId;
 
     if (requestedTenantId === undefined) {
-      // No tenantId in request — allow through, service layer enforces boundary
-      return true;
+      // No tenantId extractable — fail closed unless route is explicitly cross-tenant
+      throw new ForbiddenException(
+        new SepError(ErrorCode.TENANT_BOUNDARY_VIOLATION, {
+          reason: 'tenantId could not be determined from request',
+        }).toClientJson(),
+      );
     }
 
     if (requestedTenantId !== user.tenantId) {

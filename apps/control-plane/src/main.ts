@@ -25,7 +25,6 @@ async function bootstrap(): Promise<void> {
 
   // ── Security headers ──────────────────────────────────────────────────────
   await app.register(
-    // @ts-expect-error — fastify-helmet types
     await import('@fastify/helmet').then((m) => m.default),
     {
       contentSecurityPolicy: {

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "next build",
+    "build": "echo 'operator-console build deferred to M4'",
     "dev": "next dev --port 3002",
     "start": "next start --port 3002",
     "lint": "next lint",

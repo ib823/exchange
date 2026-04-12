@@ -48,7 +48,13 @@
   },
   "pnpm": {
     "overrides": {
-      "undici": ">=5.28.4"
+      "undici": ">=5.28.4",
+      "tar": ">=7.5.11",
+      "glob": ">=10.5.0",
+      "picomatch": ">=4.0.4",
+      "lodash": ">=4.18.0",
+      "@fastify/middie": ">=9.2.0",
+      "fastify": ">=5.7.2"
     }
   }
 }
