@@ -4,6 +4,15 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { JwtModule } from '@nestjs/jwt';
 import { getConfig } from '@sep/common';
 import { HealthModule } from './modules/health/health.module';
+import { AuditModule } from './modules/audit/audit.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { TenantsModule } from './modules/tenants/tenants.module';
+import { PartnerProfilesModule } from './modules/partner-profiles/partner-profiles.module';
+import { SubmissionsModule } from './modules/submissions/submissions.module';
+import { KeyReferencesModule } from './modules/key-references/key-references.module';
+import { IncidentsModule } from './modules/incidents/incidents.module';
+import { ApprovalsModule } from './modules/approvals/approvals.module';
+import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
@@ -22,11 +31,16 @@ const cfg = getConfig();
       secret: cfg.auth.jwtSecret,
       signOptions: { expiresIn: cfg.auth.jwtExpiry, issuer: cfg.auth.jwtIssuer },
     }),
+    AuditModule,
+    AuthModule,
+    TenantsModule,
+    PartnerProfilesModule,
+    SubmissionsModule,
+    KeyReferencesModule,
+    IncidentsModule,
+    ApprovalsModule,
+    WebhooksModule,
     HealthModule,
-    // M1 modules added here as each is implemented and tested:
-    // AuthModule, TenantsModule, PartnerProfilesModule, SubmissionsModule,
-    // KeyReferencesModule, IncidentsModule, AuditModule,
-    // WebhooksModule, ApprovalsModule
   ],
   providers: [
     Reflector,

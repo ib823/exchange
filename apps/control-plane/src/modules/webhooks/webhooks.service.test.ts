@@ -1,0 +1,134 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { WebhooksService } from './webhooks.service';
+import { AuditService } from '../audit/audit.service';
+
+const mockDb = {
+  webhook: {
+    create: vi.fn(),
+    findUnique: vi.fn(),
+    findMany: vi.fn(),
+    count: vi.fn(),
+    update: vi.fn(),
+  },
+};
+
+vi.mock('@sep/db', () => ({
+  getPrismaClient: (): typeof mockDb => mockDb,
+  Prisma: { JsonNull: 'DbNull' },
+}));
+
+const mockAudit = { record: vi.fn().mockResolvedValue(undefined) };
+
+const actor = {
+  userId: 'user-1',
+  tenantId: 'tenant-1',
+  role: 'INTEGRATION_ENGINEER',
+  email: 'eng@tenant.local',
+};
+
+const crossTenantActor = {
+  userId: 'user-2',
+  tenantId: 'tenant-other',
+  role: 'INTEGRATION_ENGINEER',
+  email: 'eng@other.local',
+};
+
+const baseWebhook = {
+  id: 'wh-1',
+  tenantId: 'tenant-1',
+  url: 'https://example.com/webhook',
+  events: ['SUBMISSION_COMPLETED', 'SUBMISSION_FAILED'],
+  active: true,
+  successCount: 0,
+  failureCount: 0,
+  lastFiredAt: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+};
+
+describe('WebhooksService', () => {
+  let service: WebhooksService;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    service = new WebhooksService(mockAudit as unknown as AuditService);
+  });
+
+  describe('create', () => {
+    it('creates a webhook and records audit event', async () => {
+      mockDb.webhook.create.mockResolvedValue(baseWebhook);
+
+      const result = await service.create(
+        {
+          tenantId: 'tenant-1',
+          url: 'https://example.com/webhook',
+          events: ['SUBMISSION_COMPLETED', 'SUBMISSION_FAILED'],
+          secretRef: 'vault://secrets/wh-1',
+        },
+        actor,
+      );
+
+      expect(result).toEqual(baseWebhook);
+      expect(mockAudit.record).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'WEBHOOK_REGISTERED', result: 'SUCCESS' }),
+      );
+    });
+  });
+
+  describe('findById', () => {
+    it('returns webhook when actor is tenant owner', async () => {
+      mockDb.webhook.findUnique.mockResolvedValue(baseWebhook);
+      const result = await service.findById('wh-1', actor);
+      expect(result).toEqual(baseWebhook);
+    });
+
+    it('throws NotFoundException for cross-tenant access (404, not 403)', async () => {
+      mockDb.webhook.findUnique.mockResolvedValue(baseWebhook);
+      await expect(
+        service.findById('wh-1', crossTenantActor),
+      ).rejects.toThrow('Webhook not found');
+      await expect(
+        service.findById('wh-1', crossTenantActor),
+      ).rejects.toThrow(expect.objectContaining({ status: 404 }) as Error);
+    });
+
+    it('throws NotFoundException when webhook does not exist', async () => {
+      mockDb.webhook.findUnique.mockResolvedValue(null);
+      await expect(
+        service.findById('wh-missing', actor),
+      ).rejects.toThrow('Webhook not found');
+    });
+  });
+
+  describe('deactivate', () => {
+    it('deactivates a webhook and records audit event', async () => {
+      const deactivated = { ...baseWebhook, active: false };
+      mockDb.webhook.findUnique.mockResolvedValue(baseWebhook);
+      mockDb.webhook.update.mockResolvedValue(deactivated);
+
+      const result = await service.deactivate('wh-1', actor);
+
+      expect(result.active).toBe(false);
+      expect(mockAudit.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'WEBHOOK_REGISTERED',
+          result: 'SUCCESS',
+          metadata: { action: 'deactivated' },
+        }),
+      );
+    });
+  });
+
+  describe('findAll', () => {
+    it('returns paginated webhooks for the actor tenant', async () => {
+      mockDb.webhook.findMany.mockResolvedValue([baseWebhook]);
+      mockDb.webhook.count.mockResolvedValue(1);
+
+      const result = await service.findAll(actor, 1, 20);
+
+      expect(result.data).toHaveLength(1);
+      expect(result.meta.total).toBe(1);
+      expect(result.meta.page).toBe(1);
+    });
+  });
+});
