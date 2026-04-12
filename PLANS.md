@@ -1,7 +1,7 @@
 # PLANS.md — Milestone Tracker
 # Update this file after every session. It is the source of truth for delivery state.
 
-Version: 1.0 | Last updated: 2026-04-12
+Version: 1.1 | Last updated: 2026-04-12 | M0 COMPLETE
 
 ---
 
@@ -9,8 +9,8 @@ Version: 1.0 | Last updated: 2026-04-12
 
 | Milestone | Status | Exit criteria met | Notes |
 |---|---|---|---|
-| M0 Repository bootstrap | 🔴 NOT STARTED | No | |
-| M1 Domain + control plane | 🔴 NOT STARTED | No | Blocked by M0 |
+| M0 Repository bootstrap | 🟢 COMPLETE | Yes | Completed 2026-04-12 |
+| M1 Domain + control plane | 🔴 NOT STARTED | No | M0 complete, ready to start |
 | M2 Data plane + transport | 🔴 NOT STARTED | No | Blocked by M1 |
 | M3 Security + trust | 🔴 NOT STARTED | No | Blocked by M2 |
 | M4 Operator console | 🔴 NOT STARTED | No | Can start parallel to M3 |
@@ -26,32 +26,33 @@ Status legend: 🔴 NOT STARTED | 🟡 IN PROGRESS | 🟢 COMPLETE | 🔵 BLOCKE
 **Objective:** Clean, green, deployable scaffold. Nothing business-specific yet.
 
 **Detailed tasks:**
-- [ ] M0.1 pnpm workspace root init
-- [ ] M0.2 turbo.json pipeline config
-- [ ] M0.3 tsconfig.base.json (strict: true, paths, incremental)
-- [ ] M0.4 Scaffold all app and package directories
-- [ ] M0.5 packages/common — error classes, enums, config loader
-- [ ] M0.6 packages/schemas — Zod schemas for all domain entities
-- [ ] M0.7 packages/observability — Pino factory + OTEL stub
-- [ ] M0.8 packages/db — Prisma schema (all entities from data model spec)
-- [ ] M0.9 docker-compose.yml — postgres:16, redis:7, minio, vault:dev
-- [ ] M0.10 docker-compose.test.yml — isolated test ports
-- [ ] M0.11 .env.example — all vars documented
-- [ ] M0.12 ESLint + Prettier baseline config
-- [ ] M0.13 GitHub Actions CI pipeline
-- [ ] M0.14 First Prisma migration (empty schema, just structure)
-- [ ] M0.15 Verify: `pnpm install && docker compose up -d && pnpm build && pnpm test` all pass
+- [x] M0.1 pnpm workspace root init
+- [x] M0.2 turbo.json pipeline config
+- [x] M0.3 tsconfig.base.json (strict: true, paths, incremental)
+- [x] M0.4 Scaffold all app and package directories
+- [x] M0.5 packages/common — error classes, enums, config loader
+- [x] M0.6 packages/schemas — Zod schemas for all domain entities
+- [x] M0.7 packages/observability — Pino factory + OTEL stub
+- [x] M0.8 packages/db — Prisma schema (all entities from data model spec)
+- [x] M0.9 docker-compose.yml — postgres:16, redis:7, minio, vault:dev
+- [x] M0.10 docker-compose.test.yml — isolated test ports
+- [x] M0.11 .env.example — all vars documented
+- [x] M0.12 ESLint + Prettier baseline config
+- [x] M0.13 GitHub Actions CI pipeline
+- [x] M0.14 First Prisma migration (empty schema, just structure)
+- [x] M0.15 Verify: `pnpm install && docker compose up -d && pnpm build && pnpm test` all pass
 
 **Exit criteria checklist:**
-- [ ] `pnpm install` exits 0
-- [ ] `pnpm build` exits 0 (all packages)
-- [ ] `pnpm test` exits 0 (empty suites pass)
-- [ ] `docker compose up -d` starts all services healthy
-- [ ] `pnpm prisma db push` applies schema
+- [x] `pnpm install` exits 0
+- [x] `pnpm build` exits 0 (all packages)
+- [x] `pnpm test` exits 0 (empty suites pass)
+- [x] `docker compose up -d` starts all services healthy
+- [x] `pnpm prisma db push` applies schema
 - [ ] CI pipeline runs green on push
-- [ ] No secrets in any file
+- [x] No secrets in any file
 
 **Blockers:** None
+**Completed:** 2026-04-12
 
 ---
 
