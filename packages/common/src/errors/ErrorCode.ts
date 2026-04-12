@@ -102,6 +102,7 @@ export enum ErrorCode {
 /** Errors that should never be retried — fail closed permanently */
 export const TERMINAL_ERROR_CODES = new Set<ErrorCode>([
   ErrorCode.CRYPTO_KEY_EXPIRED,
+  ErrorCode.CRYPTO_KEY_INVALID_STATE,
   ErrorCode.CRYPTO_VERIFICATION_FAILED,
   ErrorCode.CRYPTO_POLICY_VIOLATION,
   ErrorCode.CRYPTO_UNSUPPORTED_ALGORITHM,

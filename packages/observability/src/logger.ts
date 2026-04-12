@@ -14,13 +14,7 @@ export function setLogLevel(level: string): void {
   _appLogLevel = level;
 }
 
-function buildOptions(ctx: LoggerContext): LoggerOptions {
-  /* eslint-disable no-process-env -- logger initializes before config layer is ready */
-  const isDev =
-    typeof process !== 'undefined' &&
-    (process.env['NODE_ENV'] === 'development' || process.env['APP_ENV'] === 'local');
-  /* eslint-enable no-process-env */
-
+function buildOptions(ctx: LoggerContext, isDev: boolean): LoggerOptions {
   const opts: LoggerOptions = {
     level: _appLogLevel,
     redact: {
@@ -62,8 +56,8 @@ function buildOptions(ctx: LoggerContext): LoggerOptions {
  * const logger = createLogger({ service: 'control-plane', module: 'submissions' });
  * logger.info({ submissionId, tenantId }, 'Submission accepted');
  */
-export function createLogger(ctx: LoggerContext): Logger {
-  const base = pino(buildOptions(ctx));
+export function createLogger(ctx: LoggerContext, isDev = false): Logger {
+  const base = pino(buildOptions(ctx, isDev));
   if (ctx.tenantId !== undefined || ctx.correlationId !== undefined) {
     return base.child({
       tenantId: ctx.tenantId,

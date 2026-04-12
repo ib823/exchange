@@ -39,6 +39,12 @@ export interface KeyRef {
   backendRef: string;
   /** Algorithm hint — used to select correct openpgp options */
   algorithm: string;
+  /** Key lifecycle state — must be ACTIVE for any crypto operation */
+  state: 'DRAFT' | 'IMPORTED' | 'VALIDATED' | 'ACTIVE' | 'ROTATING' | 'EXPIRED' | 'REVOKED' | 'RETIRED';
+  /** Operations this key is authorised for */
+  allowedUsages: Array<'ENCRYPT' | 'DECRYPT' | 'SIGN' | 'VERIFY'>;
+  /** Revocation timestamp — if set, key must not be used */
+  revokedAt: Date | null;
   /** Expiry — checked before any operation */
   expiresAt: Date | null;
   /** Environment — must match submission environment */

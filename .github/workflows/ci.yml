@@ -6,6 +6,14 @@ on:
   pull_request:
     branches: [main, develop]
 
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   NODE_VERSION: '20'
   PNPM_VERSION: '9'
@@ -192,7 +200,9 @@ jobs:
         with:
           name: build-artifacts
       - name: Run DB migrations
-        run: pnpm db:migrate
+        run: pnpm --filter @sep/db exec prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
       - run: pnpm test:e2e
 
   # ─────────────────────────────────────────────────────────
@@ -215,7 +225,7 @@ jobs:
       - name: Dependency audit
         run: pnpm audit --audit-level=high
       - name: Secret scanning
-        uses: trufflesecurity/trufflehog@main
+        uses: trufflesecurity/trufflehog@580628bb9d5455140899afe2cb981ff5640bf399  # main as of remediation date
         with:
           path: ./
           base: ${{ github.event.repository.default_branch }}

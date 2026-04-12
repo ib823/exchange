@@ -12,7 +12,10 @@ async function bootstrap(): Promise<void> {
   const cfg = getConfig();
   setLogLevel(cfg.app.logLevel);
 
-  const logger = createLogger({ service: 'control-plane', module: 'bootstrap' });
+  const logger = createLogger(
+    { service: 'control-plane', module: 'bootstrap' },
+    cfg.app.appEnv === 'local' || cfg.app.nodeEnv === 'development',
+  );
 
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,

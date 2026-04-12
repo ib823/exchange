@@ -10,6 +10,7 @@ Version: 1.1 | Last updated: 2026-04-12 | M0 COMPLETE
 | Milestone | Status | Exit criteria met | Notes |
 |---|---|---|---|
 | M0 Repository bootstrap | 🟢 COMPLETE | Yes | Completed 2026-04-12 |
+| Pre-M1 Remediation | 🟢 COMPLETE | Yes | 8 defects fixed 2026-04-12 |
 | M1 Domain + control plane | 🔴 NOT STARTED | No | M0 complete, ready to start |
 | M2 Data plane + transport | 🔴 NOT STARTED | No | Blocked by M1 |
 | M3 Security + trust | 🔴 NOT STARTED | No | Blocked by M2 |
