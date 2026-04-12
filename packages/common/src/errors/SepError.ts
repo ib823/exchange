@@ -7,7 +7,68 @@ export interface SepErrorContext {
   readonly keyId?: string;
   readonly profileId?: string;
   readonly attemptNo?: number;
-  readonly [key: string]: unknown;
+  readonly reason?: string;
+  readonly message?: string;
+  readonly currentStatus?: string;
+  readonly targetStatus?: string;
+  readonly currentState?: string;
+  readonly targetState?: string;
+  readonly allowedTransitions?: string[];
+  readonly allowedStates?: string[];
+  readonly existingSubmissionId?: string;
+  readonly idempotencyKey?: string;
+  readonly operation?: string;
+  readonly action?: string;
+  readonly expiresAt?: string;
+  readonly initiatorId?: string;
+  readonly actorId?: string;
+  readonly approverId?: string;
+  readonly objectType?: string;
+  readonly objectId?: string;
+  readonly requiredRole?: string;
+  readonly actualRole?: string;
+  readonly method?: string;
+  readonly path?: string;
+  readonly resourceType?: string;
+  readonly requestedTenantId?: string;
+  readonly environment?: string;
+  readonly keyEnvironment?: string;
+  readonly keyState?: string;
+  readonly keyUsage?: string;
+  readonly usage?: string;
+  readonly algorithm?: string;
+  readonly allowedAlgorithms?: string[];
+  readonly cipher?: string;
+  readonly allowedCiphers?: string[];
+  readonly hash?: string;
+  readonly allowedHashes?: string[];
+  readonly bits?: number;
+  readonly minimumBits?: number;
+  readonly revoked?: boolean;
+  readonly currentSeverity?: string;
+  readonly requestedSeverity?: string;
+  readonly resolvedStates?: string[];
+  readonly severity?: string;
+  readonly state?: string;
+  readonly newSeverity?: string;
+  readonly keyReferenceId?: string;
+  readonly requiredState?: string;
+  readonly revokedAt?: string;
+  readonly submissionEnvironment?: string;
+  readonly violatedRule?: string;
+  readonly intendedUsage?: string;
+  readonly allowedUsages?: string[];
+  readonly expiredAt?: string;
+  readonly provided?: string;
+  readonly allowed?: string[];
+  readonly keySize?: number;
+  readonly minRequired?: number;
+  readonly fromState?: string;
+  readonly toState?: string;
+  readonly fromSeverity?: string;
+  readonly toSeverity?: string;
+  readonly field?: string;
+  readonly issues?: ReadonlyArray<{ path: string; message: string }>;
 }
 
 export interface SepErrorJson {
@@ -16,7 +77,7 @@ export interface SepErrorJson {
   retryable: boolean;
   terminal: boolean;
   correlationId?: string;
-  context?: Record<string, unknown>;
+  context?: SepErrorContext;
 }
 
 /**

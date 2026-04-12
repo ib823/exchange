@@ -9,7 +9,7 @@ const cfg = getConfig();
 @Module({
   imports: [JwtModule.register({
     secret: cfg.auth.jwtSecret,
-    signOptions: { expiresIn: cfg.auth.jwtExpiry, issuer: cfg.auth.jwtIssuer },
+    signOptions: { expiresIn: cfg.auth.jwtExpiry as `${number}m`, issuer: cfg.auth.jwtIssuer },
   })],
   providers: [AuthService],
   controllers: [AuthController],

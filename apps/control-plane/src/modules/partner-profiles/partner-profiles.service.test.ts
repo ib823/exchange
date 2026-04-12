@@ -152,15 +152,25 @@ describe('PartnerProfilesService', () => {
       ).rejects.toThrow('dual-control approval');
     });
 
-    it('allows PROD_PENDING_APPROVAL -> PROD_ACTIVE when approval exists', async () => {
+    it('allows PROD_PENDING_APPROVAL -> PROD_ACTIVE when approval exists with distinct approver', async () => {
       const pendingProfile = { ...baseProfile, status: 'PROD_PENDING_APPROVAL' };
       const activeProfile = { ...baseProfile, status: 'PROD_ACTIVE', version: 2 };
       mockDb.partnerProfile.findUnique.mockResolvedValue(pendingProfile);
-      mockDb.approval.findFirst.mockResolvedValue({ id: 'approval-1', status: 'APPROVED' });
+      mockDb.approval.findFirst.mockResolvedValue({ id: 'approval-1', status: 'APPROVED', initiatorId: 'user-A', approverId: 'user-B' });
       mockDb.partnerProfile.update.mockResolvedValue(activeProfile);
 
       const result = await service.transition('profile-1', 'PROD_ACTIVE', actor);
       expect(result.status).toBe('PROD_ACTIVE');
+    });
+
+    it('rejects PROD_PENDING_APPROVAL -> PROD_ACTIVE when initiator equals approver', async () => {
+      const pendingProfile = { ...baseProfile, status: 'PROD_PENDING_APPROVAL' };
+      mockDb.partnerProfile.findUnique.mockResolvedValue(pendingProfile);
+      mockDb.approval.findFirst.mockResolvedValue({ id: 'approval-1', status: 'APPROVED', initiatorId: 'user-A', approverId: 'user-A' });
+
+      await expect(
+        service.transition('profile-1', 'PROD_ACTIVE', actor),
+      ).rejects.toThrow('Initiator and approver must be different users');
     });
 
     it('allows SUSPENDED -> PROD_ACTIVE without approval (resume)', async () => {

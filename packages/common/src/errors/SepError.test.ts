@@ -26,14 +26,14 @@ describe('SepError', () => {
   it('toClientJson does not expose internal context', () => {
     const err = new SepError(ErrorCode.DATABASE_ERROR, {
       tenantId: 'tenant-123',
-      internalQuery: 'SELECT * FROM secrets',
+      operation: 'query',
       correlationId: 'corr-abc',
     });
     const json = err.toClientJson();
     expect(json.correlationId).toBe('corr-abc');
     expect('context' in json).toBe(false);
-    expect(JSON.stringify(json)).not.toContain('internalQuery');
-    expect(JSON.stringify(json)).not.toContain('SELECT');
+    expect(JSON.stringify(json)).not.toContain('operation');
+    expect(JSON.stringify(json)).not.toContain('query');
   });
 
   it('toLogJson includes context for internal logging', () => {

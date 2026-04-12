@@ -121,8 +121,8 @@ export class AuditService {
           id: true, tenantId: true, actorType: true, actorId: true,
           actorRole: true, objectType: true, objectId: true, action: true,
           result: true, correlationId: true, eventTime: true,
-          immutableHash: true, metadata: true,
-          // Never return previousHash in search — internal chain integrity only
+          metadata: true,
+          // Never return immutableHash or previousHash — internal chain integrity only
         },
       }),
       this.db.auditEvent.count({ where }),

@@ -188,6 +188,13 @@ export class PartnerProfilesService {
           profileId: id,
         });
       }
+
+      if (approval.initiatorId === approval.approverId) {
+        throw new SepError(ErrorCode.APPROVAL_SELF_APPROVAL_FORBIDDEN, {
+          message: 'Initiator and approver must be different users for production activation',
+          profileId: id,
+        });
+      }
     }
 
     const updated = await this.db.partnerProfile.update({

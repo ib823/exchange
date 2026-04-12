@@ -1,0 +1,244 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { AuditService } from './audit.service';
+
+const mockDb = {
+  auditEvent: {
+    findFirst: vi.fn(),
+    create: vi.fn(),
+    findMany: vi.fn(),
+    count: vi.fn(),
+  },
+};
+
+vi.mock('@sep/db', () => ({
+  getPrismaClient: (): typeof mockDb => mockDb,
+  Prisma: { JsonNull: 'DbNull' },
+}));
+
+vi.mock('@sep/common', async () => {
+  const actual = await vi.importActual<typeof import('@sep/common')>('@sep/common');
+  return {
+    ...actual,
+    getConfig: (): { audit: { hashSecret: string } } => ({
+      audit: { hashSecret: 'test-hash-secret' },
+    }),
+  };
+});
+
+vi.mock('@sep/observability', () => ({
+  createLogger: (): Record<string, ReturnType<typeof vi.fn>> => ({
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  }),
+}));
+
+const baseParams = {
+  tenantId: 'tenant-1',
+  actorType: 'USER' as const,
+  actorId: 'user-1',
+  objectType: 'Submission',
+  objectId: 'sub-1',
+  action: 'SUBMISSION_RECEIVED' as const,
+  result: 'SUCCESS' as const,
+};
+
+describe('AuditService', () => {
+  let service: AuditService;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    service = new AuditService();
+  });
+
+  describe('record', () => {
+    it('creates an audit event with genesis hash when no previous events exist', async () => {
+      mockDb.auditEvent.findFirst.mockResolvedValue(null);
+      mockDb.auditEvent.create.mockResolvedValue({ id: 'evt-1' });
+
+      await service.record(baseParams);
+
+      expect(mockDb.auditEvent.findFirst).toHaveBeenCalledWith({
+        where: { tenantId: 'tenant-1' },
+        orderBy: { eventTime: 'desc' },
+        select: { immutableHash: true },
+      });
+
+      expect(mockDb.auditEvent.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          tenantId: 'tenant-1',
+          actorType: 'USER',
+          actorId: 'user-1',
+          objectType: 'Submission',
+          objectId: 'sub-1',
+          action: 'SUBMISSION_RECEIVED',
+          result: 'SUCCESS',
+          previousHash: null,
+          immutableHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+        }),
+      });
+    });
+
+    it('chains hash from previous event when one exists', async () => {
+      const previousHash = 'abc123def456'.padEnd(64, '0');
+      mockDb.auditEvent.findFirst.mockResolvedValue({ immutableHash: previousHash });
+      mockDb.auditEvent.create.mockResolvedValue({ id: 'evt-2' });
+
+      await service.record(baseParams);
+
+      expect(mockDb.auditEvent.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          previousHash,
+          immutableHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+        }),
+      });
+    });
+
+    it('produces different hashes for consecutive events (chain integrity)', async () => {
+      mockDb.auditEvent.findFirst.mockResolvedValue(null);
+      mockDb.auditEvent.create.mockResolvedValue({ id: 'evt-1' });
+
+      await service.record(baseParams);
+      const firstHash = // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- test mock inspection
+      (mockDb.auditEvent.create.mock.calls[0][0] as { data: { immutableHash: string } }).data.immutableHash;
+
+      mockDb.auditEvent.findFirst.mockResolvedValue({ immutableHash: firstHash });
+      mockDb.auditEvent.create.mockResolvedValue({ id: 'evt-2' });
+
+      await service.record({ ...baseParams, action: 'SUBMISSION_VALIDATED' as const });
+      const secondHash = // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- test mock inspection
+      (mockDb.auditEvent.create.mock.calls[1][0] as { data: { immutableHash: string } }).data.immutableHash;
+
+      expect(firstHash).not.toBe(secondHash);
+    });
+
+    it('scopes chain ordering to tenant (tenant isolation)', async () => {
+      mockDb.auditEvent.findFirst.mockResolvedValue(null);
+      mockDb.auditEvent.create.mockResolvedValue({ id: 'evt-1' });
+
+      await service.record({ ...baseParams, tenantId: 'tenant-A' });
+
+      expect(mockDb.auditEvent.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { tenantId: 'tenant-A' } }),
+      );
+
+      await service.record({ ...baseParams, tenantId: 'tenant-B' });
+
+      expect(mockDb.auditEvent.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { tenantId: 'tenant-B' } }),
+      );
+    });
+
+    it('throws SepError when DB write fails (never swallowed)', async () => {
+      mockDb.auditEvent.findFirst.mockResolvedValue(null);
+      mockDb.auditEvent.create.mockRejectedValue(new Error('DB connection lost'));
+
+      await expect(service.record(baseParams)).rejects.toThrow('DATABASE_ERROR');
+    });
+
+    it('includes optional fields when provided', async () => {
+      mockDb.auditEvent.findFirst.mockResolvedValue(null);
+      mockDb.auditEvent.create.mockResolvedValue({ id: 'evt-1' });
+
+      await service.record({
+        ...baseParams,
+        correlationId: 'corr-1',
+        traceId: 'trace-1',
+        actorRole: 'TENANT_ADMIN' as const,
+        environment: 'TEST' as const,
+        metadata: { key: 'value' },
+      });
+
+      expect(mockDb.auditEvent.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          correlationId: 'corr-1',
+          traceId: 'trace-1',
+          actorRole: 'TENANT_ADMIN',
+          environment: 'TEST',
+          metadata: { key: 'value' },
+        }),
+      });
+    });
+  });
+
+  describe('search', () => {
+    it('applies tenant filter and returns paginated results', async () => {
+      const events = [{ id: 'evt-1', tenantId: 'tenant-1', action: 'SUBMISSION_RECEIVED' }];
+      mockDb.auditEvent.findMany.mockResolvedValue(events);
+      mockDb.auditEvent.count.mockResolvedValue(1);
+
+      const result = await service.search({ tenantId: 'tenant-1', page: 1, pageSize: 20 });
+
+      expect(result.data).toEqual(events);
+      expect(result.meta).toEqual({ page: 1, pageSize: 20, total: 1, totalPages: 1 });
+      expect(mockDb.auditEvent.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { tenantId: 'tenant-1' },
+        }),
+      );
+    });
+
+    it('does not return immutableHash or previousHash in search results', async () => {
+      mockDb.auditEvent.findMany.mockResolvedValue([]);
+      mockDb.auditEvent.count.mockResolvedValue(0);
+
+      await service.search({ tenantId: 'tenant-1', page: 1, pageSize: 20 });
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- test mock inspection
+      const selectArg = (mockDb.auditEvent.findMany.mock.calls[0][0] as { select: Record<string, boolean> }).select;
+      expect(selectArg).not.toHaveProperty('immutableHash');
+      expect(selectArg).not.toHaveProperty('previousHash');
+      expect(selectArg).toHaveProperty('id', true);
+      expect(selectArg).toHaveProperty('action', true);
+    });
+
+    it('applies all filter parameters correctly', async () => {
+      mockDb.auditEvent.findMany.mockResolvedValue([]);
+      mockDb.auditEvent.count.mockResolvedValue(0);
+
+      const from = new Date('2026-01-01');
+      const to = new Date('2026-12-31');
+
+      await service.search({
+        tenantId: 'tenant-1',
+        objectType: 'Submission',
+        objectId: 'sub-1',
+        action: 'SUBMISSION_RECEIVED',
+        actorId: 'user-1',
+        correlationId: 'corr-1',
+        from,
+        to,
+        page: 2,
+        pageSize: 10,
+      });
+
+      expect(mockDb.auditEvent.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            tenantId: 'tenant-1',
+            objectType: 'Submission',
+            objectId: 'sub-1',
+            action: 'SUBMISSION_RECEIVED',
+            actorId: 'user-1',
+            correlationId: 'corr-1',
+            eventTime: { gte: from, lte: to },
+          },
+          skip: 10,
+          take: 10,
+        }),
+      );
+    });
+
+    it('enforces tenant isolation — cannot search across tenants', async () => {
+      mockDb.auditEvent.findMany.mockResolvedValue([]);
+      mockDb.auditEvent.count.mockResolvedValue(0);
+
+      await service.search({ tenantId: 'tenant-1', page: 1, pageSize: 20 });
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- test mock inspection
+      const where = (mockDb.auditEvent.findMany.mock.calls[0][0] as { where: { tenantId: string } }).where;
+      expect(where.tenantId).toBe('tenant-1');
+    });
+  });
+});

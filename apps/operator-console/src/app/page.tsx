@@ -1,4 +1,6 @@
-export default function HomePage(): JSX.Element {
+import type { ReactNode } from 'react';
+
+export default function HomePage(): ReactNode {
   return (
     <main>
       <h1>SEP Operator Console</h1>

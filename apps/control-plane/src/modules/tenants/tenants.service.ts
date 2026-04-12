@@ -120,6 +120,9 @@ export class TenantsService {
     if (existing === null) {
       throw new NotFoundException('Tenant not found');
     }
+    if (actor.role !== 'PLATFORM_SUPER_ADMIN' && existing.id !== actor.tenantId) {
+      throw new NotFoundException('Tenant not found');
+    }
 
     const updated = await this.db.tenant.update({
       where: { id },

@@ -121,9 +121,8 @@ export class WebhooksService {
       actorId: actor.userId,
       objectType: 'Webhook',
       objectId: id,
-      action: 'WEBHOOK_REGISTERED',
+      action: 'WEBHOOK_DEACTIVATED',
       result: 'SUCCESS',
-      metadata: { action: 'deactivated' },
     });
 
     return updated;

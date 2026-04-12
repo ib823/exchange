@@ -13,7 +13,8 @@ Version: 1.2 | Last updated: 2026-04-12 | M1 COMPLETE
 | Pre-M1 Remediation (batch 1) | 🟢 COMPLETE | Yes | 8 defects fixed 2026-04-12 |
 | Pre-M1 Remediation (batch 2) | 🟢 COMPLETE | Yes | 5 defects fixed 2026-04-12 |
 | M1 Domain + control plane | 🟢 COMPLETE | Yes | Completed 2026-04-12 |
-| M2 Data plane + transport | 🔴 NOT STARTED | No | M1 complete, ready to start |
+| Pre-M2 Remediation | 🟢 COMPLETE | Yes | 9 defects fixed 2026-04-12 |
+| M2 Data plane + transport | 🔴 NOT STARTED | No | Pre-M2 remediation complete, ready to start |
 | M3 Security + trust | 🔴 NOT STARTED | No | Blocked by M2 |
 | M4 Operator console | 🔴 NOT STARTED | No | Can start parallel to M3 |
 | M5 Partner packs | 🔴 NOT STARTED | No | Blocked by M2 + M3 |

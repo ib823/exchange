@@ -22,8 +22,8 @@ export class RolesGuard implements CanActivate {
     if (!required.includes(user.role)) {
       throw new ForbiddenException(
         new SepError(ErrorCode.RBAC_INSUFFICIENT_ROLE, {
-          required,
-          actual: user.role,
+          requiredRole: required.join(','),
+          actualRole: user.role,
         }).toClientJson(),
       );
     }

@@ -111,6 +111,25 @@ describe('TenantsService', () => {
         expect.objectContaining({ action: 'TENANT_SUSPENDED', result: 'SUCCESS' }),
       );
     });
+
+    it('throws NotFoundException when non-admin tries to suspend another tenant', async () => {
+      const tenant = { id: 'tenant-2', status: 'ACTIVE' };
+      mockDb.tenant.findUnique.mockResolvedValue(tenant);
+
+      await expect(
+        service.suspend('tenant-2', tenantActor),
+      ).rejects.toThrow('Tenant not found');
+    });
+
+    it('allows PLATFORM_SUPER_ADMIN to suspend any tenant', async () => {
+      const tenant = { id: 'tenant-2', status: 'ACTIVE' };
+      const suspended = { ...tenant, status: 'SUSPENDED', name: 'OTHER' };
+      mockDb.tenant.findUnique.mockResolvedValue(tenant);
+      mockDb.tenant.update.mockResolvedValue(suspended);
+
+      const result = await service.suspend('tenant-2', adminActor);
+      expect(result.status).toBe('SUSPENDED');
+    });
   });
 
   describe('update', () => {

@@ -71,12 +71,10 @@ export class TenantGuard implements CanActivate {
     if (requestedTenantId !== user.tenantId) {
       // Audit-worthy event — do not reveal which tenant exists
       const corrId = request.headers['x-correlation-id'];
-      const ctx: Record<string, unknown> = {};
-      if (typeof corrId === 'string') {
-        ctx['correlationId'] = corrId;
-      }
       throw new ForbiddenException(
-        new SepError(ErrorCode.TENANT_BOUNDARY_VIOLATION, ctx).toClientJson(),
+        new SepError(ErrorCode.TENANT_BOUNDARY_VIOLATION, {
+          ...(typeof corrId === 'string' && { correlationId: corrId }),
+        }).toClientJson(),
       );
     }
 

@@ -29,18 +29,26 @@ export class AuthService {
   async validateApiKey(rawKey: string): Promise<TokenPayload> {
     const prefix = rawKey.slice(0, 8);
 
-    const apiKey = await this.db.apiKey.findFirst({
+    const candidates = await this.db.apiKey.findMany({
       where: { prefix, active: true },
     });
 
-    if (apiKey === null) {
+    if (candidates.length === 0) {
       throw new UnauthorizedException(
         new SepError(ErrorCode.AUTH_API_KEY_INVALID).toClientJson(),
       );
     }
 
-    const valid = await compare(rawKey, apiKey.keyHash);
-    if (!valid) {
+    let apiKey: (typeof candidates)[number] | null = null;
+    for (const candidate of candidates) {
+      const match = await compare(rawKey, candidate.keyHash);
+      if (match) {
+        apiKey = candidate;
+        break;
+      }
+    }
+
+    if (apiKey === null) {
       throw new UnauthorizedException(
         new SepError(ErrorCode.AUTH_API_KEY_INVALID).toClientJson(),
       );
@@ -82,9 +90,9 @@ export class AuthService {
 
   issueToken(payload: TokenPayload): AuthTokens {
     const cfg = getConfig();
-    const accessToken = this.jwtService.sign(payload, {
+    const accessToken = this.jwtService.sign(payload as unknown as Record<string, unknown>, {
       secret: cfg.auth.jwtSecret,
-      expiresIn: cfg.auth.jwtExpiry,
+      expiresIn: cfg.auth.jwtExpiry as `${number}m`,
       issuer: cfg.auth.jwtIssuer,
       jwtid: randomUUID(),
     });
