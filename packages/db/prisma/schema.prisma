@@ -1,0 +1,642 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Enums ─────────────────────────────────────────────────────────────────────
+
+enum ServiceTier {
+  STANDARD
+  DEDICATED
+  PRIVATE
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  PENDING_VERIFICATION
+}
+
+enum Role {
+  PLATFORM_SUPER_ADMIN
+  TENANT_ADMIN
+  SECURITY_ADMIN
+  INTEGRATION_ENGINEER
+  OPERATIONS_ANALYST
+  COMPLIANCE_REVIEWER
+}
+
+enum PartnerType {
+  BANK
+  REGULATOR
+  ENTERPRISE
+  ERP_SOURCE
+}
+
+enum Environment {
+  TEST
+  CERTIFICATION
+  PRODUCTION
+}
+
+enum PartnerProfileStatus {
+  DRAFT
+  TEST_READY
+  TEST_APPROVED
+  PROD_PENDING_APPROVAL
+  PROD_ACTIVE
+  SUSPENDED
+  RETIRED
+}
+
+enum TransportProtocol {
+  SFTP
+  HTTPS
+  AS2
+}
+
+enum MessageSecurityMode {
+  NONE
+  ENCRYPT
+  SIGN
+  SIGN_ENCRYPT
+  VERIFY
+  DECRYPT
+  VERIFY_DECRYPT
+}
+
+enum SubmissionDirection {
+  OUTBOUND
+  INBOUND
+}
+
+enum SubmissionStatus {
+  RECEIVED
+  VALIDATED
+  QUEUED
+  PROCESSING
+  SECURED
+  SENT
+  ACK_PENDING
+  ACK_RECEIVED
+  COMPLETED
+  FAILED_RETRYABLE
+  FAILED_FINAL
+  CANCELLED
+}
+
+enum DeliveryResult {
+  SUCCESS
+  TRANSPORT_FAILURE
+  PARTNER_REJECTION
+  CRYPTO_FAILURE
+  VALIDATION_FAILURE
+  TIMEOUT
+  CANCELLED
+}
+
+enum KeyUsage {
+  ENCRYPT
+  DECRYPT
+  SIGN
+  VERIFY
+  WRAP
+  UNWRAP
+}
+
+enum KeyBackendType {
+  PLATFORM_VAULT
+  TENANT_VAULT
+  EXTERNAL_KMS
+  SOFTWARE_LOCAL
+}
+
+enum KeyState {
+  DRAFT
+  IMPORTED
+  VALIDATED
+  ACTIVE
+  ROTATING
+  EXPIRED
+  REVOKED
+  RETIRED
+}
+
+enum IncidentSeverity {
+  P1
+  P2
+  P3
+  P4
+}
+
+enum IncidentState {
+  OPEN
+  TRIAGED
+  IN_PROGRESS
+  WAITING_EXTERNAL
+  RESOLVED
+  CLOSED
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+enum ActorType {
+  USER
+  SYSTEM
+  SERVICE
+  SCHEDULER
+}
+
+enum AuditAction {
+  TENANT_CREATED
+  TENANT_UPDATED
+  TENANT_SUSPENDED
+  USER_CREATED
+  USER_ROLE_ASSIGNED
+  USER_SUSPENDED
+  PARTNER_PROFILE_CREATED
+  PARTNER_PROFILE_STATUS_CHANGED
+  PARTNER_PROFILE_UPDATED
+  KEY_REFERENCE_CREATED
+  KEY_REFERENCE_ACTIVATED
+  KEY_REFERENCE_ROTATED
+  KEY_REFERENCE_REVOKED
+  KEY_REFERENCE_EXPIRED
+  SUBMISSION_RECEIVED
+  SUBMISSION_VALIDATED
+  SUBMISSION_QUEUED
+  SUBMISSION_CRYPTO_APPLIED
+  SUBMISSION_DELIVERY_ATTEMPTED
+  SUBMISSION_DELIVERED
+  SUBMISSION_ACK_RECEIVED
+  SUBMISSION_COMPLETED
+  SUBMISSION_FAILED
+  SUBMISSION_RETRIED
+  SUBMISSION_CANCELLED
+  INBOUND_RECEIVED
+  INBOUND_VERIFIED
+  INBOUND_DECRYPTED
+  INBOUND_CORRELATED
+  APPROVAL_REQUESTED
+  APPROVAL_GRANTED
+  APPROVAL_REJECTED
+  INCIDENT_CREATED
+  INCIDENT_TRIAGED
+  INCIDENT_RESOLVED
+  WEBHOOK_REGISTERED
+  WEBHOOK_DISPATCHED
+  WEBHOOK_FAILED
+  SOURCE_SYSTEM_CREATED
+  SOURCE_SYSTEM_UPDATED
+  EXCHANGE_PROFILE_CREATED
+  EXCHANGE_PROFILE_UPDATED
+  RETENTION_POLICY_CREATED
+  RETENTION_POLICY_UPDATED
+  BREAK_GLASS_ACCESS
+}
+
+// ── Tenant ────────────────────────────────────────────────────────────────────
+
+model Tenant {
+  id                String      @id @default(cuid())
+  name              String
+  legalEntityName   String
+  status            UserStatus  @default(ACTIVE)
+  serviceTier       ServiceTier @default(STANDARD)
+  defaultRegion     String      @default("ap-southeast-1")
+  retentionPolicyId String?     // FK to retention_policies.id — plain ref to avoid circular
+  metadata          Json?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  users              User[]
+  roleAssignments    RoleAssignment[]
+  partnerProfiles    PartnerProfile[]
+  submissions        Submission[]
+  keyReferences      KeyReference[]
+  incidents          Incident[]
+  auditEvents        AuditEvent[]
+  webhooks           Webhook[]
+  approvals          Approval[]
+  retentionPolicies  RetentionPolicy[]
+  exchangeProfiles   ExchangeProfile[]
+  sourceSystems      SourceSystem[]
+
+  @@index([status])
+  @@map("tenants")
+}
+
+// ── User ──────────────────────────────────────────────────────────────────────
+
+model User {
+  id          String     @id @default(cuid())
+  tenantId    String
+  email       String
+  displayName String?
+  status      UserStatus @default(PENDING_VERIFICATION)
+  authSubject String?
+  lastLoginAt DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  tenant             Tenant           @relation(fields: [tenantId], references: [id])
+  roleAssignments    RoleAssignment[]
+  // Named relations for Approval — uses only User.id, not compound key
+  initiatedApprovals Approval[]       @relation("ApprovalInitiator")
+  grantedApprovals   Approval[]       @relation("ApprovalApprover")
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@index([authSubject])
+  @@map("users")
+}
+
+model RoleAssignment {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String
+  role      Role
+  scope     String?
+  grantedAt DateTime @default(now())
+  grantedBy String?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@unique([tenantId, userId, role])
+  @@index([tenantId, userId])
+  @@map("role_assignments")
+}
+
+// ── Retention Policy (previously missing entity) ───────────────────────────────
+
+model RetentionPolicy {
+  id                      String   @id @default(cuid())
+  tenantId                String
+  name                    String
+  description             String?
+  encryptedArtifactDays   Int      @default(90)
+  decryptedArtifactDays   Int      @default(0)   // 0 = do not retain decrypted payloads
+  auditRetentionDays      Int      @default(2555) // 7 years
+  operatorLogDays         Int      @default(365)
+  incidentHistoryDays     Int      @default(2555)
+  legalHold               Boolean  @default(false)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@map("retention_policies")
+}
+
+// ── Source System (previously missing entity) ─────────────────────────────────
+
+model SourceSystem {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  apiKeyRef   String?  // Vault path to API key — never the key itself
+  allowedIps  String[]
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant           Tenant            @relation(fields: [tenantId], references: [id])
+  exchangeProfiles ExchangeProfile[]
+  submissions      Submission[]
+
+  @@index([tenantId])
+  @@index([tenantId, active])
+  @@map("source_systems")
+}
+
+// ── Partner Profile ───────────────────────────────────────────────────────────
+
+model PartnerProfile {
+  id                  String               @id @default(cuid())
+  tenantId            String
+  name                String
+  partnerType         PartnerType
+  environment         Environment
+  version             Int                  @default(1)
+  status              PartnerProfileStatus @default(DRAFT)
+  transportProtocol   TransportProtocol
+  messageSecurityMode MessageSecurityMode  @default(NONE)
+  payloadContractRef  String?
+  retryPolicyRef      String?
+  keyPolicyRef        String?
+  config              Json
+  notes               String?
+  effectiveDate       DateTime?
+  expiryDate          DateTime?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  tenant           Tenant            @relation(fields: [tenantId], references: [id])
+  submissions      Submission[]
+  keyRefs          KeyReference[]
+  approvals        Approval[]
+  exchangeProfiles ExchangeProfile[]
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([tenantId, environment])
+  @@map("partner_profiles")
+}
+
+// ── Exchange Profile (previously missing entity) ───────────────────────────────
+
+model ExchangeProfile {
+  id               String   @id @default(cuid())
+  tenantId         String
+  name             String
+  description      String?
+  sourceSystemId   String?
+  partnerProfileId String
+  fileTypes        String[]
+  retryPolicyConfig Json    @default("{}")
+  direction        SubmissionDirection @default(OUTBOUND)
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  tenant         Tenant         @relation(fields: [tenantId], references: [id])
+  partnerProfile PartnerProfile @relation(fields: [partnerProfileId], references: [id])
+  sourceSystem   SourceSystem?  @relation(fields: [sourceSystemId], references: [id])
+  submissions    Submission[]
+
+  @@index([tenantId])
+  @@index([tenantId, active])
+  @@map("exchange_profiles")
+}
+
+// ── Submission ────────────────────────────────────────────────────────────────
+
+model Submission {
+  id               String              @id @default(cuid())
+  tenantId         String
+  sourceSystemId   String?
+  exchangeProfileId String?
+  partnerProfileId String
+  direction        SubmissionDirection @default(OUTBOUND)
+  correlationId    String              @unique @default(cuid())
+  idempotencyKey   String
+  contentType      String
+  payloadRef       String?
+  normalizedHash   String?
+  payloadSize      Int?
+  status           SubmissionStatus    @default(RECEIVED)
+  errorCode        String?
+  errorMessage     String?
+  metadata         Json?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  tenant           Tenant           @relation(fields: [tenantId], references: [id])
+  partnerProfile   PartnerProfile   @relation(fields: [partnerProfileId], references: [id])
+  sourceSystem     SourceSystem?    @relation(fields: [sourceSystemId], references: [id])
+  exchangeProfile  ExchangeProfile? @relation(fields: [exchangeProfileId], references: [id])
+  deliveryAttempts DeliveryAttempt[]
+  inboundReceipt   InboundReceipt?
+
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([correlationId])
+  @@index([partnerProfileId])
+  @@index([createdAt])
+  @@map("submissions")
+}
+
+model DeliveryAttempt {
+  id                  String          @id @default(cuid())
+  submissionId        String
+  attemptNo           Int
+  startedAt           DateTime        @default(now())
+  completedAt         DateTime?
+  result              DeliveryResult?
+  normalizedErrorCode String?
+  connectorType       TransportProtocol?
+  remoteReference     String?
+  retryEligible       Boolean         @default(false)
+  durationMs          Int?
+  metadata            Json?
+
+  submission Submission @relation(fields: [submissionId], references: [id])
+
+  @@index([submissionId])
+  @@map("delivery_attempts")
+}
+
+model InboundReceipt {
+  id                 String    @id @default(cuid())
+  tenantId           String
+  partnerProfileId   String
+  submissionId       String?   @unique
+  correlationId      String
+  rawPayloadRef      String?
+  parsedStatus       String?
+  parsedReference    String?
+  verificationResult String?
+  decryptionResult   String?
+  receivedAt         DateTime  @default(now())
+  processedAt        DateTime?
+  metadata           Json?
+
+  submission Submission? @relation(fields: [submissionId], references: [id])
+
+  @@index([tenantId])
+  @@index([correlationId])
+  @@map("inbound_receipts")
+}
+
+// ── Key Reference ─────────────────────────────────────────────────────────────
+
+model KeyReference {
+  id               String         @id @default(cuid())
+  tenantId         String
+  partnerProfileId String?
+  name             String
+  usage            KeyUsage[]
+  backendType      KeyBackendType
+  backendRef       String         // Vault path or KMS key ID — NOT key material
+  fingerprint      String
+  algorithm        String
+  version          Int            @default(1)
+  state            KeyState       @default(DRAFT)
+  environment      Environment
+  activatedAt      DateTime?
+  expiresAt        DateTime?
+  revokedAt        DateTime?
+  rotationTargetId String?
+  metadata         Json?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  tenant         Tenant          @relation(fields: [tenantId], references: [id])
+  partnerProfile PartnerProfile? @relation(fields: [partnerProfileId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, state])
+  @@index([expiresAt])
+  @@map("key_references")
+}
+
+// ── Audit Event — append-only enforced via Postgres RLS ───────────────────────
+
+model AuditEvent {
+  id            String      @id @default(cuid())
+  tenantId      String
+  actorType     ActorType
+  actorId       String
+  actorRole     Role?
+  objectType    String
+  objectId      String
+  action        AuditAction
+  result        String      // SUCCESS | FAILURE
+  correlationId String?
+  traceId       String?
+  environment   Environment?
+  eventTime     DateTime    @default(now())
+  immutableHash String      // SHA-256 chained hash
+  previousHash  String?
+  metadata      Json?       // Non-sensitive context only
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, eventTime])
+  @@index([tenantId, action])
+  @@index([correlationId])
+  @@index([objectType, objectId])
+  @@map("audit_events")
+}
+
+// ── Incident ──────────────────────────────────────────────────────────────────
+
+model Incident {
+  id          String           @id @default(cuid())
+  tenantId    String
+  severity    IncidentSeverity
+  state       IncidentState    @default(OPEN)
+  title       String
+  description String?
+  sourceType  String
+  sourceId    String?
+  assignedTo  String?
+  resolvedAt  DateTime?
+  resolvedBy  String?
+  resolution  String?
+  escalatedAt DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, state])
+  @@index([tenantId, severity])
+  @@map("incidents")
+}
+
+// ── Approval — FIXED: named relations, no compound FK ─────────────────────────
+
+model Approval {
+  id               String         @id @default(cuid())
+  tenantId         String
+  action           String
+  objectType       String
+  objectId         String
+  partnerProfileId String?
+  initiatorId      String         // User.id — tenant boundary enforced in app layer
+  approverId       String?        // User.id — null until someone approves/rejects
+  status           ApprovalStatus @default(PENDING)
+  initiatedAt      DateTime       @default(now())
+  expiresAt        DateTime
+  respondedAt      DateTime?
+  notes            String?
+  diffSnapshot     Json?
+
+  tenant         Tenant          @relation(fields: [tenantId], references: [id])
+  // Named relations disambiguate the two User relations on this model
+  initiator      User            @relation("ApprovalInitiator", fields: [initiatorId], references: [id])
+  approver       User?           @relation("ApprovalApprover", fields: [approverId], references: [id])
+  partnerProfile PartnerProfile? @relation(fields: [partnerProfileId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([expiresAt])
+  @@map("approvals")
+}
+
+// ── Webhook ───────────────────────────────────────────────────────────────────
+
+model Webhook {
+  id           String   @id @default(cuid())
+  tenantId     String
+  url          String
+  events       String[]
+  secretRef    String   // Vault path to HMAC signing secret — never the secret itself
+  active       Boolean  @default(true)
+  successCount Int      @default(0)
+  failureCount Int      @default(0)
+  lastFiredAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant            Tenant                   @relation(fields: [tenantId], references: [id])
+  deliveryAttempts  WebhookDeliveryAttempt[]
+
+  @@index([tenantId])
+  @@map("webhooks")
+}
+
+// ── Webhook Delivery Attempt (previously missing entity) ──────────────────────
+
+model WebhookDeliveryAttempt {
+  id           String   @id @default(cuid())
+  webhookId    String
+  submissionId String?
+  eventType    String
+  statusCode   Int?
+  success      Boolean
+  attemptNo    Int      @default(1)
+  errorMessage String?
+  attemptedAt  DateTime @default(now())
+  durationMs   Int?
+
+  webhook Webhook @relation(fields: [webhookId], references: [id])
+
+  @@index([webhookId])
+  @@index([submissionId])
+  @@map("webhook_delivery_attempts")
+}
+
+// ── API Key — hashed, never plaintext ─────────────────────────────────────────
+
+model ApiKey {
+  id         String    @id @default(cuid())
+  tenantId   String
+  name       String
+  keyHash    String    @unique
+  prefix     String
+  role       Role
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+  active     Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+
+  @@index([tenantId])
+  @@index([prefix])
+  @@map("api_keys")
+}

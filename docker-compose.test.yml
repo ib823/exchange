@@ -1,0 +1,78 @@
+version: '3.9'
+
+# Isolated test infrastructure — different ports from dev, ephemeral volumes
+# Used by: CI integration tests, local `pnpm test:e2e`
+# Start: docker compose -f docker-compose.test.yml up -d
+# Stop:  docker compose -f docker-compose.test.yml down -v
+
+services:
+  postgres-test:
+    image: postgres:16-alpine
+    container_name: sep-postgres-test
+    environment:
+      POSTGRES_DB: sep_test
+      POSTGRES_USER: sep
+      POSTGRES_PASSWORD: sep
+    ports:
+      - "5433:5432"
+    tmpfs:
+      - /var/lib/postgresql/data   # ephemeral — wiped on container stop
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sep -d sep_test"]
+      interval: 3s
+      timeout: 3s
+      retries: 15
+    networks:
+      - sep-test-net
+
+  redis-test:
+    image: redis:7-alpine
+    container_name: sep-redis-test
+    command: redis-server --save ""  # no persistence for tests
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 2s
+      retries: 10
+    networks:
+      - sep-test-net
+
+  minio-test:
+    image: minio/minio:latest
+    container_name: sep-minio-test
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: testadmin
+      MINIO_ROOT_PASSWORD: testadmin
+    ports:
+      - "9002:9000"
+    tmpfs:
+      - /data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - sep-test-net
+
+  minio-test-init:
+    image: minio/mc:latest
+    container_name: sep-minio-test-init
+    depends_on:
+      minio-test:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set test http://minio-test:9000 testadmin testadmin;
+      mc mb --ignore-existing test/sep-payloads-test;
+      mc mb --ignore-existing test/sep-audit-exports-test;
+      "
+    networks:
+      - sep-test-net
+
+networks:
+  sep-test-net:
+    driver: bridge

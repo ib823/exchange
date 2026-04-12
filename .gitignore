@@ -1,0 +1,53 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+.next/
+.turbo/
+*.tsbuildinfo
+
+# Environment — NEVER commit
+.env
+.env.local
+.env.*.local
+
+# Database
+*.db
+*.sqlite
+
+# Generated
+packages/db/prisma/generated/
+
+# Coverage
+coverage/
+
+# Pact contracts (generated artifacts)
+pact/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/settings.json
+*.swp
+*.swo
+
+# Zip archives
+*.zip
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Docker volumes (local dev only)
+postgres_data/
+redis_data/
+
+# Test artifacts
+test-results/
+playwright-report/
