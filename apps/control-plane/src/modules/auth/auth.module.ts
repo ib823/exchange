@@ -9,7 +9,8 @@ const cfg = getConfig();
 @Module({
   imports: [JwtModule.register({
     secret: cfg.auth.jwtSecret,
-    signOptions: { expiresIn: cfg.auth.jwtExpiry as `${number}m`, issuer: cfg.auth.jwtIssuer },
+    signOptions: { expiresIn: cfg.auth.jwtExpiry as `${number}m`, issuer: cfg.auth.jwtIssuer, algorithm: 'HS256' },
+    verifyOptions: { algorithms: ['HS256'] },
   })],
   providers: [AuthService],
   controllers: [AuthController],

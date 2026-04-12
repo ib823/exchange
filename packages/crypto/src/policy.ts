@@ -68,8 +68,18 @@ export function enforcePolicy(
     });
   }
 
-  // 6. Algorithm check
+  // 6. Forbidden algorithm check — reject before allowlist to prevent accidental weakening
   const normalizedAlgo = intendedAlgorithm.toLowerCase();
+  if (policy.forbiddenAlgorithms.includes(normalizedAlgo)) {
+    throw new SepError(ErrorCode.CRYPTO_UNSUPPORTED_ALGORITHM, {
+      keyReferenceId: keyRef.keyReferenceId,
+      violatedRule: 'forbidden_algorithm',
+      provided: intendedAlgorithm,
+      allowed: policy.allowedAlgorithms,
+    });
+  }
+
+  // 7. Algorithm allowlist check
   if (!policy.allowedAlgorithms.includes(normalizedAlgo)) {
     throw new SepError(ErrorCode.CRYPTO_UNSUPPORTED_ALGORITHM, {
       keyReferenceId: keyRef.keyReferenceId,
@@ -79,9 +89,18 @@ export function enforcePolicy(
     });
   }
 
-  // 7. Cipher check
+  // 8. Cipher check — forbidden first, then allowlist
   if (intendedCipher !== undefined) {
-    if (!policy.allowedCiphers.includes(intendedCipher.toLowerCase())) {
+    const normalizedCipher = intendedCipher.toLowerCase();
+    if (policy.forbiddenCiphers.includes(normalizedCipher)) {
+      throw new SepError(ErrorCode.CRYPTO_POLICY_VIOLATION, {
+        keyReferenceId: keyRef.keyReferenceId,
+        violatedRule: 'forbidden_cipher',
+        provided: intendedCipher,
+        allowed: policy.allowedCiphers,
+      });
+    }
+    if (!policy.allowedCiphers.includes(normalizedCipher)) {
       throw new SepError(ErrorCode.CRYPTO_POLICY_VIOLATION, {
         keyReferenceId: keyRef.keyReferenceId,
         violatedRule: 'cipher',
@@ -91,9 +110,18 @@ export function enforcePolicy(
     }
   }
 
-  // 8. Hash check
+  // 9. Hash check — forbidden first, then allowlist
   if (intendedHash !== undefined) {
-    if (!policy.allowedHashes.includes(intendedHash.toLowerCase())) {
+    const normalizedHash = intendedHash.toLowerCase();
+    if (policy.forbiddenHashes.includes(normalizedHash)) {
+      throw new SepError(ErrorCode.CRYPTO_POLICY_VIOLATION, {
+        keyReferenceId: keyRef.keyReferenceId,
+        violatedRule: 'forbidden_hash',
+        provided: intendedHash,
+        allowed: policy.allowedHashes,
+      });
+    }
+    if (!policy.allowedHashes.includes(normalizedHash)) {
       throw new SepError(ErrorCode.CRYPTO_POLICY_VIOLATION, {
         keyReferenceId: keyRef.keyReferenceId,
         violatedRule: 'hash',
@@ -103,7 +131,7 @@ export function enforcePolicy(
     }
   }
 
-  // 9. RSA minimum key size — parsed from algorithm string e.g. rsa2048, rsa4096
+  // 10. RSA minimum key size — parsed from algorithm string e.g. rsa2048, rsa4096
   if (normalizedAlgo.startsWith('rsa')) {
     const sizeMatch = /rsa(\d+)/.exec(keyRef.algorithm.toLowerCase());
     const keySize = sizeMatch !== null ? parseInt(sizeMatch[1] ?? '0', 10) : 0;

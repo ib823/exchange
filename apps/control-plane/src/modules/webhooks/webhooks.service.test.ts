@@ -118,6 +118,53 @@ describe('WebhooksService', () => {
     });
   });
 
+  describe('SSRF protection', () => {
+    it('rejects webhook URL resolving to 127.0.0.1', async () => {
+      await expect(
+        service.create(
+          { tenantId: 'tenant-1', url: 'https://127.0.0.1/hook', events: ['SUBMISSION_COMPLETED'], secretRef: 'vault://s' },
+          actor,
+        ),
+      ).rejects.toThrow('VALIDATION_SCHEMA_FAILED');
+    });
+
+    it('rejects webhook URL resolving to 169.254.169.254 (cloud metadata)', async () => {
+      await expect(
+        service.create(
+          { tenantId: 'tenant-1', url: 'http://169.254.169.254/latest/meta-data/', events: ['SUBMISSION_COMPLETED'], secretRef: 'vault://s' },
+          actor,
+        ),
+      ).rejects.toThrow('VALIDATION_SCHEMA_FAILED');
+    });
+
+    it('rejects webhook URL resolving to 10.0.0.1 (private range)', async () => {
+      await expect(
+        service.create(
+          { tenantId: 'tenant-1', url: 'https://10.0.0.1/internal', events: ['SUBMISSION_COMPLETED'], secretRef: 'vault://s' },
+          actor,
+        ),
+      ).rejects.toThrow('VALIDATION_SCHEMA_FAILED');
+    });
+
+    it('rejects webhook URL to localhost', async () => {
+      await expect(
+        service.create(
+          { tenantId: 'tenant-1', url: 'https://localhost/hook', events: ['SUBMISSION_COMPLETED'], secretRef: 'vault://s' },
+          actor,
+        ),
+      ).rejects.toThrow('VALIDATION_SCHEMA_FAILED');
+    });
+
+    it('accepts a valid public webhook URL', async () => {
+      mockDb.webhook.create.mockResolvedValue(baseWebhook);
+      const result = await service.create(
+        { tenantId: 'tenant-1', url: 'https://hooks.example.com/events', events: ['SUBMISSION_COMPLETED'], secretRef: 'vault://s' },
+        actor,
+      );
+      expect(result).toEqual(baseWebhook);
+    });
+  });
+
   describe('findAll', () => {
     it('returns paginated webhooks for the actor tenant', async () => {
       mockDb.webhook.findMany.mockResolvedValue([baseWebhook]);

@@ -97,4 +97,70 @@ describe('enforcePolicy', () => {
     expect(() => enforcePolicy(DEFAULT_ALGORITHM_POLICY, encryptOnly, 'rsa', 'SIGN', 'TEST'))
       .toThrowError(expect.objectContaining({ code: ErrorCode.CRYPTO_POLICY_VIOLATION }) as Error);
   });
+
+  // ── Forbidden algorithms (NIST SP 800-131A / MyKriptografi) ────────────────
+  describe('forbidden registry', () => {
+    it('rejects SHA-1 as a forbidden hash', () => {
+      expect(() =>
+        enforcePolicy(DEFAULT_ALGORITHM_POLICY, makeKeyRef(), 'rsa', 'ENCRYPT', 'TEST', 'aes256', 'sha1'),
+      ).toThrowError(expect.objectContaining({ code: ErrorCode.CRYPTO_POLICY_VIOLATION }) as Error);
+    });
+
+    it('rejects SHA-1 case-insensitive', () => {
+      expect(() =>
+        enforcePolicy(DEFAULT_ALGORITHM_POLICY, makeKeyRef(), 'rsa', 'ENCRYPT', 'TEST', 'aes256', 'SHA1'),
+      ).toThrowError(expect.objectContaining({ code: ErrorCode.CRYPTO_POLICY_VIOLATION }) as Error);
+    });
+
+    it('rejects MD5 as a forbidden hash', () => {
+      expect(() =>
+        enforcePolicy(DEFAULT_ALGORITHM_POLICY, makeKeyRef(), 'rsa', 'ENCRYPT', 'TEST', 'aes256', 'md5'),
+      ).toThrowError(expect.objectContaining({ code: ErrorCode.CRYPTO_POLICY_VIOLATION }) as Error);
+    });
+
+    it('rejects 3DES as a forbidden cipher', () => {
+      expect(() =>
+        enforcePolicy(DEFAULT_ALGORITHM_POLICY, makeKeyRef(), 'rsa', 'ENCRYPT', 'TEST', '3des'),
+      ).toThrowError(expect.objectContaining({ code: ErrorCode.CRYPTO_POLICY_VIOLATION }) as Error);
+    });
+
+    it('rejects IDEA as a forbidden cipher', () => {
+      expect(() =>
+        enforcePolicy(DEFAULT_ALGORITHM_POLICY, makeKeyRef(), 'rsa', 'ENCRYPT', 'TEST', 'idea'),
+      ).toThrowError(expect.objectContaining({ code: ErrorCode.CRYPTO_POLICY_VIOLATION }) as Error);
+    });
+
+    it('rejects RC4 as a forbidden cipher', () => {
+      expect(() =>
+        enforcePolicy(DEFAULT_ALGORITHM_POLICY, makeKeyRef(), 'rsa', 'ENCRYPT', 'TEST', 'rc4'),
+      ).toThrowError(expect.objectContaining({ code: ErrorCode.CRYPTO_POLICY_VIOLATION }) as Error);
+    });
+
+    it('rejects DES as a forbidden cipher', () => {
+      expect(() =>
+        enforcePolicy(DEFAULT_ALGORITHM_POLICY, makeKeyRef(), 'rsa', 'ENCRYPT', 'TEST', 'des'),
+      ).toThrowError(expect.objectContaining({ code: ErrorCode.CRYPTO_POLICY_VIOLATION }) as Error);
+    });
+
+    it('rejects DSA as a forbidden algorithm', () => {
+      expect(() =>
+        enforcePolicy(DEFAULT_ALGORITHM_POLICY, makeKeyRef(), 'dsa', 'ENCRYPT', 'TEST'),
+      ).toThrowError(expect.objectContaining({ code: ErrorCode.CRYPTO_UNSUPPORTED_ALGORITHM }) as Error);
+    });
+
+    it('rejects RIPEMD-160 as a forbidden hash', () => {
+      expect(() =>
+        enforcePolicy(DEFAULT_ALGORITHM_POLICY, makeKeyRef(), 'rsa', 'ENCRYPT', 'TEST', 'aes256', 'ripemd160'),
+      ).toThrowError(expect.objectContaining({ code: ErrorCode.CRYPTO_POLICY_VIOLATION }) as Error);
+    });
+
+    it('forbidden check fires before allowlist (SHA-1 would fail either way, but reason must be "forbidden")', () => {
+      try {
+        enforcePolicy(DEFAULT_ALGORITHM_POLICY, makeKeyRef(), 'rsa', 'ENCRYPT', 'TEST', 'aes256', 'sha1');
+        expect.fail('should have thrown');
+      } catch (err) {
+        expect((err as { context: { violatedRule: string } }).context.violatedRule).toBe('forbidden_hash');
+      }
+    });
+  });
 });

@@ -52,7 +52,7 @@ export class JwtAuthGuard implements CanActivate {
         tenantId: string;
         role: string;
         email: string;
-      }>(token, { secret: cfg.auth.jwtSecret, issuer: cfg.auth.jwtIssuer });
+      }>(token, { secret: cfg.auth.jwtSecret, issuer: cfg.auth.jwtIssuer, algorithms: ['HS256'] });
 
       // Attach to request for downstream guards and services
       (request as FastifyRequest & { user: unknown }).user = payload;

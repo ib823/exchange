@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { getPrismaClient } from '@sep/db';
+import { assertOutboundUrlSafe } from '@sep/common';
 import { AuditService } from '../audit/audit.service';
 import type { TokenPayload } from '../auth/auth.service';
 
@@ -55,6 +56,9 @@ export class WebhooksService {
   }
 
   async create(input: CreateWebhookInput, actor: TokenPayload): Promise<WebhookRow> {
+    // Validate URL is safe for outbound requests (SSRF protection)
+    assertOutboundUrlSafe(input.url);
+
     const webhook = await this.db.webhook.create({
       data: {
         tenantId: input.tenantId,

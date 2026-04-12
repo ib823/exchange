@@ -20,7 +20,36 @@ export interface CryptoAlgorithmPolicy {
   allowedCompressions: string[];
   /** Minimum RSA key size in bits */
   minRsaKeySize: number;
+  /**
+   * Explicitly forbidden algorithms — checked independently of allowedAlgorithms.
+   * These must be rejected even if accidentally added to an allowlist.
+   * Referenced: NIST SP 800-131A Rev 2, NACSA MyKriptografi
+   */
+  forbiddenAlgorithms: string[];
+  /** Explicitly forbidden ciphers */
+  forbiddenCiphers: string[];
+  /** Explicitly forbidden hashes */
+  forbiddenHashes: string[];
 }
+
+/**
+ * Algorithms explicitly forbidden per:
+ * - NIST SP 800-131A Revision 2 (deprecated/disallowed)
+ * - NACSA MyKriptografi guidelines
+ * - OpenPGP best practices
+ *
+ * These are checked before the allowlist: a forbidden algorithm is rejected
+ * regardless of what appears in the allowed set.
+ */
+export const FORBIDDEN_ALGORITHMS: string[] = [
+  'dsa', 'elgamal',
+];
+export const FORBIDDEN_CIPHERS: string[] = [
+  'des', '3des', 'tripledes', 'des-ede3', 'idea', 'rc4', 'rc2', 'blowfish', 'cast5',
+];
+export const FORBIDDEN_HASHES: string[] = [
+  'sha1', 'sha-1', 'md5', 'md4', 'md2', 'ripemd160', 'ripemd-160',
+];
 
 export const DEFAULT_ALGORITHM_POLICY: CryptoAlgorithmPolicy = {
   allowedAlgorithms: ['rsa', 'ecdh'],
@@ -28,6 +57,9 @@ export const DEFAULT_ALGORITHM_POLICY: CryptoAlgorithmPolicy = {
   allowedHashes: ['sha256', 'sha512'],
   allowedCompressions: ['zlib', 'none'],
   minRsaKeySize: 4096,
+  forbiddenAlgorithms: FORBIDDEN_ALGORITHMS,
+  forbiddenCiphers: FORBIDDEN_CIPHERS,
+  forbiddenHashes: FORBIDDEN_HASHES,
 };
 
 // ── Key material references ────────────────────────────────────────────────────

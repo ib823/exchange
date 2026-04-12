@@ -1,15 +1,16 @@
 import {
   type ExceptionFilter, Catch, type ArgumentsHost,
-  HttpException, HttpStatus, Logger,
+  HttpException, HttpStatus,
 } from '@nestjs/common';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { isSepError } from '@sep/common';
+import { createLogger } from '@sep/observability';
 import { randomUUID } from 'crypto';
+
+const logger = createLogger({ service: 'control-plane', module: 'exception-filter' });
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
-  private readonly logger = new Logger(HttpExceptionFilter.name);
-
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const reply = ctx.getResponse<FastifyReply>();
@@ -30,14 +31,14 @@ export class HttpExceptionFilter implements ExceptionFilter {
       retryable = clientJson.retryable;
       terminal = clientJson.terminal;
       // Log full context internally — never sent to client
-      this.logger.error({ ...exception.toLogJson(), correlationId }, 'SepError');
+      logger.error({ ...exception.toLogJson(), correlationId }, 'SepError');
     } else if (exception instanceof HttpException) {
       status = exception.getStatus();
       const resp = exception.getResponse();
       message = typeof resp === 'string' ? resp : ((resp as Record<string, unknown>)['message'] as string | undefined) ?? message;
-      this.logger.warn({ status, message, correlationId }, 'HttpException');
+      logger.warn({ status, message, correlationId }, 'HttpException');
     } else {
-      this.logger.error({ correlationId, err: exception }, 'Unhandled exception');
+      logger.error({ correlationId, err: exception }, 'Unhandled exception');
     }
 
     void reply.status(status).send({

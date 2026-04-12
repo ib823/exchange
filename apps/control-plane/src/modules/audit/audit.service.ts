@@ -37,12 +37,15 @@ export class AuditService {
       });
 
       const previousHash = latest?.immutableHash ?? null;
+      // Use a single timestamp for both hash computation and persistence
+      // to guarantee the hash chain can be independently verified from persisted data
+      const eventTime = new Date();
       const hashInput = [
         params.tenantId,
         params.actorId,
         params.action,
         params.result,
-        new Date().toISOString(),
+        eventTime.toISOString(),
         previousHash ?? 'genesis',
         cfg.audit.hashSecret,
       ].join('|');
@@ -62,6 +65,7 @@ export class AuditService {
           correlationId: params.correlationId ?? null,
           traceId: params.traceId ?? null,
           environment: params.environment ?? null,
+          eventTime,
           immutableHash,
           previousHash,
           metadata: params.metadata ?? Prisma.JsonNull,

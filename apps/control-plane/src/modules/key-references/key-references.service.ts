@@ -154,6 +154,11 @@ export class KeyReferencesService {
       });
     }
 
+    // Production keys require dual-control approval
+    if (keyRef.environment === 'PRODUCTION') {
+      await this.assertApprovalExists(id, 'ACTIVATE_PRODUCTION_KEY', actor.tenantId);
+    }
+
     const updated = await this.db.keyReference.update({
       where: { id },
       data: {
@@ -171,6 +176,7 @@ export class KeyReferencesService {
       objectId: id,
       action: 'KEY_REFERENCE_ACTIVATED',
       result: 'SUCCESS',
+      metadata: { environment: keyRef.environment },
     });
 
     return updated;
@@ -185,6 +191,11 @@ export class KeyReferencesService {
         currentState: keyRef.state,
         targetState: 'REVOKED',
       });
+    }
+
+    // Production keys require dual-control approval for revocation
+    if (keyRef.environment === 'PRODUCTION') {
+      await this.assertApprovalExists(id, 'REVOKE_PRODUCTION_KEY', actor.tenantId);
     }
 
     const updated = await this.db.keyReference.update({
@@ -204,9 +215,46 @@ export class KeyReferencesService {
       objectId: id,
       action: 'KEY_REFERENCE_REVOKED',
       result: 'SUCCESS',
+      metadata: { environment: keyRef.environment },
     });
 
     return updated;
+  }
+
+  /**
+   * Verify that an approved dual-control Approval exists for a production key operation.
+   * Mirrors the pattern used by PartnerProfilesService.transition for PROD_ACTIVE.
+   */
+  private async assertApprovalExists(
+    keyReferenceId: string,
+    action: string,
+    tenantId: string,
+  ): Promise<void> {
+    const approval = await this.db.approval.findFirst({
+      where: {
+        tenantId,
+        objectType: 'KeyReference',
+        objectId: keyReferenceId,
+        action,
+        status: 'APPROVED',
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { respondedAt: 'desc' },
+    });
+
+    if (approval === null) {
+      throw new SepError(ErrorCode.APPROVAL_REQUIRED, {
+        message: `An approved approval is required to ${action === 'ACTIVATE_PRODUCTION_KEY' ? 'activate' : 'revoke'} a production key`,
+        keyReferenceId,
+      });
+    }
+
+    if (approval.initiatorId === approval.approverId) {
+      throw new SepError(ErrorCode.APPROVAL_SELF_APPROVAL_FORBIDDEN, {
+        message: 'Initiator and approver must be different users for production key operations',
+        keyReferenceId,
+      });
+    }
   }
 
   private addExpiryFlag(keyRef: KeyRefRow): KeyRefWithExpiry {

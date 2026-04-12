@@ -10,6 +10,9 @@ const mockDb = {
     count: vi.fn(),
     update: vi.fn(),
   },
+  approval: {
+    findFirst: vi.fn(),
+  },
 };
 
 vi.mock('@sep/db', () => ({
@@ -200,6 +203,88 @@ describe('KeyReferencesService', () => {
       await expect(
         service.revoke('key-1', actor),
       ).rejects.toThrow('VALIDATION_SCHEMA_FAILED');
+    });
+  });
+
+  describe('dual-control for production keys', () => {
+    const prodKey = { ...baseKeyRef, state: 'VALIDATED', environment: 'PRODUCTION' };
+    const activeProdKey = { ...baseKeyRef, state: 'ACTIVE', environment: 'PRODUCTION' };
+    const futureDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    it('rejects activating a PRODUCTION key without an approved Approval', async () => {
+      mockDb.keyReference.findUnique.mockResolvedValue(prodKey);
+      mockDb.approval.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.activate('key-1', actor),
+      ).rejects.toThrowError(expect.objectContaining({ code: 'APPROVAL_REQUIRED' }) as Error);
+    });
+
+    it('activates a PRODUCTION key when an approved Approval exists', async () => {
+      const activatedKey = { ...prodKey, state: 'ACTIVE', activatedAt: new Date() };
+      mockDb.keyReference.findUnique.mockResolvedValue(prodKey);
+      mockDb.approval.findFirst.mockResolvedValue({
+        id: 'appr-1',
+        initiatorId: 'user-other',
+        approverId: 'user-1',
+        status: 'APPROVED',
+        expiresAt: futureDate,
+      });
+      mockDb.keyReference.update.mockResolvedValue(activatedKey);
+
+      const result = await service.activate('key-1', actor);
+      expect(result.state).toBe('ACTIVE');
+    });
+
+    it('rejects activating a PRODUCTION key with self-approved Approval', async () => {
+      mockDb.keyReference.findUnique.mockResolvedValue(prodKey);
+      mockDb.approval.findFirst.mockResolvedValue({
+        id: 'appr-1',
+        initiatorId: 'user-same',
+        approverId: 'user-same',
+        status: 'APPROVED',
+        expiresAt: futureDate,
+      });
+
+      await expect(
+        service.activate('key-1', actor),
+      ).rejects.toThrowError(expect.objectContaining({ code: 'APPROVAL_SELF_APPROVAL_FORBIDDEN' }) as Error);
+    });
+
+    it('rejects revoking a PRODUCTION key without an approved Approval', async () => {
+      mockDb.keyReference.findUnique.mockResolvedValue(activeProdKey);
+      mockDb.approval.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.revoke('key-1', actor),
+      ).rejects.toThrowError(expect.objectContaining({ code: 'APPROVAL_REQUIRED' }) as Error);
+    });
+
+    it('revokes a PRODUCTION key when an approved Approval exists', async () => {
+      const revokedKey = { ...activeProdKey, state: 'REVOKED', revokedAt: new Date() };
+      mockDb.keyReference.findUnique.mockResolvedValue(activeProdKey);
+      mockDb.approval.findFirst.mockResolvedValue({
+        id: 'appr-2',
+        initiatorId: 'user-other',
+        approverId: 'user-1',
+        status: 'APPROVED',
+        expiresAt: futureDate,
+      });
+      mockDb.keyReference.update.mockResolvedValue(revokedKey);
+
+      const result = await service.revoke('key-1', actor);
+      expect(result.state).toBe('REVOKED');
+    });
+
+    it('allows activating a TEST key without approval', async () => {
+      const testKey = { ...baseKeyRef, state: 'VALIDATED', environment: 'TEST' };
+      const activatedKey = { ...testKey, state: 'ACTIVE', activatedAt: new Date() };
+      mockDb.keyReference.findUnique.mockResolvedValue(testKey);
+      mockDb.keyReference.update.mockResolvedValue(activatedKey);
+
+      const result = await service.activate('key-1', actor);
+      expect(result.state).toBe('ACTIVE');
+      expect(mockDb.approval.findFirst).not.toHaveBeenCalled();
     });
   });
 });

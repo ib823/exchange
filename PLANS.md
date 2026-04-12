@@ -1,7 +1,7 @@
 # PLANS.md — Milestone Tracker
 # Update this file after every session. It is the source of truth for delivery state.
 
-Version: 1.2 | Last updated: 2026-04-12 | M1 COMPLETE
+Version: 1.3 | Last updated: 2026-04-12 | M1 COMPLETE, pre-M2 v2 COMPLETE
 
 ---
 
@@ -13,7 +13,8 @@ Version: 1.2 | Last updated: 2026-04-12 | M1 COMPLETE
 | Pre-M1 Remediation (batch 1) | 🟢 COMPLETE | Yes | 8 defects fixed 2026-04-12 |
 | Pre-M1 Remediation (batch 2) | 🟢 COMPLETE | Yes | 5 defects fixed 2026-04-12 |
 | M1 Domain + control plane | 🟢 COMPLETE | Yes | Completed 2026-04-12 |
-| Pre-M2 Remediation | 🟢 COMPLETE | Yes | 9 defects fixed 2026-04-12 |
+| Pre-M2 Remediation v1 | 🟢 COMPLETE | Yes | 9 defects fixed 2026-04-12 |
+| Pre-M2 Remediation v2 | 🟢 COMPLETE | Yes | 8 defects fixed 2026-04-12 (wave 1 + wave 2) |
 | M2 Data plane + transport | 🔴 NOT STARTED | No | Pre-M2 remediation complete, ready to start |
 | M3 Security + trust | 🔴 NOT STARTED | No | Blocked by M2 |
 | M4 Operator console | 🔴 NOT STARTED | No | Can start parallel to M3 |
@@ -254,6 +255,71 @@ Status legend: 🔴 NOT STARTED | 🟡 IN PROGRESS | 🟢 COMPLETE | 🔵 BLOCKE
 **Gate review:** Operational Readiness gate after M6
 
 **Blockers:** M5 complete
+
+---
+
+## Pre-M2 Remediation v2 — Wave 1 + Wave 2
+
+**Objective:** Resolve 8 confirmed defects from post-M1 audit before starting M2.
+**Completed:** 2026-04-12
+
+| Issue | Finding | Fix summary |
+|---|---|---|
+| 1 | R3-002 HIGH: SSRF via webhook URL registration | URL trust validator in @sep/common; blocks private/loopback/metadata/link-local IPs; applied to webhook registration; reusable for M2 transport adapters |
+| 2 | R3-005 MEDIUM: JWT no explicit algorithm allowlist | Locked to HS256 in verify (JwtAuthGuard), sign (AuthService), and JwtModule.register (auth.module + app.module) |
+| 3 | R4-001 MEDIUM: Exception filter uses non-platform logger | Replaced NestJS Logger with platform createLogger from @sep/observability; redaction and structured logging now apply to exception path |
+| 4 | R6-004 MEDIUM: Algorithm policy incomplete | Added forbiddenAlgorithms/Ciphers/Hashes to CryptoAlgorithmPolicy; explicit forbidden registry for SHA-1, MD5, 3DES, IDEA, RC4, DES, DSA, RIPEMD-160; forbidden check fires before allowlist |
+| 5 | R6-002 HIGH: Key activation/revocation single-actor | Production key activate and revoke now require approved Approval with distinct initiator/approver; mirrors PartnerProfile dual-control pattern |
+| 6 | R2-004 (Wave 1): Audit hash timestamp mismatch | Application-generated timestamp used for both hash computation and eventTime; hash chain now independently verifiable from persisted data |
+| 7 | R2-002a (Wave 1): ApiKey.tenantId no FK, no revocation metadata | Added Tenant FK with RESTRICT cascade; added revokedAt, revokedBy, revocationReason fields; migration applied |
+| 8 | R2-002 remainder (Wave 1): Five relationship fields | InboundReceipt.tenantId FK to Tenant; InboundReceipt.partnerProfileId FK to PartnerProfile (RESTRICT); KeyReference.rotationTargetId self-referencing FK; WebhookDeliveryAttempt.submissionId nullable FK to Submission (RESTRICT); Tenant.retentionPolicyId FK to RetentionPolicy (SET NULL) |
+
+**Test count:** 182 (up from 136). All quality gates pass: build, typecheck, lint, test:unit.
+
+**R2-002 acceptance register update:**
+- R2-002a (ApiKey.tenantId): Resolved in Issue 7. FK constraint added.
+- R2-002b (InboundReceipt.tenantId + partnerProfileId): Resolved in Issue 8. FK constraints added with RESTRICT cascade.
+- R2-002c (KeyReference.rotationTargetId): Resolved in Issue 8. Self-referencing nullable FK added.
+- R2-002d (WebhookDeliveryAttempt.submissionId): Resolved in Issue 8. Nullable FK added with RESTRICT cascade.
+- R2-002e (Tenant.retentionPolicyId): Resolved in Issue 8. FK added via named relation (ActiveRetentionPolicy) to break circular dependency. SET NULL on delete.
+
+---
+
+## Formal Acceptance Register — Pre-M2
+
+Findings formally accepted as not blocking M2. Each entry includes the finding ID, acceptance date, review milestone, and justification.
+
+| Finding | Severity | Acceptance date | Review milestone | Justification |
+|---|---|---|---|---|
+| R2-001 | CRITICAL | 2026-04-12 | M3 gate | DB-level RLS on all tenant-scoped tables. Application layer enforces tenant boundaries. RLS requires runtime role model and connection-level context. M3 scope. |
+| R3-001 | CRITICAL | 2026-04-12 | M3 gate | Same as R2-001 (application security perspective). Same conditions. |
+| R8-001 | CRITICAL | 2026-04-12 | M4 gate | NCII incident reporting requires legal/regulatory assessment. Cannot be resolved by code. Owner must be assigned before M4. |
+| R2-003 | HIGH | 2026-04-12 | M3 gate | Atomic audit writes (DB transactions). Cross-cutting refactor affecting all 9 service modules. M3 scope. |
+| R3-003 | HIGH | 2026-04-12 | M2 start | File processing security — intake processor stub. This IS M2 work. Acceptance expires when M2 intake processor is implemented. |
+| R3-004 | HIGH | 2026-04-12 | M3 gate | No MFA, refresh-token rotation, or login lockout. M3/M4 scope. No production traffic before M3. |
+| R6-001 | HIGH | 2026-04-12 | M2 start | No OpenPGP implementation. M2 scope. Starting M2 is the remediation. |
+| R6-003 | HIGH | 2026-04-12 | M3 gate | No real Vault integration for key storage. Abstraction exists, implementation deferred. |
+| R7-001 | HIGH | 2026-04-12 | M4 | Metrics not wired into running services. M4 scope per PLANS.md. |
+| R7-002 | HIGH | 2026-04-12 | M6 | No SLOs or alerting rules. M6 scope. |
+| R7-003 | HIGH | 2026-04-12 | M5 | No runbooks or DR procedures. M5 scope. |
+| R8-002 | HIGH | 2026-04-12 | M5 | No BNM RMiT control matrix. Documentation gap. |
+| R8-003 | HIGH | 2026-04-12 | M5 | No PDPA data inventory or erasure workflow. |
+| R8-004 | HIGH | 2026-04-12 | M5 | LHDN e-Invoice not implemented. M2/M5 scope. |
+| R1-001 | HIGH | 2026-04-12 | M3 | Mutable CI action references. M3 CI hardening sprint. |
+| R1-002 | HIGH | 2026-04-12 | M6 | Cross-job artifacts without integrity verification. |
+| R1-003 | HIGH | 2026-04-12 | M3 | .env contains live-looking credentials. Dev-only defaults. Mitigated by documented env separation. |
+| R5-001 | HIGH | 2026-04-12 | M3 | Semver ranges not exact-pinned. M3 dependency governance. |
+| R5-002 | HIGH | 2026-04-12 | M3 | Mutable CI actions (same root as R1-001). |
+| R5-003 | HIGH | 2026-04-12 | M6 | No SBOM, provenance, or artifact signing. |
+| R1-004 | MEDIUM | 2026-04-12 | M3 | No TypeScript project references. Build hardening. |
+| R1-005 | MEDIUM | 2026-04-12 | M3 | Mutable Docker image tags in compose. |
+| R5-004 | MEDIUM | 2026-04-12 | M3/M6 | Container image supply chain not controlled. |
+| R4-002 | MEDIUM | 2026-04-12 | M3 | No ESLint rule for sensitive logging. Partially mitigated by typed SepErrorContext. |
+| R4-003 | MEDIUM | 2026-04-12 | M3 | No transactional boundary for state + audit. Same as R2-003. |
+| R2-005 | MEDIUM | 2026-04-12 | M5 | Retention policy enforcement mechanism. Enforcement requires archival jobs. |
+
+**Resolved in this session (8):** R3-002, R3-005, R4-001, R6-004, R6-002, R2-004, R2-002a-e
+**Formally accepted (26):** See table above
 
 ---
 

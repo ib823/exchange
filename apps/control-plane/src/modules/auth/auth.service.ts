@@ -94,6 +94,7 @@ export class AuthService {
       secret: cfg.auth.jwtSecret,
       expiresIn: cfg.auth.jwtExpiry as `${number}m`,
       issuer: cfg.auth.jwtIssuer,
+      algorithm: 'HS256',
       jwtid: randomUUID(),
     });
     return { accessToken, expiresIn: cfg.auth.jwtExpiry };
