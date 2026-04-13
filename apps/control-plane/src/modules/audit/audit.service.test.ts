@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { AuditService } from './audit.service';
+import { DatabaseService } from '@sep/db';
 
 const mockDb = {
   auditEvent: {
@@ -10,10 +11,15 @@ const mockDb = {
   },
 };
 
-vi.mock('@sep/db', () => ({
-  getPrismaClient: (): typeof mockDb => mockDb,
-  Prisma: { JsonNull: 'DbNull' },
-}));
+vi.mock('@sep/db', async () => {
+  const actual = await vi.importActual('@sep/db');
+  return { ...actual, Prisma: { JsonNull: 'DbNull' } };
+});
+
+const mockDatabaseService = {
+  forTenant: (): typeof mockDb => mockDb,
+  forSystem: (): typeof mockDb => mockDb,
+} as unknown as DatabaseService;
 
 vi.mock('@sep/common', async () => {
   const actual = await vi.importActual<typeof import('@sep/common')>('@sep/common');
@@ -49,7 +55,7 @@ describe('AuditService', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    service = new AuditService();
+    service = new AuditService(mockDatabaseService);
   });
 
   describe('record', () => {

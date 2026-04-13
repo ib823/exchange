@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { WebhooksService } from './webhooks.service';
 import { AuditService } from '../audit/audit.service';
+import { DatabaseService } from '@sep/db';
 
 const mockDb = {
   webhook: {
@@ -12,10 +13,15 @@ const mockDb = {
   },
 };
 
-vi.mock('@sep/db', () => ({
-  getPrismaClient: (): typeof mockDb => mockDb,
-  Prisma: { JsonNull: 'DbNull' },
-}));
+vi.mock('@sep/db', async () => {
+  const actual = await vi.importActual('@sep/db');
+  return { ...actual, Prisma: { JsonNull: 'DbNull' } };
+});
+
+const mockDatabaseService = {
+  forTenant: (): typeof mockDb => mockDb,
+  forSystem: (): typeof mockDb => mockDb,
+} as unknown as DatabaseService;
 
 const mockAudit = { record: vi.fn().mockResolvedValue(undefined) };
 
@@ -51,7 +57,7 @@ describe('WebhooksService', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    service = new WebhooksService(mockAudit as unknown as AuditService);
+    service = new WebhooksService(mockAudit as unknown as AuditService, mockDatabaseService);
   });
 
   describe('create', () => {

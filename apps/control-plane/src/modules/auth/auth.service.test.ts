@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { JwtService } from '@nestjs/jwt';
+import { DatabaseService } from '@sep/db';
 
 const mockDb = {
   apiKey: {
@@ -13,9 +14,10 @@ const mockDb = {
   },
 };
 
-vi.mock('@sep/db', () => ({
-  getPrismaClient: (): typeof mockDb => mockDb,
-}));
+const mockDatabaseService = {
+  forTenant: (): typeof mockDb => mockDb,
+  forSystem: (): typeof mockDb => mockDb,
+} as unknown as DatabaseService;
 
 vi.mock('@sep/common', async () => {
   const actual = await vi.importActual<typeof import('@sep/common')>('@sep/common');
@@ -69,7 +71,7 @@ describe('AuthService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockDb.apiKey.update.mockResolvedValue({});
-    service = new AuthService(mockJwtService as unknown as JwtService);
+    service = new AuthService(mockJwtService as unknown as JwtService, mockDatabaseService);
   });
 
   describe('validateApiKey', () => {

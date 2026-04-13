@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { createHash } from 'crypto';
-import { getPrismaClient, Prisma, type AuditAction, type ActorType, type Role, type Environment } from '@sep/db';
+import { DatabaseService, Prisma, type AuditAction, type ActorType, type Role, type Environment } from '@sep/db';
 import { getConfig, SepError, ErrorCode } from '@sep/common';
 import { createLogger } from '@sep/observability';
 
@@ -23,14 +23,16 @@ export interface RecordAuditEventParams {
 
 @Injectable()
 export class AuditService {
-  private readonly db = getPrismaClient();
+  constructor(private readonly database: DatabaseService) {}
 
   async record(params: RecordAuditEventParams): Promise<void> {
     try {
       const cfg = getConfig();
 
       // Compute chained hash for tamper-evidence
-      const latest = await this.db.auditEvent.findFirst({
+      const db = this.database.forTenant(params.tenantId);
+
+      const latest = await db.auditEvent.findFirst({
         where: { tenantId: params.tenantId },
         orderBy: { eventTime: 'desc' },
         select: { immutableHash: true },
@@ -52,7 +54,7 @@ export class AuditService {
 
       const immutableHash = createHash('sha256').update(hashInput).digest('hex');
 
-      await this.db.auditEvent.create({
+      await db.auditEvent.create({
         data: {
           tenantId: params.tenantId,
           actorType: params.actorType,
@@ -115,8 +117,10 @@ export class AuditService {
       ...(Object.keys(eventTimeFilter).length > 0 && { eventTime: eventTimeFilter }),
     };
 
+    const db = this.database.forTenant(params.tenantId);
+
     const [data, total] = await Promise.all([
-      this.db.auditEvent.findMany({
+      db.auditEvent.findMany({
         where,
         orderBy: { eventTime: 'desc' },
         skip: (params.page - 1) * params.pageSize,
@@ -129,7 +133,7 @@ export class AuditService {
           // Never return immutableHash or previousHash — internal chain integrity only
         },
       }),
-      this.db.auditEvent.count({ where }),
+      db.auditEvent.count({ where }),
     ]);
 
     return {

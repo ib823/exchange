@@ -7,15 +7,25 @@ import {
 } from '@nestjs/swagger';
 import { SubmissionsService } from './submissions.service';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { CreateSubmissionSchema, type CreateSubmissionDto } from '@sep/schemas';
-import { SepError, ErrorCode } from '@sep/common';
+import { createSubmissionSchema, type CreateSubmissionDto } from '@sep/schemas';
+import { SepError, ErrorCode, getConfig } from '@sep/common';
 import { PageSizePipe } from '../../common/pipes/page-size.pipe';
 import type { TokenPayload } from '../auth/auth.service';
 import type { FastifyRequest } from 'fastify';
 
-function parseBody<T>(schema: { safeParse: (v: unknown) => { success: true; data: T } | { success: false; error: { issues: Array<{ path: (string | number)[]; message: string }> } } }, body: unknown): T {
+function parseBody<T>(schema: { safeParse: (v: unknown) => { success: true; data: T } | { success: false; error: { issues: Array<{ path: (string | number)[]; message: string; code: string }> } } }, body: unknown): T {
   const result = schema.safeParse(body);
   if (!result.success) {
+    // Check if any issue is a payloadSize ceiling violation
+    const payloadSizeIssue = result.error.issues.find(
+      (i) => i.path.includes('payloadSize') && i.code === 'too_big',
+    );
+    if (payloadSizeIssue !== undefined) {
+      throw new SepError(ErrorCode.VALIDATION_PAYLOAD_TOO_LARGE, {
+        message: payloadSizeIssue.message,
+        field: 'payloadSize',
+      });
+    }
     throw new SepError(ErrorCode.VALIDATION_SCHEMA_FAILED, {
       issues: result.error.issues.map((i) => ({
         path: i.path.join('.'),
@@ -43,7 +53,9 @@ export class SubmissionsController {
     @Body() body: unknown,
     @Request() req: FastifyRequest & { user: TokenPayload },
   ): Promise<{ data: { submissionId: string; correlationId: string; status: string } }> {
-    const dto = parseBody<CreateSubmissionDto>(CreateSubmissionSchema, body);
+    const cfg = getConfig();
+    const schema = createSubmissionSchema(cfg.storage.maxPayloadSizeBytes);
+    const dto = parseBody<CreateSubmissionDto>(schema, body);
     const result = await this.service.create(dto, req.user);
     return { data: result };
   }

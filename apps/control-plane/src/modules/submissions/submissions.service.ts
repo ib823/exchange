@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
-import { getPrismaClient, Prisma, type SubmissionStatus } from '@sep/db';
+import { DatabaseService, Prisma, type SubmissionStatus } from '@sep/db';
 import { SepError, ErrorCode, TERMINAL_SUBMISSION_STATUSES, type SubmissionStatus as CommonSubmissionStatus } from '@sep/common';
 import { AuditService } from '../audit/audit.service';
 import type { CreateSubmissionDto } from '@sep/schemas';
@@ -29,12 +29,14 @@ interface SubmissionRow {
 
 @Injectable()
 export class SubmissionsService {
-  private readonly db = getPrismaClient();
-
-  constructor(private readonly audit: AuditService) {}
+  constructor(
+    private readonly audit: AuditService,
+    private readonly database: DatabaseService,
+  ) {}
 
   private async assertTenantOwnership(id: string, tenantId: string): Promise<SubmissionRow> {
-    const submission = await this.db.submission.findUnique({ where: { id } });
+    const db = this.database.forTenant(tenantId);
+    const submission = await db.submission.findUnique({ where: { id } });
     if (submission === null || submission.tenantId !== tenantId) {
       throw new NotFoundException('Submission not found');
     }
@@ -44,8 +46,10 @@ export class SubmissionsService {
   async create(dto: CreateSubmissionDto, actor: TokenPayload): Promise<{
     submissionId: string; correlationId: string; status: string;
   }> {
+    const db = this.database.forTenant(dto.tenantId);
+
     // Check idempotency key uniqueness within tenant
-    const existing = await this.db.submission.findUnique({
+    const existing = await db.submission.findUnique({
       where: {
         tenantId_idempotencyKey: {
           tenantId: dto.tenantId,
@@ -64,7 +68,7 @@ export class SubmissionsService {
 
     const correlationId = randomUUID();
 
-    const submission = await this.db.submission.create({
+    const submission = await db.submission.create({
       data: {
         tenantId: dto.tenantId,
         partnerProfileId: dto.partnerProfileId,
@@ -134,14 +138,16 @@ export class SubmissionsService {
       where.createdAt = createdAtFilter;
     }
 
+    const db = this.database.forTenant(actor.tenantId);
+
     const [data, total] = await Promise.all([
-      this.db.submission.findMany({
+      db.submission.findMany({
         where,
         skip: (page - 1) * pageSize,
         take: pageSize,
         orderBy: { createdAt: 'desc' },
       }),
-      this.db.submission.count({ where }),
+      db.submission.count({ where }),
     ]);
 
     return {
@@ -178,7 +184,9 @@ export class SubmissionsService {
       });
     }
 
-    const updated = await this.db.submission.update({
+    const db = this.database.forTenant(actor.tenantId);
+
+    const updated = await db.submission.update({
       where: { id },
       data: { status: 'CANCELLED' },
     });

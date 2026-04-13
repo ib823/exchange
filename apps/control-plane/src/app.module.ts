@@ -4,6 +4,7 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { JwtModule } from '@nestjs/jwt';
 import { getConfig } from '@sep/common';
 import { HealthModule } from './modules/health/health.module';
+import { DatabaseModule } from './modules/database/database.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
@@ -32,6 +33,7 @@ const cfg = getConfig();
       signOptions: { expiresIn: cfg.auth.jwtExpiry as `${number}m`, issuer: cfg.auth.jwtIssuer, algorithm: 'HS256' },
       verifyOptions: { algorithms: ['HS256'] },
     }),
+    DatabaseModule,
     AuditModule,
     AuthModule,
     TenantsModule,

@@ -1,7 +1,7 @@
 # PLANS.md — Milestone Tracker
 # Update this file after every session. It is the source of truth for delivery state.
 
-Version: 1.4 | Last updated: 2026-04-12 | M1 COMPLETE, pre-M2 v3 COMPLETE
+Version: 1.5 | Last updated: 2026-04-13 | M1 COMPLETE, pre-M2 FINAL COMPLETE
 
 ---
 
@@ -16,6 +16,7 @@ Version: 1.4 | Last updated: 2026-04-12 | M1 COMPLETE, pre-M2 v3 COMPLETE
 | Pre-M2 Remediation v1 | 🟢 COMPLETE | Yes | 9 defects fixed 2026-04-12 |
 | Pre-M2 Remediation v2 | 🟢 COMPLETE | Yes | 8 defects fixed 2026-04-12 (wave 1 + wave 2) |
 | Pre-M2 Remediation v3 | 🟢 COMPLETE | Yes | 6 defects fixed 2026-04-12 (wave 3) |
+| Pre-M2 Remediation Final | 🟢 COMPLETE | Yes | 5 issues fixed 2026-04-13 (runtime role, coverage, CI perms, payload size, DB accessor) |
 | M2 Data plane + transport | 🔴 NOT STARTED | No | Pre-M2 remediation complete, ready to start |
 | M3 Security + trust | 🔴 NOT STARTED | No | Blocked by M2 |
 | M4 Operator console | 🔴 NOT STARTED | No | Can start parallel to M3 |
@@ -304,6 +305,23 @@ Status legend: 🔴 NOT STARTED | 🟡 IN PROGRESS | 🟢 COMPLETE | 🔵 BLOCKE
 
 ---
 
+## Pre-M2 Remediation Final
+
+**Objective:** Resolve 5 issues from re-audit gate blocker and architectural decisions before M2.
+**Completed:** 2026-04-13
+
+| Issue | Finding | Fix summary |
+|---|---|---|
+| 1 | R9 GATE BLOCKER: Application connects as schema owner | Created DatabaseService wrapping Prisma. RUNTIME_DATABASE_URL env var uses sep_app role (DML only, no DDL). sep role reserved for migrations. Migration grants sep_app on all tables with DEFAULT PRIVILEGES for future tables. init.sql updated. |
+| 2 | Coverage thresholds declared but never evaluated in CI | Added --coverage flag to all 8 test:unit scripts. Vitest now evaluates thresholds declared in vitest.config.ts. Threshold violations cause CI failure. |
+| 3 | CI jobs inherit workflow permissions instead of declaring own | Added explicit permissions block to all 9 jobs. Each job declares minimal required permissions independently. Workflow-level inheritance no longer the sole mechanism. |
+| 4 | Payload size ceiling configured but not enforced at ingress | Added .max(maxPayloadSizeBytes) to CreateSubmissionSchema. Schema factory createSubmissionSchema() accepts configurable ceiling. Controller uses getConfig().storage.maxPayloadSizeBytes. Rejects with VALIDATION_PAYLOAD_TOO_LARGE (422) before DB write. |
+| 5 | Database access pattern incompatible with future RLS | Created DatabaseService in @sep/db with forTenant(tenantId) and forSystem() methods. Replaced getPrismaClient() in all 9 control-plane services + health indicator. forTenant() enforces non-empty tenantId. M3 integration point: add SET LOCAL app.current_tenant_id in forTenant(). DatabaseModule registered globally in NestJS. |
+
+**Test count:** 238 (up from 223). All quality gates pass: build, typecheck, lint, test:unit.
+
+---
+
 ## Formal Acceptance Register — Pre-M2
 
 Findings formally accepted as not blocking M2. Each entry includes the finding ID, acceptance date, review milestone, and justification.
@@ -340,6 +358,18 @@ Findings formally accepted as not blocking M2. Each entry includes the finding I
 **Resolved in v2 session (8):** R3-002, R3-005, R4-001, R6-004, R6-002, R2-004, R2-002a-e
 **Resolved in v3 session (6):** passWithNoTests, audit RLS, pageSize cap, tenant guard, actor identity, key state machine
 **Formally accepted (34):** See table above + wave 3 additions below
+
+### Pre-M2 Final Acceptance Register Additions
+
+| Finding | Severity | Acceptance date | Review milestone | Justification |
+|---|---|---|---|---|
+| R1-008 | LOW | 2026-04-13 | M3 | No pre-commit hooks, no dead-code tooling, no .dockerignore. Developer workflow hardening. M3 tooling sprint. |
+| R2-007 | MEDIUM | 2026-04-13 | M3 | Missing FK-supporting indexes on 12 columns (role_assignments.userId, exchange_profiles.partnerProfileId, submissions.sourceSystemId, key_references.partnerProfileId, approvals.initiatorId/approverId/partnerProfileId, inbound_receipts.partnerProfileId, key_references.rotationTargetId). M3 schema hardening. |
+| R2-008 | MEDIUM | 2026-04-13 | M3 | No set_updated_at() trigger for non-ORM writes. Direct SQL bypasses Prisma @updatedAt. M3 schema hardening. |
+| R4-005 | MEDIUM | 2026-04-13 | M3 | Some controllers destructure raw request bodies instead of schema-validated parsers. M3 controller hardening. |
+| R4-007 | LOW | 2026-04-13 | M3 | Request log schema missing tenantId, operation, and normalized result fields. M3 observability hardening. |
+| R5-006 | MEDIUM | 2026-04-13 | M3 | Stale/single-maintainer dependencies: swagger-cli (2022), reflect-metadata (2024), passport/passport-jwt (single maintainer), ssh2-sftp-client (single maintainer), prom-client (2024), class-variance-authority (2024). M3 dependency governance sprint. |
+| R5-007 | INFO | 2026-04-13 | Next Vitest upgrade | Two moderate transitive advisories: esbuild GHSA-67mh-4wv8-2f99, vite CVE-2026-39365. Track only. |
 
 ### Wave 3 Acceptance Register Additions
 

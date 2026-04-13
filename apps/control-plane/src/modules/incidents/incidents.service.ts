@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { getPrismaClient, Prisma, type IncidentSeverity, type IncidentState } from '@sep/db';
+import { DatabaseService, Prisma, type IncidentSeverity, type IncidentState } from '@sep/db';
 import { SepError, ErrorCode } from '@sep/common';
 import { AuditService } from '../audit/audit.service';
 import type { TokenPayload } from '../auth/auth.service';
@@ -59,12 +59,14 @@ interface IncidentRow {
 
 @Injectable()
 export class IncidentsService {
-  private readonly db = getPrismaClient();
-
-  constructor(private readonly audit: AuditService) {}
+  constructor(
+    private readonly audit: AuditService,
+    private readonly database: DatabaseService,
+  ) {}
 
   private async assertTenantOwnership(id: string, tenantId: string): Promise<IncidentRow> {
-    const incident = await this.db.incident.findUnique({ where: { id } });
+    const db = this.database.forTenant(tenantId);
+    const incident = await db.incident.findUnique({ where: { id } });
     if (incident === null || incident.tenantId !== tenantId) {
       throw new NotFoundException('Incident not found');
     }
@@ -72,7 +74,8 @@ export class IncidentsService {
   }
 
   async create(input: CreateIncidentInput, actor: TokenPayload): Promise<IncidentRow> {
-    const incident = await this.db.incident.create({
+    const db = this.database.forTenant(input.tenantId);
+    const incident = await db.incident.create({
       data: {
         tenantId: input.tenantId,
         severity: input.severity as IncidentSeverity,
@@ -121,14 +124,16 @@ export class IncidentsService {
       where.severity = filters.severity as IncidentSeverity;
     }
 
+    const db = this.database.forTenant(actor.tenantId);
+
     const [data, total] = await Promise.all([
-      this.db.incident.findMany({
+      db.incident.findMany({
         where,
         skip: (page - 1) * pageSize,
         take: pageSize,
         orderBy: [{ severity: 'asc' }, { createdAt: 'desc' }],
       }),
-      this.db.incident.count({ where }),
+      db.incident.count({ where }),
     ]);
 
     return {
@@ -187,7 +192,9 @@ export class IncidentsService {
       data.resolvedBy = actor.userId;
     }
 
-    const updated = await this.db.incident.update({
+    const db = this.database.forTenant(actor.tenantId);
+
+    const updated = await db.incident.update({
       where: { id },
       data,
     });

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { KeyReferencesService } from './key-references.service';
 import { AuditService } from '../audit/audit.service';
+import { DatabaseService } from '@sep/db';
 
 const mockDb = {
   keyReference: {
@@ -18,10 +19,15 @@ const mockDb = {
   },
 };
 
-vi.mock('@sep/db', () => ({
-  getPrismaClient: (): typeof mockDb => mockDb,
-  Prisma: { JsonNull: 'DbNull' },
-}));
+vi.mock('@sep/db', async () => {
+  const actual = await vi.importActual('@sep/db');
+  return { ...actual, Prisma: { JsonNull: 'DbNull' } };
+});
+
+const mockDatabaseService = {
+  forTenant: (): typeof mockDb => mockDb,
+  forSystem: (): typeof mockDb => mockDb,
+} as unknown as DatabaseService;
 
 vi.mock('@sep/common', async () => {
   const actual = await vi.importActual('@sep/common');
@@ -70,7 +76,7 @@ describe('KeyReferencesService', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    service = new KeyReferencesService(mockAudit as unknown as AuditService);
+    service = new KeyReferencesService(mockAudit as unknown as AuditService, mockDatabaseService);
   });
 
   describe('create', () => {

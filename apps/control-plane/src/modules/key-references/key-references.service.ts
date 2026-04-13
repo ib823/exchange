@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { getPrismaClient, Prisma, type KeyState } from '@sep/db';
+import { DatabaseService, Prisma, type KeyState } from '@sep/db';
 import { SepError, ErrorCode, getConfig } from '@sep/common';
 import { AuditService } from '../audit/audit.service';
 import type { CreateKeyReferenceDto } from '@sep/schemas';
@@ -54,12 +54,14 @@ interface KeyRefWithExpiry extends KeyRefRow {
 
 @Injectable()
 export class KeyReferencesService {
-  private readonly db = getPrismaClient();
-
-  constructor(private readonly audit: AuditService) {}
+  constructor(
+    private readonly audit: AuditService,
+    private readonly database: DatabaseService,
+  ) {}
 
   private async assertTenantOwnership(id: string, tenantId: string): Promise<KeyRefRow> {
-    const key = await this.db.keyReference.findUnique({
+    const db = this.database.forTenant(tenantId);
+    const key = await db.keyReference.findUnique({
       where: { id },
       select: KEY_REF_SELECT,
     });
@@ -70,7 +72,8 @@ export class KeyReferencesService {
   }
 
   async create(dto: CreateKeyReferenceDto, actor: TokenPayload): Promise<KeyRefRow> {
-    const keyRef = await this.db.keyReference.create({
+    const db = this.database.forTenant(dto.tenantId);
+    const keyRef = await db.keyReference.create({
       data: {
         tenantId: dto.tenantId,
         partnerProfileId: dto.partnerProfileId ?? null,
@@ -124,15 +127,17 @@ export class KeyReferencesService {
       where.environment = filters.environment as 'TEST' | 'CERTIFICATION' | 'PRODUCTION';
     }
 
+    const db = this.database.forTenant(actor.tenantId);
+
     const [data, total] = await Promise.all([
-      this.db.keyReference.findMany({
+      db.keyReference.findMany({
         where,
         select: KEY_REF_SELECT,
         skip: (page - 1) * pageSize,
         take: pageSize,
         orderBy: { createdAt: 'desc' },
       }),
-      this.db.keyReference.count({ where }),
+      db.keyReference.count({ where }),
     ]);
 
     const enrichedData = data.map((k) => this.addExpiryFlag(k));
@@ -159,7 +164,8 @@ export class KeyReferencesService {
       await this.assertApprovalExists(id, 'ACTIVATE_PRODUCTION_KEY', actor.tenantId);
     }
 
-    const updated = await this.db.keyReference.update({
+    const db = this.database.forTenant(actor.tenantId);
+    const updated = await db.keyReference.update({
       where: { id },
       data: {
         state: 'ACTIVE',
@@ -198,7 +204,8 @@ export class KeyReferencesService {
       await this.assertApprovalExists(id, 'REVOKE_PRODUCTION_KEY', actor.tenantId);
     }
 
-    const updated = await this.db.keyReference.update({
+    const db = this.database.forTenant(actor.tenantId);
+    const updated = await db.keyReference.update({
       where: { id },
       data: {
         state: 'REVOKED',
@@ -230,7 +237,8 @@ export class KeyReferencesService {
     action: string,
     tenantId: string,
   ): Promise<void> {
-    const approval = await this.db.approval.findFirst({
+    const db = this.database.forTenant(tenantId);
+    const approval = await db.approval.findFirst({
       where: {
         tenantId,
         objectType: 'KeyReference',
@@ -268,7 +276,8 @@ export class KeyReferencesService {
       });
     }
 
-    const updated = await this.db.keyReference.update({
+    const db = this.database.forTenant(actor.tenantId);
+    const updated = await db.keyReference.update({
       where: { id },
       data: { state: 'SUSPENDED' },
       select: KEY_REF_SELECT,
@@ -299,7 +308,8 @@ export class KeyReferencesService {
       });
     }
 
-    const updated = await this.db.keyReference.update({
+    const db = this.database.forTenant(actor.tenantId);
+    const updated = await db.keyReference.update({
       where: { id },
       data: { state: 'ACTIVE' },
       select: KEY_REF_SELECT,
@@ -331,7 +341,8 @@ export class KeyReferencesService {
       });
     }
 
-    const updated = await this.db.keyReference.update({
+    const db = this.database.forTenant(actor.tenantId);
+    const updated = await db.keyReference.update({
       where: { id },
       data: {
         state: 'COMPROMISED',
@@ -352,7 +363,7 @@ export class KeyReferencesService {
     });
 
     // Auto-create a P1 incident for compromised key
-    await this.db.incident.create({
+    await db.incident.create({
       data: {
         tenantId: actor.tenantId,
         severity: 'P1',
@@ -379,7 +390,8 @@ export class KeyReferencesService {
       });
     }
 
-    const updated = await this.db.keyReference.update({
+    const db = this.database.forTenant(actor.tenantId);
+    const updated = await db.keyReference.update({
       where: { id },
       data: { state: 'DESTROYED' },
       select: KEY_REF_SELECT,

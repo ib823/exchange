@@ -21,9 +21,9 @@
     "clean": "turbo run clean && rm -rf node_modules",
     "format": "prettier --write \"**/*.{ts,tsx,json,md,yaml,yml}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,json,md,yaml,yml}\"",
-    "db:migrate:dev":  "pnpm --filter @sep/db exec prisma migrate dev",
+    "db:migrate:dev": "pnpm --filter @sep/db exec prisma migrate dev",
     "db:migrate:prod": "pnpm --filter @sep/db exec prisma migrate deploy",
-    "db:migrate:ci":   "pnpm --filter @sep/db exec prisma migrate deploy",
+    "db:migrate:ci": "pnpm --filter @sep/db exec prisma migrate deploy",
     "db:seed": "pnpm --filter @sep/db seed",
     "db:studio": "pnpm --filter @sep/db studio",
     "openapi:generate": "pnpm --filter @sep/control-plane openapi:generate",
@@ -37,20 +37,21 @@
     "scan:secrets": "git secrets --scan"
   },
   "devDependencies": {
-    "turbo": "^2.0.0",
-    "typescript": "^5.4.0",
     "@types/node": "^20.0.0",
-    "prettier": "^3.2.0",
-    "eslint": "^8.57.0",
-    "@typescript-eslint/parser": "^7.0.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
-    "eslint-config-prettier": "^9.1.0"
+    "@typescript-eslint/parser": "^7.0.0",
+    "@vitest/coverage-v8": "^1.6.1",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.2.0",
+    "test-exclude": "7",
+    "turbo": "^2.0.0",
+    "typescript": "^5.4.0"
   },
   "pnpm": {
     "overrides": {
       "undici": ">=5.28.4",
       "tar": ">=7.5.11",
-      "glob": ">=10.5.0",
       "picomatch": ">=4.0.4",
       "lodash": ">=4.18.0",
       "@fastify/middie": ">=9.2.0",

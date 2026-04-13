@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { getPrismaClient, Prisma, type PartnerProfileStatus } from '@sep/db';
+import { DatabaseService, Prisma, type PartnerProfileStatus } from '@sep/db';
 import { SepError, ErrorCode } from '@sep/common';
 import { AuditService } from '../audit/audit.service';
 import type { CreatePartnerProfileDto, UpdatePartnerProfileDto } from '@sep/schemas';
@@ -38,12 +38,14 @@ interface PartnerProfileRow {
 
 @Injectable()
 export class PartnerProfilesService {
-  private readonly db = getPrismaClient();
-
-  constructor(private readonly audit: AuditService) {}
+  constructor(
+    private readonly audit: AuditService,
+    private readonly database: DatabaseService,
+  ) {}
 
   private async assertTenantOwnership(id: string, tenantId: string): Promise<PartnerProfileRow> {
-    const profile = await this.db.partnerProfile.findUnique({ where: { id } });
+    const db = this.database.forTenant(tenantId);
+    const profile = await db.partnerProfile.findUnique({ where: { id } });
     if (profile === null || profile.tenantId !== tenantId) {
       throw new NotFoundException('Partner profile not found');
     }
@@ -51,7 +53,8 @@ export class PartnerProfilesService {
   }
 
   async create(dto: CreatePartnerProfileDto, actor: TokenPayload): Promise<PartnerProfileRow> {
-    const profile = await this.db.partnerProfile.create({
+    const db = this.database.forTenant(dto.tenantId);
+    const profile = await db.partnerProfile.create({
       data: {
         tenantId: dto.tenantId,
         name: dto.name,
@@ -103,14 +106,16 @@ export class PartnerProfilesService {
       where.environment = filters.environment as 'TEST' | 'CERTIFICATION' | 'PRODUCTION';
     }
 
+    const db = this.database.forTenant(actor.tenantId);
+
     const [data, total] = await Promise.all([
-      this.db.partnerProfile.findMany({
+      db.partnerProfile.findMany({
         where,
         skip: (page - 1) * pageSize,
         take: pageSize,
         orderBy: { createdAt: 'desc' },
       }),
-      this.db.partnerProfile.count({ where }),
+      db.partnerProfile.count({ where }),
     ]);
 
     return {
@@ -129,7 +134,9 @@ export class PartnerProfilesService {
       });
     }
 
-    const updated = await this.db.partnerProfile.update({
+    const db = this.database.forTenant(actor.tenantId);
+
+    const updated = await db.partnerProfile.update({
       where: { id },
       data: {
         ...(dto.name !== undefined && { name: dto.name }),
@@ -170,9 +177,11 @@ export class PartnerProfilesService {
       });
     }
 
+    const db = this.database.forTenant(actor.tenantId);
+
     // PROD_ACTIVE requires an approved Approval (except when resuming from SUSPENDED)
     if (targetStatus === 'PROD_ACTIVE' && currentStatus !== 'SUSPENDED') {
-      const approval = await this.db.approval.findFirst({
+      const approval = await db.approval.findFirst({
         where: {
           tenantId: actor.tenantId,
           objectType: 'PartnerProfile',
@@ -197,7 +206,7 @@ export class PartnerProfilesService {
       }
     }
 
-    const updated = await this.db.partnerProfile.update({
+    const updated = await db.partnerProfile.update({
       where: { id },
       data: {
         status: targetStatus as PartnerProfileStatus,

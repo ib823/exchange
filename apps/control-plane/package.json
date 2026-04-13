@@ -8,7 +8,7 @@
     "start": "node dist/main",
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit",
-    "test:unit": "vitest run --config vitest.config.ts",
+    "test:unit": "vitest run --config vitest.config.ts --coverage",
     "test": "vitest run",
     "openapi:generate": "ts-node src/openapi-export.ts",
     "openapi:validate": "swagger-cli validate api/openapi.yaml",

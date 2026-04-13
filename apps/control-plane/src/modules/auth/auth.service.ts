@@ -1,6 +1,6 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { getPrismaClient } from '@sep/db';
+import { DatabaseService } from '@sep/db';
 import { SepError, ErrorCode, getConfig } from '@sep/common';
 import { createLogger } from '@sep/observability';
 import { compare } from 'bcrypt';
@@ -24,14 +24,17 @@ export interface AuthTokens {
 
 @Injectable()
 export class AuthService {
-  private readonly db = getPrismaClient();
-
-  constructor(private readonly jwtService: JwtService) {}
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly database: DatabaseService,
+  ) {}
 
   async validateApiKey(rawKey: string): Promise<TokenPayload> {
     const prefix = rawKey.slice(0, 8);
 
-    const candidates = await this.db.apiKey.findMany({
+    const db = this.database.forSystem();
+
+    const candidates = await db.apiKey.findMany({
       where: { prefix, active: true },
     });
 
@@ -63,7 +66,7 @@ export class AuthService {
     }
 
     // Check tenant status separately (no FK relation on ApiKey)
-    const tenant = await this.db.tenant.findUnique({
+    const tenant = await db.tenant.findUnique({
       where: { id: apiKey.tenantId },
       select: { status: true },
     });
@@ -75,7 +78,7 @@ export class AuthService {
     }
 
     // Update last used timestamp (non-blocking)
-    void this.db.apiKey.update({
+    void db.apiKey.update({
       where: { id: apiKey.id },
       data: { lastUsedAt: new Date() },
     }).catch((err: unknown) => {

@@ -16,7 +16,7 @@
     "dev": "tsup src/index.ts --format cjs --dts --watch",
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit",
-    "test:unit": "vitest run",
+    "test:unit": "vitest run --coverage",
     "test": "vitest run",
     "clean": "rm -rf dist"
   },

@@ -1,20 +1,21 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { getPrismaClient, Prisma } from '@sep/db';
+import { DatabaseService, Prisma } from '@sep/db';
 import { AuditService } from '../audit/audit.service';
 import type { CreateTenantDto, UpdateTenantDto } from '@sep/schemas';
 import type { TokenPayload } from '../auth/auth.service';
 
 @Injectable()
 export class TenantsService {
-  private readonly db = getPrismaClient();
-
-  constructor(private readonly audit: AuditService) {}
+  constructor(
+    private readonly audit: AuditService,
+    private readonly database: DatabaseService,
+  ) {}
 
   async create(dto: CreateTenantDto, actor: TokenPayload): Promise<{
     id: string; name: string; legalEntityName: string; serviceTier: string;
     defaultRegion: string; status: string; createdAt: Date; updatedAt: Date;
   }> {
-    const tenant = await this.db.tenant.create({
+    const tenant = await this.database.forSystem().tenant.create({
       data: {
         name: dto.name,
         legalEntityName: dto.legalEntityName,
@@ -41,7 +42,7 @@ export class TenantsService {
     id: string; name: string; legalEntityName: string; serviceTier: string;
     defaultRegion: string; status: string; createdAt: Date; updatedAt: Date;
   }> {
-    const tenant = await this.db.tenant.findUnique({ where: { id } });
+    const tenant = await this.database.forSystem().tenant.findUnique({ where: { id } });
 
     if (tenant === null) {
       throw new NotFoundException('Tenant not found');
@@ -65,13 +66,13 @@ export class TenantsService {
       : { id: actor.tenantId };
 
     const [data, total] = await Promise.all([
-      this.db.tenant.findMany({
+      this.database.forSystem().tenant.findMany({
         where,
         skip: (page - 1) * pageSize,
         take: pageSize,
         orderBy: { createdAt: 'desc' },
       }),
-      this.db.tenant.count({ where }),
+      this.database.forSystem().tenant.count({ where }),
     ]);
 
     return { data, meta: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) } };
@@ -81,7 +82,7 @@ export class TenantsService {
     id: string; name: string; legalEntityName: string; serviceTier: string;
     defaultRegion: string; status: string; createdAt: Date; updatedAt: Date;
   }> {
-    const existing = await this.db.tenant.findUnique({ where: { id } });
+    const existing = await this.database.forSystem().tenant.findUnique({ where: { id } });
     if (existing === null) {
       throw new NotFoundException('Tenant not found');
     }
@@ -89,7 +90,7 @@ export class TenantsService {
       throw new NotFoundException('Tenant not found');
     }
 
-    const updated = await this.db.tenant.update({
+    const updated = await this.database.forSystem().tenant.update({
       where: { id },
       data: {
         ...(dto.name !== undefined && { name: dto.name }),
@@ -116,7 +117,7 @@ export class TenantsService {
   async suspend(id: string, actor: TokenPayload): Promise<{
     id: string; name: string; status: string;
   }> {
-    const existing = await this.db.tenant.findUnique({ where: { id } });
+    const existing = await this.database.forSystem().tenant.findUnique({ where: { id } });
     if (existing === null) {
       throw new NotFoundException('Tenant not found');
     }
@@ -124,7 +125,7 @@ export class TenantsService {
       throw new NotFoundException('Tenant not found');
     }
 
-    const updated = await this.db.tenant.update({
+    const updated = await this.database.forSystem().tenant.update({
       where: { id },
       data: { status: 'SUSPENDED' },
     });

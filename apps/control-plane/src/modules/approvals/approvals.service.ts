@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { getPrismaClient } from '@sep/db';
+import { DatabaseService } from '@sep/db';
 import { SepError, ErrorCode } from '@sep/common';
 import { AuditService } from '../audit/audit.service';
 import type { TokenPayload } from '../auth/auth.service';
@@ -23,12 +23,14 @@ interface ApprovalRow {
 
 @Injectable()
 export class ApprovalsService {
-  private readonly db = getPrismaClient();
-
-  constructor(private readonly audit: AuditService) {}
+  constructor(
+    private readonly audit: AuditService,
+    private readonly database: DatabaseService,
+  ) {}
 
   private async assertTenantOwnership(id: string, tenantId: string): Promise<ApprovalRow> {
-    const approval = await this.db.approval.findUnique({ where: { id } });
+    const db = this.database.forTenant(tenantId);
+    const approval = await db.approval.findUnique({ where: { id } });
     if (approval === null || approval.tenantId !== tenantId) {
       throw new NotFoundException('Approval not found');
     }
@@ -48,6 +50,7 @@ export class ApprovalsService {
     data: ApprovalRow[];
     meta: { page: number; pageSize: number; total: number; totalPages: number };
   }> {
+    const db = this.database.forTenant(actor.tenantId);
     const where = {
       tenantId: actor.tenantId,
       status: 'PENDING' as const,
@@ -55,13 +58,13 @@ export class ApprovalsService {
     };
 
     const [data, total] = await Promise.all([
-      this.db.approval.findMany({
+      db.approval.findMany({
         where,
         skip: (page - 1) * pageSize,
         take: pageSize,
         orderBy: { initiatedAt: 'desc' },
       }),
-      this.db.approval.count({ where }),
+      db.approval.count({ where }),
     ]);
 
     return {
@@ -96,7 +99,8 @@ export class ApprovalsService {
       });
     }
 
-    const updated = await this.db.approval.update({
+    const db = this.database.forTenant(actor.tenantId);
+    const updated = await db.approval.update({
       where: { id },
       data: {
         status: 'APPROVED',
@@ -132,7 +136,8 @@ export class ApprovalsService {
       });
     }
 
-    const updated = await this.db.approval.update({
+    const db = this.database.forTenant(actor.tenantId);
+    const updated = await db.approval.update({
       where: { id },
       data: {
         status: 'REJECTED',
