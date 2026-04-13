@@ -137,6 +137,13 @@ export const PartnerProfileStatus = {
 } as const;
 export type PartnerProfileStatus = (typeof PartnerProfileStatus)[keyof typeof PartnerProfileStatus];
 
+// ── Actor context — propagated through every async boundary ───────────────────
+export interface ActorContext {
+  readonly actorId: string;
+  readonly actorRole: string;
+  readonly credentialId?: string | undefined;
+}
+
 // ── Queue job contracts ────────────────────────────────────────────────────────
 // Payload content is NEVER in the job — only storage references
 export interface SubmissionJob {
@@ -149,8 +156,11 @@ export interface SubmissionJob {
   readonly normalizedHash: string;     // SHA-256 of payload
   readonly attempt: number;
   readonly enqueuedAt: string;         // ISO 8601
-  readonly sourceSystemId?: string;
-  readonly exchangeProfileId?: string;
+  readonly actorId: string;            // Originating actor — preserved through retries
+  readonly actorRole: string;
+  readonly credentialId?: string | undefined;
+  readonly sourceSystemId?: string | undefined;
+  readonly exchangeProfileId?: string | undefined;
 }
 
 export interface CryptoJob extends SubmissionJob {
@@ -170,6 +180,9 @@ export interface InboundJob {
   readonly partnerProfileId: PartnerProfileId;
   readonly rawPayloadRef: string;
   readonly receivedAt: string;
+  readonly actorId: string;
+  readonly actorRole: string;
+  readonly credentialId?: string;
 }
 
 // ── Nonce / replay prevention ─────────────────────────────────────────────────

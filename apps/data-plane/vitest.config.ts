@@ -20,6 +20,7 @@ export default defineConfig({
       '@sep/crypto': resolve(__dirname, '../../packages/crypto/src'),
       '@sep/observability': resolve(__dirname, '../../packages/observability/src'),
       '@sep/db': resolve(__dirname, '../../packages/db/src'),
+      '@sep/crypto': resolve(__dirname, '../../packages/crypto/src'),
       '@sep/partner-profiles': resolve(__dirname, '../../packages/partner-profiles/src'),
     },
   },

@@ -222,7 +222,7 @@ function loadConfig(): AppConfig {
       webhookEnabled: process.env['FEATURE_WEBHOOK_ENABLED'],
       auditExportEnabled: process.env['FEATURE_AUDIT_EXPORT_ENABLED'],
       keyRotationEnabled: process.env['FEATURE_KEY_ROTATION_ENABLED'],
-      malwareScanEnabled: process.env['FEATURE_MALWARE_SCAN_ENABLED'] ?? 'false',
+      malwareScanEnabled: process.env['MALWARE_SCAN_ENABLED'] ?? process.env['FEATURE_MALWARE_SCAN_ENABLED'] ?? 'false',
     },
   };
 

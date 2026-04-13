@@ -239,8 +239,9 @@ model Tenant {
   retentionPolicies  RetentionPolicy[]   @relation("TenantRetentionPolicies")
   exchangeProfiles   ExchangeProfile[]
   sourceSystems      SourceSystem[]
-  apiKeys            ApiKey[]
-  inboundReceipts    InboundReceipt[]
+  apiKeys                 ApiKey[]
+  inboundReceipts         InboundReceipt[]
+  cryptoOperationRecords  CryptoOperationRecord[]
 
   @@index([status])
   @@map("tenants")
@@ -423,6 +424,7 @@ model Submission {
   deliveryAttempts          DeliveryAttempt[]
   inboundReceipt            InboundReceipt?
   webhookDeliveryAttempts   WebhookDeliveryAttempt[]
+  cryptoOperationRecords    CryptoOperationRecord[]
 
   @@unique([tenantId, idempotencyKey])
   @@index([tenantId])
@@ -502,13 +504,56 @@ model KeyReference {
 
   tenant           Tenant          @relation(fields: [tenantId], references: [id])
   partnerProfile   PartnerProfile? @relation(fields: [partnerProfileId], references: [id])
-  rotationTarget   KeyReference?   @relation("KeyRotation", fields: [rotationTargetId], references: [id])
-  rotationSources  KeyReference[]  @relation("KeyRotation")
+  rotationTarget          KeyReference?           @relation("KeyRotation", fields: [rotationTargetId], references: [id])
+  rotationSources         KeyReference[]          @relation("KeyRotation")
+  cryptoOperationRecords  CryptoOperationRecord[]
 
   @@index([tenantId])
   @@index([tenantId, state])
   @@index([expiresAt])
   @@map("key_references")
+}
+
+// ── Crypto Operation Record — immutable, RLS-protected ───────────────────────
+
+enum CryptoOperationType {
+  SIGN
+  ENCRYPT
+  DECRYPT
+  VERIFY
+  SIGN_AND_ENCRYPT
+  VERIFY_AND_DECRYPT
+}
+
+enum CryptoOperationResult {
+  SUCCESS
+  FAILURE
+  POLICY_VIOLATION
+}
+
+model CryptoOperationRecord {
+  id              String                @id @default(cuid())
+  tenantId        String
+  submissionId    String?
+  keyReferenceId  String
+  operationType   CryptoOperationType
+  result          CryptoOperationResult
+  algorithmPolicy Json
+  keyFingerprint  String
+  performedAt     DateTime
+  errorCode       String?
+  correlationId   String?
+  actorId         String
+  createdAt       DateTime              @default(now())
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  keyReference KeyReference @relation(fields: [keyReferenceId], references: [id], onDelete: Restrict)
+  submission   Submission?  @relation(fields: [submissionId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, correlationId, performedAt])
+  @@index([keyReferenceId, performedAt])
+  @@index([submissionId])
+  @@map("crypto_operation_records")
 }
 
 // ── Audit Event — append-only enforced via Postgres RLS ───────────────────────

@@ -61,6 +61,7 @@ export type {
   ExchangeProfile,
   SourceSystem,
   WebhookDeliveryAttempt,
+  CryptoOperationRecord,
 } from '@prisma/client';
 
 export {
@@ -83,4 +84,6 @@ export {
   AuditAction,
   ServiceTier,
   UserStatus,
+  CryptoOperationType,
+  CryptoOperationResult,
 } from '@prisma/client';

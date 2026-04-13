@@ -267,6 +267,9 @@ importers:
       eslint-config-prettier:
         specifier: ^9.1.0
         version: 9.1.2(eslint@8.57.1)
+      openpgp:
+        specifier: ^5.11.3
+        version: 5.11.3
       ts-loader:
         specifier: ^9.5.1
         version: 9.5.7(typescript@5.9.3)(webpack@5.106.0)
