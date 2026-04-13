@@ -192,7 +192,7 @@ jobs:
           --health-retries 10
     env:
       DATABASE_URL: postgresql://sep:sep@localhost:5432/sep_test
-      RUNTIME_DATABASE_URL: postgresql://sep:sep@localhost:5432/sep_test
+      RUNTIME_DATABASE_URL: postgresql://sep_app:sep_app@localhost:5432/sep_test
       REDIS_URL: redis://localhost:6379
       NODE_ENV: test
       APP_ENV: ci
@@ -218,6 +218,10 @@ jobs:
         run: pnpm --filter @sep/db exec prisma migrate deploy
         env:
           DATABASE_URL: ${{ env.DATABASE_URL }}
+      - name: Verify runtime DB role separation
+        run: |
+          psql "$RUNTIME_DATABASE_URL" \
+            -c "SELECT current_user, has_schema_privilege(current_user, 'public', 'CREATE') AS can_create_schema;"
       - run: pnpm test:e2e
 
   # ─────────────────────────────────────────────────────────

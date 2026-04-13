@@ -30,12 +30,12 @@ declare global {
  * RUNTIME_DATABASE_URL (sep_app role) takes precedence over DATABASE_URL (migration role).
  */
 function getRuntimeDatabaseUrl(): string | undefined {
+  // eslint-disable-next-line no-process-env -- single entry point for runtime DB URL
   return process.env['RUNTIME_DATABASE_URL'] ?? undefined;
 }
 
 function createRuntimeClient(): PrismaClient {
-  const runtimeUrl = getRuntimeDatabaseUrl();
-  const datasourceUrl = runtimeUrl !== undefined ? runtimeUrl : undefined;
+  const datasourceUrl = getRuntimeDatabaseUrl();
 
   return new PrismaClient({
     log: [
@@ -73,7 +73,7 @@ export class DatabaseService {
    * @param tenantId — required. Throws if missing or empty.
    */
   forTenant(tenantId: string): PrismaClient {
-    if (tenantId === undefined || tenantId === null || tenantId.length === 0) {
+    if (tenantId.length === 0) {
       throw new Error(
         'DatabaseService.forTenant() requires a non-empty tenantId. ' +
         'This is a programming error — tenant context must always be provided.',
