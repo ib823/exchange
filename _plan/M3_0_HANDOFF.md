@@ -194,6 +194,14 @@ regulatory matrices, incident reporting workflow, SBOM signing, SLOs).
    amendment: fastify is now exact-pinned as a direct dep (§6), so the
    `fastify: >=5.7.2` override is redundant and was removed.
 
+   **2026-04-17 addendum (hygiene PR #11):** Decision #6 was correct
+   for its original condition (no transitive drift pressure on fastify).
+   GHSA-247c-9743-5963 (CVSS 7.5) introduced that pressure after M3.0
+   closure. The fastify override was re-added at exact 5.8.5 in hygiene
+   PR #11 to force closure via `@nestjs/platform-fastify`'s transitive
+   pin. See `docs/adr/0006-pnpm-overrides-governance.md` for the
+   durable policy. Closure trigger tracked in issue #12.
+
 ### Decisions made from the dry-run table
 
 All six decision points from the pre-execution table were resolved by the
