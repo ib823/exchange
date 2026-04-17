@@ -22,7 +22,10 @@ describe('M3.0 install smoke — @sep/control-plane', () => {
     const mod = await import('@node-rs/argon2');
     expect(typeof mod.hash).toBe('function');
     expect(typeof mod.verify).toBe('function');
-    expect(mod.Algorithm).toBeDefined();
+    // Algorithm is a `const enum`; under isolatedModules / preserveConstEnums=false
+    // it can only be accessed via property/index expressions, so assert a member
+    // value rather than the namespace object itself.
+    expect(mod.Algorithm.Argon2id).toBe(2);
   }, TIMEOUT);
 
   it('imports @nestjs/throttler (install-only, wired M3)', async () => {

@@ -106,15 +106,21 @@ describe('AuditService', () => {
       mockDb.auditEvent.create.mockResolvedValue({ id: 'evt-1' });
 
       await service.record(baseParams);
-      const firstHash = // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-non-null-assertion -- test mock inspection
-      (mockDb.auditEvent.create.mock.calls[0]![0] as { data: { immutableHash: string } }).data.immutableHash;
+      const firstCall = mockDb.auditEvent.create.mock.calls[0];
+      if (!firstCall) {
+        throw new Error('expected first create call');
+      }
+      const firstHash = (firstCall[0] as { data: { immutableHash: string } }).data.immutableHash;
 
       mockDb.auditEvent.findFirst.mockResolvedValue({ immutableHash: firstHash });
       mockDb.auditEvent.create.mockResolvedValue({ id: 'evt-2' });
 
       await service.record({ ...baseParams, action: 'SUBMISSION_VALIDATED' as const });
-      const secondHash = // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-non-null-assertion -- test mock inspection
-      (mockDb.auditEvent.create.mock.calls[1]![0] as { data: { immutableHash: string } }).data.immutableHash;
+      const secondCall = mockDb.auditEvent.create.mock.calls[1];
+      if (!secondCall) {
+        throw new Error('expected second create call');
+      }
+      const secondHash = (secondCall[0] as { data: { immutableHash: string } }).data.immutableHash;
 
       expect(firstHash).not.toBe(secondHash);
     });
@@ -149,8 +155,12 @@ describe('AuditService', () => {
 
       await service.record(baseParams);
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-non-null-assertion -- test mock inspection
-      const createData = (mockDb.auditEvent.create.mock.calls[0]![0] as { data: { eventTime: Date; immutableHash: string } }).data;
+      const createCall = mockDb.auditEvent.create.mock.calls[0];
+      if (!createCall) {
+        throw new Error('expected create call');
+      }
+      const createData = (createCall[0] as { data: { eventTime: Date; immutableHash: string } })
+        .data;
       expect(createData.eventTime).toBeInstanceOf(Date);
       // The eventTime field is now explicitly set by the service, not left to @default(now())
       expect(createData.eventTime).toBeDefined();
@@ -158,29 +168,40 @@ describe('AuditService', () => {
 
     it('hash chain is reproducible from persisted fields', async () => {
       // Simulate writing 3 events and verifying the chain from persisted data
-      const events: Array<{ eventTime: Date; immutableHash: string; previousHash: string | null }> = [];
+      const events: Array<{ eventTime: Date; immutableHash: string; previousHash: string | null }> =
+        [];
 
       // Event 1 — genesis
       mockDb.auditEvent.findFirst.mockResolvedValue(null);
-      mockDb.auditEvent.create.mockImplementation(({ data }: { data: { eventTime: Date; immutableHash: string; previousHash: string | null } }) => {
-        events.push({ eventTime: data.eventTime, immutableHash: data.immutableHash, previousHash: data.previousHash });
-        return Promise.resolve({ id: `evt-${events.length}` });
-      });
+      mockDb.auditEvent.create.mockImplementation(
+        ({
+          data,
+        }: {
+          data: { eventTime: Date; immutableHash: string; previousHash: string | null };
+        }) => {
+          events.push({
+            eventTime: data.eventTime,
+            immutableHash: data.immutableHash,
+            previousHash: data.previousHash,
+          });
+          return Promise.resolve({ id: `evt-${events.length}` });
+        },
+      );
 
       await service.record(baseParams);
 
       // Event 2 — chained to event 1
-      const evt0 = events[0] as typeof events[number];
+      const evt0 = events[0] as (typeof events)[number];
       mockDb.auditEvent.findFirst.mockResolvedValue({ immutableHash: evt0.immutableHash });
       await service.record({ ...baseParams, action: 'SUBMISSION_VALIDATED' as const });
 
       // Event 3 — chained to event 2
-      const evt1 = events[1] as typeof events[number];
+      const evt1 = events[1] as (typeof events)[number];
       mockDb.auditEvent.findFirst.mockResolvedValue({ immutableHash: evt1.immutableHash });
       await service.record({ ...baseParams, action: 'SUBMISSION_QUEUED' as const });
 
       expect(events).toHaveLength(3);
-      const evt2 = events[2] as typeof events[number];
+      const evt2 = events[2] as (typeof events)[number];
 
       // Verify chain linkage
       expect(evt0.previousHash).toBeNull();
@@ -192,7 +213,7 @@ describe('AuditService', () => {
       const actions = ['SUBMISSION_RECEIVED', 'SUBMISSION_VALIDATED', 'SUBMISSION_QUEUED'];
 
       for (let i = 0; i < events.length; i++) {
-        const evt = events[i] as typeof events[number];
+        const evt = events[i] as (typeof events)[number];
         const action = actions[i] as string;
         const hashInput = [
           baseParams.tenantId,
@@ -256,8 +277,11 @@ describe('AuditService', () => {
 
       await service.search({ tenantId: 'tenant-1', page: 1, pageSize: 20 });
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-non-null-assertion -- test mock inspection
-      const selectArg = (mockDb.auditEvent.findMany.mock.calls[0]![0] as { select: Record<string, boolean> }).select;
+      const findManyCall = mockDb.auditEvent.findMany.mock.calls[0];
+      if (!findManyCall) {
+        throw new Error('expected findMany call');
+      }
+      const selectArg = (findManyCall[0] as { select: Record<string, boolean> }).select;
       expect(selectArg).not.toHaveProperty('immutableHash');
       expect(selectArg).not.toHaveProperty('previousHash');
       expect(selectArg).toHaveProperty('id', true);
@@ -307,8 +331,11 @@ describe('AuditService', () => {
 
       await service.search({ tenantId: 'tenant-1', page: 1, pageSize: 20 });
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-non-null-assertion -- test mock inspection
-      const where = (mockDb.auditEvent.findMany.mock.calls[0]![0] as { where: { tenantId: string } }).where;
+      const tenantScopeCall = mockDb.auditEvent.findMany.mock.calls[0];
+      if (!tenantScopeCall) {
+        throw new Error('expected findMany call');
+      }
+      const where = (tenantScopeCall[0] as { where: { tenantId: string } }).where;
       expect(where.tenantId).toBe('tenant-1');
     });
   });

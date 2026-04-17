@@ -7,7 +7,14 @@ pre-commit:
   parallel: true
   commands:
     lint-staged:
-      glob: "*.{ts,tsx}"
+      # Scope matches `pnpm lint`'s turbo scope: per-package `eslint src`.
+      # Narrowed from {apps,packages}/**/*.{ts,tsx} — that broader form
+      # caught root-level package files (vitest.config.ts,
+      # prisma/seed.ts, next-env.d.ts) that aren't in any package's
+      # eslint project scope, re-breaking the pre-commit hook.
+      # tests/helpers/*.ts stays out of scope (follow-up issue tracks
+      # promoting it).
+      glob: '{apps,packages}/*/src/**/*.{ts,tsx}'
       run: pnpm exec eslint {staged_files}
 
     gitleaks:
@@ -25,7 +32,7 @@ commit-msg:
     lint-commit-message:
       run: |
         head -1 {1} | grep -qE '^(feat|fix|docs|test|chore|refactor|ci|build|perf)(\(.+\))?!?: .+'
-      fail_text: "Commit message must follow conventional-commits prefix (feat|fix|docs|test|chore|refactor|ci|build|perf)"
+      fail_text: 'Commit message must follow conventional-commits prefix (feat|fix|docs|test|chore|refactor|ci|build|perf)'
 
 pre-push:
   commands:
