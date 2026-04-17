@@ -1,0 +1,41 @@
+# OSV Scanner waiver configuration
+#
+# Every entry MUST include:
+#   - id: GHSA identifier
+#   - ignoreUntil: review date (30-day window from creation, or sooner on
+#     severity escalation)
+#   - reason: why this advisory is accepted-with-tracking, not
+#     remediate-now — including the closure trigger and tracking issue.
+#
+# Waivers are only legitimate when the exposure is genuinely bounded
+# (dev-only, test-only, or explicitly out-of-scope for the threat model)
+# and a tracking issue is filed. See issue #13 for the current tracking
+# record for these two entries.
+
+[[IgnoredVulns]]
+id = "GHSA-4w7w-66w2-5vf9"
+ignoreUntil = 2026-05-17
+reason = """
+vite 5.4.21 dev-server advisory. Reached transitively via vitest → vite;
+exposure bounded to local `vite dev` (the dev server is never started by
+production builds or CI test runs). Classified Review-level in
+_audit/dependency_report.md §3, consistent with prior finding R5-007.
+
+Closure trigger: vitest 3.x transitive bump to vite ≥ 6.4.2, at which
+point this entry is removed and the advisory drops naturally on reinstall.
+Tracked in issue #13.
+"""
+
+[[IgnoredVulns]]
+id = "GHSA-67mh-4wv8-2f99"
+ignoreUntil = 2026-05-17
+reason = """
+esbuild 0.21.5 dev-server CORS advisory. Reached transitively via
+vitest → vite → esbuild; exposure bounded to local `vite dev`
+(dev-server only). Classified Review-level in
+_audit/dependency_report.md §3, consistent with prior finding R5-007.
+
+Closure trigger: vitest 3.x transitive bump to esbuild ≥ 0.25.0, at
+which point this entry is removed and the advisory drops naturally on
+reinstall. Tracked in issue #13.
+"""

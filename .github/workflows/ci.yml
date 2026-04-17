@@ -257,7 +257,12 @@ jobs:
         # Scan the single pnpm-lock.yaml at repo root — covers every
         # transitive dep across the workspace. `scan source` subcommand
         # doesn't accept --skip-git; --lockfile is the targeted scan.
-        run: osv-scanner --lockfile=pnpm-lock.yaml
+        # --config points at .osv-scanner.toml, which carries the
+        # documented dev-only waivers (vite + esbuild via vitest). Every
+        # waiver has a review date, a closure trigger, and a tracking
+        # issue — see ADR-0006 for the adjacent governance for
+        # pnpm.overrides (kept separate from scanner waivers).
+        run: osv-scanner --config=.osv-scanner.toml --lockfile=pnpm-lock.yaml
       - name: Secret scanning
         uses: trufflesecurity/trufflehog@580628bb9d5455140899afe2cb981ff5640bf399 # main as of remediation date
         with:
