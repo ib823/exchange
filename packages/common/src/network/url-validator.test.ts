@@ -102,7 +102,9 @@ describe('validateOutboundUrl', () => {
 
   // ── Kubernetes internal hostnames ──────────────────────────────────────────
   it('rejects kubernetes.default.svc.cluster.local', () => {
-    expect(validateOutboundUrl('https://kubernetes.default.svc.cluster.local/api').valid).toBe(false);
+    expect(validateOutboundUrl('https://kubernetes.default.svc.cluster.local/api').valid).toBe(
+      false,
+    );
   });
 });
 
@@ -112,12 +114,14 @@ describe('assertOutboundUrlSafe', () => {
   });
 
   it('throws SepError with VALIDATION_SCHEMA_FAILED for private IP', () => {
-    expect(() => assertOutboundUrlSafe('https://127.0.0.1/hook'))
-      .toThrow('VALIDATION_SCHEMA_FAILED');
+    expect(() => assertOutboundUrlSafe('https://127.0.0.1/hook')).toThrow(
+      'VALIDATION_SCHEMA_FAILED',
+    );
   });
 
   it('throws SepError with VALIDATION_SCHEMA_FAILED for metadata endpoint', () => {
-    expect(() => assertOutboundUrlSafe('http://169.254.169.254/latest'))
-      .toThrow('VALIDATION_SCHEMA_FAILED');
+    expect(() => assertOutboundUrlSafe('http://169.254.169.254/latest')).toThrow(
+      'VALIDATION_SCHEMA_FAILED',
+    );
   });
 });

@@ -24,13 +24,19 @@ const cfg = getConfig();
 
 @Module({
   imports: [
-    ThrottlerModule.forRoot([{
-      ttl: cfg.rateLimit.ttlMs,
-      limit: cfg.rateLimit.maxPerWindow,
-    }]),
+    ThrottlerModule.forRoot([
+      {
+        ttl: cfg.rateLimit.ttlMs,
+        limit: cfg.rateLimit.maxPerWindow,
+      },
+    ]),
     JwtModule.register({
       secret: cfg.auth.jwtSecret,
-      signOptions: { expiresIn: cfg.auth.jwtExpiry as `${number}m`, issuer: cfg.auth.jwtIssuer, algorithm: 'HS256' },
+      signOptions: {
+        expiresIn: cfg.auth.jwtExpiry as `${number}m`,
+        issuer: cfg.auth.jwtIssuer,
+        algorithm: 'HS256',
+      },
       verifyOptions: { algorithms: ['HS256'] },
     }),
     DatabaseModule,
@@ -48,12 +54,12 @@ const cfg = getConfig();
   providers: [
     Reflector,
     // Order matters: auth first, then tenant boundary, then roles
-    { provide: APP_FILTER,      useClass: HttpExceptionFilter },
+    { provide: APP_FILTER, useClass: HttpExceptionFilter },
     { provide: APP_INTERCEPTOR, useClass: LoggingInterceptor },
-    { provide: APP_GUARD,       useClass: ThrottlerGuard },
-    { provide: APP_GUARD,       useClass: JwtAuthGuard },
-    { provide: APP_GUARD,       useClass: TenantGuard },
-    { provide: APP_GUARD,       useClass: RolesGuard },
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: TenantGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
   ],
 })
 export class AppModule {}

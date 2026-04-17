@@ -9,7 +9,9 @@ export const DEFAULT_MAX_PAYLOAD_SIZE_BYTES = 52_428_800;
  * The ceiling is enforced at schema validation time — before the submission
  * record is created — to prevent oversized work from entering the queue.
  */
-export function createSubmissionSchema(maxPayloadSizeBytes: number = DEFAULT_MAX_PAYLOAD_SIZE_BYTES): z.ZodObject<{
+export function createSubmissionSchema(
+  maxPayloadSizeBytes: number = DEFAULT_MAX_PAYLOAD_SIZE_BYTES,
+): z.ZodObject<{
   tenantId: typeof CuidSchema;
   partnerProfileId: typeof CuidSchema;
   sourceSystemId: ReturnType<typeof CuidSchema.optional>;
@@ -30,9 +32,14 @@ export function createSubmissionSchema(maxPayloadSizeBytes: number = DEFAULT_MAX
     idempotencyKey: IdempotencyKeySchema,
     payloadRef: z.string().min(1).max(500).optional(),
     normalizedHash: z.string().length(64).optional(),
-    payloadSize: z.number().int().positive().max(maxPayloadSizeBytes, {
-      message: `Payload size exceeds maximum of ${maxPayloadSizeBytes} bytes`,
-    }).optional(),
+    payloadSize: z
+      .number()
+      .int()
+      .positive()
+      .max(maxPayloadSizeBytes, {
+        message: `Payload size exceeds maximum of ${maxPayloadSizeBytes} bytes`,
+      })
+      .optional(),
     metadata: z.record(z.unknown()).optional(),
   });
 }

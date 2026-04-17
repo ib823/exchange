@@ -25,14 +25,22 @@ export interface CryptoRecordInput {
   keyFingerprint: string;
 }
 
-function mapOperationType(operation: string): 'SIGN' | 'ENCRYPT' | 'DECRYPT' | 'VERIFY' | 'SIGN_AND_ENCRYPT' | 'VERIFY_AND_DECRYPT' {
+function mapOperationType(
+  operation: string,
+): 'SIGN' | 'ENCRYPT' | 'DECRYPT' | 'VERIFY' | 'SIGN_AND_ENCRYPT' | 'VERIFY_AND_DECRYPT' {
   switch (operation) {
-    case 'SIGN': return 'SIGN';
-    case 'ENCRYPT': return 'ENCRYPT';
-    case 'DECRYPT': return 'DECRYPT';
-    case 'VERIFY': return 'VERIFY';
-    case 'SIGN_ENCRYPT': return 'SIGN_AND_ENCRYPT';
-    case 'VERIFY_DECRYPT': return 'VERIFY_AND_DECRYPT';
+    case 'SIGN':
+      return 'SIGN';
+    case 'ENCRYPT':
+      return 'ENCRYPT';
+    case 'DECRYPT':
+      return 'DECRYPT';
+    case 'VERIFY':
+      return 'VERIFY';
+    case 'SIGN_ENCRYPT':
+      return 'SIGN_AND_ENCRYPT';
+    case 'VERIFY_DECRYPT':
+      return 'VERIFY_AND_DECRYPT';
     default: {
       const _exhaustive: never = operation as never;
       throw new SepError(ErrorCode.INTERNAL_ERROR, { operation: String(_exhaustive) });
@@ -75,7 +83,9 @@ export class CryptoRecordService {
 
       return record.id;
     } catch (err) {
-      if (err instanceof SepError) {throw err;}
+      if (err instanceof SepError) {
+        throw err;
+      }
       logger.error(
         { tenantId: input.tenantId, operation: input.meta.operation },
         'CRITICAL: crypto operation record persistence failed',

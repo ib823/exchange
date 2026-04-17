@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { CreateSubmissionSchema, createSubmissionSchema, DEFAULT_MAX_PAYLOAD_SIZE_BYTES } from './submission.schema';
+import {
+  CreateSubmissionSchema,
+  createSubmissionSchema,
+  DEFAULT_MAX_PAYLOAD_SIZE_BYTES,
+} from './submission.schema';
 
 const validSubmission = {
   tenantId: 'clxxxxxxxxxxxxxxxxxxxxxxxxx',

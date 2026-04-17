@@ -7,7 +7,10 @@ import { DEFAULT_ALGORITHM_POLICY, type KeyRef, type CryptoAlgorithmPolicy } fro
 
 vi.mock('@sep/observability', () => ({
   createLogger: () => ({
-    info: vi.fn(), debug: vi.fn(), warn: vi.fn(), error: vi.fn(),
+    info: vi.fn(),
+    debug: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
   }),
 }));
 
@@ -80,11 +83,11 @@ describe('CryptoService', () => {
       // Encrypt with openpgp directly to get ciphertext
       const publicKey = await openpgp.readKey({ armoredKey: publicKeyArmored });
       const message = await openpgp.createMessage({ text: 'secret data' });
-      const ciphertext = await openpgp.encrypt({
+      const ciphertext = (await openpgp.encrypt({
         message,
         encryptionKeys: publicKey,
         format: 'armored',
-      }) as string;
+      })) as string;
 
       const result = await service.decrypt(ciphertext, privRef, {});
       expect(result.decryptedPayloadRef).toContain('decrypted/');
@@ -144,12 +147,12 @@ describe('CryptoService', () => {
 
       // Sign and encrypt with openpgp directly
       const message = await openpgp.createMessage({ text: 'verified payload' });
-      const ciphertext = await openpgp.encrypt({
+      const ciphertext = (await openpgp.encrypt({
         message,
         encryptionKeys: publicKey,
         signingKeys: privateKey,
         format: 'armored',
-      }) as string;
+      })) as string;
 
       const privRef = makeKeyRef({ backendRef: privateKeyArmored });
       const pubRef = makeKeyRef({ backendRef: publicKeyArmored });
@@ -163,11 +166,11 @@ describe('CryptoService', () => {
     it('returns SKIPPED when no sender key provided', async () => {
       const publicKey = await openpgp.readKey({ armoredKey: publicKeyArmored });
       const message = await openpgp.createMessage({ text: 'unverified data' });
-      const ciphertext = await openpgp.encrypt({
+      const ciphertext = (await openpgp.encrypt({
         message,
         encryptionKeys: publicKey,
         format: 'armored',
-      }) as string;
+      })) as string;
 
       const privRef = makeKeyRef({ backendRef: privateKeyArmored });
       const result = await service.verifyAndDecrypt(ciphertext, privRef, null, {});
@@ -179,14 +182,24 @@ describe('CryptoService', () => {
     it('rejects forbidden algorithm', async () => {
       const ref = makeKeyRef({ algorithm: 'dsa', backendRef: publicKeyArmored });
       await expect(
-        service.encrypt('payload', ref, { outputFormat: 'armored', compressionAlgorithm: 'zlib' }, policy),
+        service.encrypt(
+          'payload',
+          ref,
+          { outputFormat: 'armored', compressionAlgorithm: 'zlib' },
+          policy,
+        ),
       ).rejects.toThrow(expect.objectContaining({ code: ErrorCode.CRYPTO_UNSUPPORTED_ALGORITHM }));
     });
 
     it('rejects key in wrong state', async () => {
       const ref = makeKeyRef({ state: 'REVOKED', backendRef: publicKeyArmored });
       await expect(
-        service.encrypt('payload', ref, { outputFormat: 'armored', compressionAlgorithm: 'zlib' }, policy),
+        service.encrypt(
+          'payload',
+          ref,
+          { outputFormat: 'armored', compressionAlgorithm: 'zlib' },
+          policy,
+        ),
       ).rejects.toThrow(expect.objectContaining({ code: ErrorCode.CRYPTO_KEY_INVALID_STATE }));
     });
   });

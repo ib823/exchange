@@ -49,7 +49,7 @@ Guard is registered as `APP_GUARD` with explicit ordering:
 
 - If OAuth / SAML / OIDC is ever required, the `JwtAuthGuard` interface is
   small enough to replace, but the swap will not be cost-free.
-- Multi-strategy auth (e.g., accept *either* JWT *or* API key on one
+- Multi-strategy auth (e.g., accept _either_ JWT _or_ API key on one
   endpoint) requires guard-level orchestration rather than Passport's
   `AuthGuard(['jwt', 'api-key'])` sugar. API-key validation currently lives
   in `AuthService.validateApiKey`, invoked from a separate path.

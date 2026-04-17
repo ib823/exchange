@@ -1,6 +1,9 @@
 import {
-  Injectable, type CanActivate, type ExecutionContext,
-  UnauthorizedException, SetMetadata,
+  Injectable,
+  type CanActivate,
+  type ExecutionContext,
+  UnauthorizedException,
+  SetMetadata,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
@@ -14,8 +17,7 @@ export const IS_PUBLIC = 'isPublic';
  * Use sparingly — health checks and auth endpoints only.
  * Every other route is authenticated by default.
  */
-export const Public = (): ReturnType<typeof SetMetadata> =>
-  SetMetadata(IS_PUBLIC, true);
+export const Public = (): ReturnType<typeof SetMetadata> => SetMetadata(IS_PUBLIC, true);
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -40,9 +42,7 @@ export class JwtAuthGuard implements CanActivate {
     const token = this.extractToken(request);
 
     if (token === null) {
-      throw new UnauthorizedException(
-        new SepError(ErrorCode.AUTH_TOKEN_INVALID).toClientJson(),
-      );
+      throw new UnauthorizedException(new SepError(ErrorCode.AUTH_TOKEN_INVALID).toClientJson());
     }
 
     try {
@@ -58,9 +58,7 @@ export class JwtAuthGuard implements CanActivate {
       (request as FastifyRequest & { user: unknown }).user = payload;
       return true;
     } catch {
-      throw new UnauthorizedException(
-        new SepError(ErrorCode.AUTH_TOKEN_EXPIRED).toClientJson(),
-      );
+      throw new UnauthorizedException(new SepError(ErrorCode.AUTH_TOKEN_EXPIRED).toClientJson());
     }
   }
 

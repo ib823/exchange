@@ -1,7 +1,11 @@
 import { z } from 'zod';
 import {
-  CuidSchema, EnvironmentSchema, PartnerTypeSchema,
-  TransportProtocolSchema, MessageSecurityModeSchema, PartnerProfileStatusSchema,
+  CuidSchema,
+  EnvironmentSchema,
+  PartnerTypeSchema,
+  TransportProtocolSchema,
+  MessageSecurityModeSchema,
+  PartnerProfileStatusSchema,
 } from './shared.schema';
 
 export const SftpConfigSchema = z.object({
@@ -16,7 +20,7 @@ export const SftpConfigSchema = z.object({
 
 export const HttpsConfigSchema = z.object({
   baseUrl: z.string().url(),
-  authType: z.enum(['bearer','apiKey','mtls','none']),
+  authType: z.enum(['bearer', 'apiKey', 'mtls', 'none']),
   credentialRef: z.string().optional(),
   certRef: z.string().optional(),
   keyRef: z.string().optional(),
@@ -47,9 +51,10 @@ export const CreatePartnerProfileSchema = z.object({
   expiryDate: z.string().datetime().optional(),
 });
 
-export const UpdatePartnerProfileSchema = CreatePartnerProfileSchema
-  .omit({ tenantId: true, environment: true })
-  .partial();
+export const UpdatePartnerProfileSchema = CreatePartnerProfileSchema.omit({
+  tenantId: true,
+  environment: true,
+}).partial();
 
 export const PartnerProfileResponseSchema = z.object({
   id: CuidSchema,

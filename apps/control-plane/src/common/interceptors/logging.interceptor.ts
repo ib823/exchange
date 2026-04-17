@@ -1,4 +1,9 @@
-import { Injectable, type NestInterceptor, type ExecutionContext, type CallHandler } from '@nestjs/common';
+import {
+  Injectable,
+  type NestInterceptor,
+  type ExecutionContext,
+  type CallHandler,
+} from '@nestjs/common';
 import type { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { createLogger } from '@sep/observability';
@@ -24,7 +29,13 @@ export class LoggingInterceptor implements NestInterceptor {
         },
         error: (err: unknown) => {
           logger.warn(
-            { method: req.method, url: req.url, correlationId, durationMs: Date.now() - startMs, err },
+            {
+              method: req.method,
+              url: req.url,
+              correlationId,
+              durationMs: Date.now() - startMs,
+              err,
+            },
             'Request failed',
           );
         },

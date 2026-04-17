@@ -16,7 +16,13 @@
 import { Processor, WorkerHost, InjectQueue } from '@nestjs/bullmq';
 import type { Job, Queue } from 'bullmq';
 import { DatabaseService } from '@sep/db';
-import { SepError, ErrorCode, getConfig, RETRYABLE_ERROR_CODES, type DeliveryJob } from '@sep/common';
+import {
+  SepError,
+  ErrorCode,
+  getConfig,
+  RETRYABLE_ERROR_CODES,
+  type DeliveryJob,
+} from '@sep/common';
 import { createLogger, deliveryCounter, deliveryRetryCounter } from '@sep/observability';
 import { QUEUES } from '../queues/queue.definitions';
 import { AuditWriterService } from '../services/audit-writer.service';
@@ -38,7 +44,16 @@ export class DeliveryProcessor extends WorkerHost {
   }
 
   async process(job: Job<DeliveryJob>): Promise<void> {
-    const { correlationId, tenantId, submissionId, partnerProfileId, securedPayloadRef, connectorType, attempt, actorId } = job.data;
+    const {
+      correlationId,
+      tenantId,
+      submissionId,
+      partnerProfileId,
+      securedPayloadRef,
+      connectorType,
+      attempt,
+      actorId,
+    } = job.data;
 
     logger.info(
       { correlationId, tenantId, submissionId, connectorType, attempt },
@@ -68,14 +83,20 @@ export class DeliveryProcessor extends WorkerHost {
     const profile = await db.partnerProfile.findFirst({
       where: { id: partnerProfileId, tenantId },
       select: {
-        id: true, transportProtocol: true, environment: true,
-        config: true, status: true, retryPolicyRef: true,
+        id: true,
+        transportProtocol: true,
+        environment: true,
+        config: true,
+        status: true,
+        retryPolicyRef: true,
       },
     });
 
     if (!profile) {
       throw new SepError(ErrorCode.RBAC_RESOURCE_NOT_FOUND, {
-        tenantId, profileId: partnerProfileId, correlationId,
+        tenantId,
+        profileId: partnerProfileId,
+        correlationId,
       });
     }
 
@@ -262,7 +283,9 @@ export class DeliveryProcessor extends WorkerHost {
   }
 
   private isRetryableError(errorCode: string | undefined): boolean {
-    if (errorCode === undefined || errorCode === '') {return true;}
+    if (errorCode === undefined || errorCode === '') {
+      return true;
+    }
     return RETRYABLE_ERROR_CODES.has(errorCode as ErrorCode);
   }
 }

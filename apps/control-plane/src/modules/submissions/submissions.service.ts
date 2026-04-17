@@ -1,7 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { DatabaseService, Prisma, type SubmissionStatus } from '@sep/db';
-import { SepError, ErrorCode, TERMINAL_SUBMISSION_STATUSES, type SubmissionStatus as CommonSubmissionStatus } from '@sep/common';
+import {
+  SepError,
+  ErrorCode,
+  TERMINAL_SUBMISSION_STATUSES,
+  type SubmissionStatus as CommonSubmissionStatus,
+} from '@sep/common';
 import { AuditService } from '../audit/audit.service';
 import type { CreateSubmissionDto } from '@sep/schemas';
 import type { TokenPayload } from '../auth/auth.service';
@@ -43,8 +48,13 @@ export class SubmissionsService {
     return submission;
   }
 
-  async create(dto: CreateSubmissionDto, actor: TokenPayload): Promise<{
-    submissionId: string; correlationId: string; status: string;
+  async create(
+    dto: CreateSubmissionDto,
+    actor: TokenPayload,
+  ): Promise<{
+    submissionId: string;
+    correlationId: string;
+    status: string;
   }> {
     const db = this.database.forTenant(dto.tenantId);
 
@@ -81,7 +91,8 @@ export class SubmissionsService {
         normalizedHash: dto.normalizedHash ?? null,
         payloadSize: dto.payloadSize ?? null,
         status: 'RECEIVED',
-        metadata: dto.metadata !== undefined ? (dto.metadata as Prisma.InputJsonValue) : Prisma.JsonNull,
+        metadata:
+          dto.metadata !== undefined ? (dto.metadata as Prisma.InputJsonValue) : Prisma.JsonNull,
       },
     });
 
@@ -112,7 +123,12 @@ export class SubmissionsService {
     actor: TokenPayload,
     page: number,
     pageSize: number,
-    filters: { status: string | undefined; partnerProfileId: string | undefined; from: string | undefined; to: string | undefined },
+    filters: {
+      status: string | undefined;
+      partnerProfileId: string | undefined;
+      from: string | undefined;
+      to: string | undefined;
+    },
   ): Promise<{
     data: SubmissionRow[];
     meta: { page: number; pageSize: number; total: number; totalPages: number };
@@ -156,7 +172,10 @@ export class SubmissionsService {
     };
   }
 
-  async getTimeline(id: string, actor: TokenPayload): Promise<{
+  async getTimeline(
+    id: string,
+    actor: TokenPayload,
+  ): Promise<{
     data: Array<Record<string, unknown>>;
     meta: { page: number; pageSize: number; total: number; totalPages: number };
   }> {

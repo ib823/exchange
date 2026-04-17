@@ -82,13 +82,13 @@ Executive summary: The build is functional and `pnpm`/Turbo workflows execute, b
 
 #### BUILD HEALTH SUMMARY
 
-| Dimension | Critical | High | Medium | Low | Verdict |
-|---|---:|---:|---:|---:|---|
-| Monorepo/workspace | 0 | 0 | 1 | 0 | Conditional Pass |
-| CI/CD pipeline | 0 | 2 | 0 | 0 | Fail |
-| Secrets/env | 0 | 0 | 1 | 0 | Conditional Pass |
-| Docker/container | 0 | 1 | 1 | 0 | Fail |
-| Developer workflow | 0 | 0 | 1 | 0 | Conditional Pass |
+| Dimension          | Critical | High | Medium | Low | Verdict          |
+| ------------------ | -------: | ---: | -----: | --: | ---------------- |
+| Monorepo/workspace |        0 |    0 |      1 |   0 | Conditional Pass |
+| CI/CD pipeline     |        0 |    2 |      0 |   0 | Fail             |
+| Secrets/env        |        0 |    0 |      1 |   0 | Conditional Pass |
+| Docker/container   |        0 |    1 |      1 |   0 | Fail             |
+| Developer workflow |        0 |    0 |      1 |   0 | Conditional Pass |
 
 #### Finding summary by severity
 
@@ -167,13 +167,13 @@ Executive summary: Schema breadth is solid for M2, but tenant isolation is still
 
 #### SCHEMA INTEGRITY SCORECARD
 
-| Entity | RLS status | FK completeness | Audit trail status | Retention status |
-|---|---|---|---|---|
-| tenants | Missing | Complete | N/A | Policy reference only |
-| users | Missing | Complete | Via audit service, non-atomic | No DB enforcement |
-| submissions | Missing | Complete | State and audit split | No DB enforcement |
-| audit_events | Present | Complete | Append-only with hash chain | Retained, not policy-enforced |
-| crypto_operation_records | Present | Complete | Immutable | Retained, not policy-enforced |
+| Entity                   | RLS status | FK completeness | Audit trail status            | Retention status              |
+| ------------------------ | ---------- | --------------- | ----------------------------- | ----------------------------- |
+| tenants                  | Missing    | Complete        | N/A                           | Policy reference only         |
+| users                    | Missing    | Complete        | Via audit service, non-atomic | No DB enforcement             |
+| submissions              | Missing    | Complete        | State and audit split         | No DB enforcement             |
+| audit_events             | Present    | Complete        | Append-only with hash chain   | Retained, not policy-enforced |
+| crypto_operation_records | Present    | Complete        | Immutable                     | Retained, not policy-enforced |
 
 #### Finding summary by severity
 
@@ -238,11 +238,11 @@ Executive summary: dependency installation is deterministic via lockfile, but de
 
 #### DEPENDENCY RISK REGISTER
 
-| Area | Status | Evidence |
-|---|---|---|
-| Exact pinning | Not satisfied | Caret ranges throughout workspace |
-| Vulnerability gate | Not satisfied | `pnpm audit` returns HTTP 410 |
-| SBOM/provenance/signing | Not satisfied | No implementation found |
+| Area                    | Status        | Evidence                          |
+| ----------------------- | ------------- | --------------------------------- |
+| Exact pinning           | Not satisfied | Caret ranges throughout workspace |
+| Vulnerability gate      | Not satisfied | `pnpm audit` returns HTTP 410     |
+| SBOM/provenance/signing | Not satisfied | No implementation found           |
 
 #### Finding summary by severity
 
@@ -311,13 +311,13 @@ Executive summary: the main application controls are thoughtful, but the platfor
 
 #### APPLICATION SECURITY MATRIX
 
-| Control area | Status |
-|---|---|
-| Tenant isolation | Not satisfied structurally |
-| Authentication lifecycle | Partially satisfied |
-| Input validation | Partially satisfied |
-| SSRF controls | Satisfied at current milestone scope |
-| File intake controls | Satisfied at current milestone scope |
+| Control area             | Status                               |
+| ------------------------ | ------------------------------------ |
+| Tenant isolation         | Not satisfied structurally           |
+| Authentication lifecycle | Partially satisfied                  |
+| Input validation         | Partially satisfied                  |
+| SSRF controls            | Satisfied at current milestone scope |
+| File intake controls     | Satisfied at current milestone scope |
 
 #### Finding summary by severity
 
@@ -381,12 +381,12 @@ Executive summary: strict mode and linting are active, and the workspace passes 
 
 #### CODE QUALITY SCORECARD
 
-| Area | Status |
-|---|---|
-| Strict compiler options | Satisfied |
-| Linting | Satisfied |
+| Area                     | Status              |
+| ------------------------ | ------------------- |
+| Strict compiler options  | Satisfied           |
+| Linting                  | Satisfied           |
 | Typed runtime boundaries | Partially satisfied |
-| Typed error taxonomy | Partially satisfied |
+| Typed error taxonomy     | Partially satisfied |
 | Package metadata hygiene | Partially satisfied |
 
 #### Finding summary by severity
@@ -451,12 +451,12 @@ Executive summary: `openpgp.js` 5.x is present and policy enforcement exists, bu
 
 #### CRYPTO CONTROL MATRIX
 
-| Control | Status |
-|---|---|
-| Maintained OpenPGP library | Satisfied |
-| Real key custody | Not satisfied |
-| Crypto over real payload bytes | Not satisfied |
-| Key lifecycle alerting | Partially satisfied |
+| Control                        | Status              |
+| ------------------------------ | ------------------- |
+| Maintained OpenPGP library     | Satisfied           |
+| Real key custody               | Not satisfied       |
+| Crypto over real payload bytes | Not satisfied       |
+| Key lifecycle alerting         | Partially satisfied |
 
 #### Finding summary by severity
 
@@ -524,13 +524,13 @@ Executive summary: observability components exist, but they are not wired into a
 
 #### READINESS MATRIX
 
-| Area | Status |
-|---|---|
-| Metrics definition | Present |
-| Metrics exposure | Not satisfied |
-| Alerting | Not satisfied |
-| SLOs | Not satisfied |
-| Runbooks/DR | Not satisfied |
+| Area               | Status        |
+| ------------------ | ------------- |
+| Metrics definition | Present       |
+| Metrics exposure   | Not satisfied |
+| Alerting           | Not satisfied |
+| SLOs               | Not satisfied |
+| Runbooks/DR        | Not satisfied |
 
 #### Finding summary by severity
 
@@ -608,12 +608,12 @@ Executive summary: the codebase shows intent for retention, auditability, and cu
 
 #### REGULATORY REQUIREMENT MATRIX
 
-| Regulation | Status | Evidence needed | Risk if unaddressed |
-|---|---|---|---|
-| BNM RMiT Nov 2025 | Not satisfied | Control matrix, owners, evidence links | Customer audit failure / enforcement exposure |
-| PDPA 2010 + Cross-Border 03/2025 | Not satisfied | Data inventory, erasure flow, transfer controls | Unlawful handling/transfer exposure |
-| IRBM e-Invoice v4.6 | Not satisfied | Adapter evidence, conformance tests, SOPs | Customer non-compliance risk |
-| Cyber Security Act 2024 | Not satisfied | Incident reporting workflow and owner | Mandatory-reporting failure |
+| Regulation                       | Status        | Evidence needed                                 | Risk if unaddressed                           |
+| -------------------------------- | ------------- | ----------------------------------------------- | --------------------------------------------- |
+| BNM RMiT Nov 2025                | Not satisfied | Control matrix, owners, evidence links          | Customer audit failure / enforcement exposure |
+| PDPA 2010 + Cross-Border 03/2025 | Not satisfied | Data inventory, erasure flow, transfer controls | Unlawful handling/transfer exposure           |
+| IRBM e-Invoice v4.6              | Not satisfied | Adapter evidence, conformance tests, SOPs       | Customer non-compliance risk                  |
+| Cyber Security Act 2024          | Not satisfied | Incident reporting workflow and owner           | Mandatory-reporting failure                   |
 
 #### Finding summary by severity
 
@@ -631,22 +631,22 @@ Executive summary: the codebase shows intent for retention, auditability, and cu
 
 ## Consolidated Summary
 
-| Role | Critical | High | Medium | Low | Info | Total | Verdict |
-|---|---:|---:|---:|---:|---:|---:|---|
-| R1 | 0 | 2 | 2 | 0 | 0 | 4 | FAIL |
-| R2 | 1 | 1 | 2 | 0 | 0 | 4 | FAIL |
-| R5 | 0 | 3 | 0 | 0 | 0 | 3 | FAIL |
-| R3 | 1 | 1 | 1 | 0 | 0 | 3 | FAIL |
-| R4 | 0 | 0 | 2 | 1 | 0 | 3 | CONDITIONAL PASS |
-| R6 | 0 | 2 | 1 | 0 | 0 | 3 | FAIL |
-| R7 | 0 | 3 | 0 | 0 | 0 | 3 | FAIL |
-| R8 | 1 | 3 | 0 | 0 | 0 | 4 | FAIL |
+| Role | Critical | High | Medium | Low | Info | Total | Verdict          |
+| ---- | -------: | ---: | -----: | --: | ---: | ----: | ---------------- |
+| R1   |        0 |    2 |      2 |   0 |    0 |     4 | FAIL             |
+| R2   |        1 |    1 |      2 |   0 |    0 |     4 | FAIL             |
+| R5   |        0 |    3 |      0 |   0 |    0 |     3 | FAIL             |
+| R3   |        1 |    1 |      1 |   0 |    0 |     3 | FAIL             |
+| R4   |        0 |    0 |      2 |   1 |    0 |     3 | CONDITIONAL PASS |
+| R6   |        0 |    2 |      1 |   0 |    0 |     3 | FAIL             |
+| R7   |        0 |    3 |      0 |   0 |    0 |     3 | FAIL             |
+| R8   |        1 |    3 |      0 |   0 |    0 |     4 | FAIL             |
 
 ### Total Findings
 
 | Critical | High | Medium | Low | Info | Total |
-|---:|---:|---:|---:|---:|---:|
-| 3 | 15 | 8 | 1 | 0 | 27 |
+| -------: | ---: | -----: | --: | ---: | ----: |
+|        3 |   15 |      8 |   1 |    0 |    27 |
 
 Overall milestone gate verdict: `FAIL`
 

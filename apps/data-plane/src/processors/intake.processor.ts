@@ -14,7 +14,14 @@
 import { Processor, WorkerHost, InjectQueue } from '@nestjs/bullmq';
 import type { Job, Queue } from 'bullmq';
 import { DatabaseService } from '@sep/db';
-import { SepError, ErrorCode, getConfig, type SubmissionJob, type CryptoJob, type KeyReferenceId } from '@sep/common';
+import {
+  SepError,
+  ErrorCode,
+  getConfig,
+  type SubmissionJob,
+  type CryptoJob,
+  type KeyReferenceId,
+} from '@sep/common';
 import { createLogger, submissionCounter } from '@sep/observability';
 import { QUEUES } from '../queues/queue.definitions';
 import { AuditWriterService } from '../services/audit-writer.service';
@@ -30,17 +37,31 @@ const FORBIDDEN_FILENAME_CHARS = /[/\\:\0<>|"?*]/;
 // Maps file extension to expected magic-byte prefixes (first N bytes).
 // A file with a known extension but wrong magic bytes is rejected.
 const MAGIC_BYTE_SIGNATURES: ReadonlyMap<string, readonly Buffer[]> = new Map([
-  ['.pdf', [Buffer.from([0x25, 0x50, 0x44, 0x46])]],                    // %PDF
-  ['.xml', [Buffer.from('<?xml', 'utf-8'), Buffer.from([0xEF, 0xBB, 0xBF])]],  // <?xml or UTF-8 BOM
-  ['.zip', [Buffer.from([0x50, 0x4B, 0x03, 0x04]), Buffer.from([0x50, 0x4B, 0x05, 0x06])]],  // PK
-  ['.gz', [Buffer.from([0x1F, 0x8B])]],                                  // gzip
-  ['.pgp', [Buffer.from([0xC5]), Buffer.from([0xC6]), Buffer.from([0xC7]),  // binary PGP
-            Buffer.from('-----BEGIN PGP', 'utf-8')]],                     // armored PGP
-  ['.gpg', [Buffer.from([0xC5]), Buffer.from([0xC6]), Buffer.from([0xC7]),
-            Buffer.from('-----BEGIN PGP', 'utf-8')]],
-  ['.png', [Buffer.from([0x89, 0x50, 0x4E, 0x47])]],                    // PNG header
-  ['.jpg', [Buffer.from([0xFF, 0xD8, 0xFF])]],                          // JPEG header
-  ['.jpeg', [Buffer.from([0xFF, 0xD8, 0xFF])]],
+  ['.pdf', [Buffer.from([0x25, 0x50, 0x44, 0x46])]], // %PDF
+  ['.xml', [Buffer.from('<?xml', 'utf-8'), Buffer.from([0xef, 0xbb, 0xbf])]], // <?xml or UTF-8 BOM
+  ['.zip', [Buffer.from([0x50, 0x4b, 0x03, 0x04]), Buffer.from([0x50, 0x4b, 0x05, 0x06])]], // PK
+  ['.gz', [Buffer.from([0x1f, 0x8b])]], // gzip
+  [
+    '.pgp',
+    [
+      Buffer.from([0xc5]),
+      Buffer.from([0xc6]),
+      Buffer.from([0xc7]), // binary PGP
+      Buffer.from('-----BEGIN PGP', 'utf-8'),
+    ],
+  ], // armored PGP
+  [
+    '.gpg',
+    [
+      Buffer.from([0xc5]),
+      Buffer.from([0xc6]),
+      Buffer.from([0xc7]),
+      Buffer.from('-----BEGIN PGP', 'utf-8'),
+    ],
+  ],
+  ['.png', [Buffer.from([0x89, 0x50, 0x4e, 0x47])]], // PNG header
+  ['.jpg', [Buffer.from([0xff, 0xd8, 0xff])]], // JPEG header
+  ['.jpeg', [Buffer.from([0xff, 0xd8, 0xff])]],
 ]);
 
 /** Maximum bytes to read for magic-byte inspection */
@@ -60,9 +81,22 @@ export class IntakeProcessor extends WorkerHost {
   }
 
   async process(job: Job<SubmissionJob>): Promise<void> {
-    const { correlationId, tenantId, submissionId, partnerProfileId, payloadRef, normalizedHash, actorId, actorRole, credentialId } = job.data;
+    const {
+      correlationId,
+      tenantId,
+      submissionId,
+      partnerProfileId,
+      payloadRef,
+      normalizedHash,
+      actorId,
+      actorRole,
+      credentialId,
+    } = job.data;
 
-    logger.info({ correlationId, tenantId, submissionId, attempt: job.attemptsMade }, 'Intake processing started');
+    logger.info(
+      { correlationId, tenantId, submissionId, attempt: job.attemptsMade },
+      'Intake processing started',
+    );
 
     const db = this.database.forTenant(tenantId);
 
@@ -89,17 +123,36 @@ export class IntakeProcessor extends WorkerHost {
     }
 
     // 3. Validate payload hash
-    if (submission.normalizedHash !== null && submission.normalizedHash !== '' && normalizedHash !== '') {
+    if (
+      submission.normalizedHash !== null &&
+      submission.normalizedHash !== '' &&
+      normalizedHash !== ''
+    ) {
       const hashMatch = submission.normalizedHash === normalizedHash;
       if (!hashMatch) {
-        await this.failSubmission(db, submissionId, tenantId, ErrorCode.SUBMISSION_PAYLOAD_TAMPERED);
+        await this.failSubmission(
+          db,
+          submissionId,
+          tenantId,
+          ErrorCode.SUBMISSION_PAYLOAD_TAMPERED,
+        );
         await this.auditWriter.record({
-          tenantId, actorType: 'SERVICE', actorId, objectType: 'Submission', objectId: submissionId,
-          action: 'SUBMISSION_FAILED', result: 'FAILURE', correlationId,
-          metadata: { reason: 'payload_hash_mismatch', errorCode: ErrorCode.SUBMISSION_PAYLOAD_TAMPERED },
+          tenantId,
+          actorType: 'SERVICE',
+          actorId,
+          objectType: 'Submission',
+          objectId: submissionId,
+          action: 'SUBMISSION_FAILED',
+          result: 'FAILURE',
+          correlationId,
+          metadata: {
+            reason: 'payload_hash_mismatch',
+            errorCode: ErrorCode.SUBMISSION_PAYLOAD_TAMPERED,
+          },
         });
         throw new SepError(ErrorCode.SUBMISSION_PAYLOAD_TAMPERED, {
-          submissionId, correlationId,
+          submissionId,
+          correlationId,
         });
       }
     }
@@ -111,16 +164,24 @@ export class IntakeProcessor extends WorkerHost {
     }
 
     // 5. Magic-byte validation — verify file extension matches actual content
-    if (metadata?.['filename'] !== undefined && metadata['filename'] !== null && payloadRef !== '') {
+    if (
+      metadata?.['filename'] !== undefined &&
+      metadata['filename'] !== null &&
+      payloadRef !== ''
+    ) {
       await this.validateMagicBytes(String(metadata['filename']), payloadRef, correlationId);
     }
 
     // 6. Validate payload size ceiling
     const cfg = getConfig();
-    if (submission.payloadSize !== null && submission.payloadSize > cfg.storage.maxPayloadSizeBytes) {
+    if (
+      submission.payloadSize !== null &&
+      submission.payloadSize > cfg.storage.maxPayloadSizeBytes
+    ) {
       await this.failSubmission(db, submissionId, tenantId, ErrorCode.VALIDATION_PAYLOAD_TOO_LARGE);
       throw new SepError(ErrorCode.VALIDATION_PAYLOAD_TOO_LARGE, {
-        submissionId, correlationId,
+        submissionId,
+        correlationId,
       });
     }
 
@@ -133,7 +194,8 @@ export class IntakeProcessor extends WorkerHost {
       );
       await this.failSubmission(db, submissionId, tenantId, ErrorCode.SUBMISSION_SCAN_UNAVAILABLE);
       throw new SepError(ErrorCode.SUBMISSION_SCAN_UNAVAILABLE, {
-        submissionId, correlationId,
+        submissionId,
+        correlationId,
         message: 'Malware scanner unavailable — fail closed',
       });
     }
@@ -142,20 +204,32 @@ export class IntakeProcessor extends WorkerHost {
     const profile = await db.partnerProfile.findFirst({
       where: { id: partnerProfileId, tenantId },
       select: {
-        id: true, messageSecurityMode: true, transportProtocol: true,
-        environment: true, status: true, config: true,
+        id: true,
+        messageSecurityMode: true,
+        transportProtocol: true,
+        environment: true,
+        status: true,
+        config: true,
       },
     });
 
     if (!profile) {
       throw new SepError(ErrorCode.RBAC_RESOURCE_NOT_FOUND, {
-        tenantId, profileId: partnerProfileId, correlationId,
+        tenantId,
+        profileId: partnerProfileId,
+        correlationId,
       });
     }
 
-    if (profile.status !== 'PROD_ACTIVE' && profile.status !== 'TEST_APPROVED' && profile.status !== 'TEST_READY') {
+    if (
+      profile.status !== 'PROD_ACTIVE' &&
+      profile.status !== 'TEST_APPROVED' &&
+      profile.status !== 'TEST_READY'
+    ) {
       throw new SepError(ErrorCode.POLICY_PROFILE_INACTIVE, {
-        tenantId, profileId: partnerProfileId, correlationId,
+        tenantId,
+        profileId: partnerProfileId,
+        correlationId,
         currentState: profile.status,
       });
     }
@@ -239,7 +313,10 @@ export class IntakeProcessor extends WorkerHost {
       environment: profile.environment,
     });
 
-    logger.info({ correlationId, tenantId, submissionId, status: 'QUEUED' }, 'Intake processing completed');
+    logger.info(
+      { correlationId, tenantId, submissionId, status: 'QUEUED' },
+      'Intake processing completed',
+    );
   }
 
   private validateFilename(filename: string, correlationId: string): void {
@@ -340,13 +417,20 @@ export class IntakeProcessor extends WorkerHost {
 
   private mapSecurityModeToCryptoOp(mode: string): CryptoJob['operation'] | null {
     switch (mode) {
-      case 'NONE': return null;
-      case 'ENCRYPT': return 'ENCRYPT';
-      case 'SIGN': return 'SIGN';
-      case 'SIGN_ENCRYPT': return 'SIGN_ENCRYPT';
-      case 'VERIFY': return 'VERIFY';
-      case 'DECRYPT': return 'DECRYPT';
-      case 'VERIFY_DECRYPT': return 'VERIFY_DECRYPT';
+      case 'NONE':
+        return null;
+      case 'ENCRYPT':
+        return 'ENCRYPT';
+      case 'SIGN':
+        return 'SIGN';
+      case 'SIGN_ENCRYPT':
+        return 'SIGN_ENCRYPT';
+      case 'VERIFY':
+        return 'VERIFY';
+      case 'DECRYPT':
+        return 'DECRYPT';
+      case 'VERIFY_DECRYPT':
+        return 'VERIFY_DECRYPT';
       default: {
         const _exhaustive: never = mode as never;
         throw new SepError(ErrorCode.CONFIGURATION_ERROR, {

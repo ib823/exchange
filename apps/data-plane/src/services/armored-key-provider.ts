@@ -43,11 +43,10 @@ export class ArmoredKeyMaterialProvider implements IKeyMaterialProvider {
         createdAt: key.getCreationTime(),
       };
     } catch (err) {
-      if (err instanceof SepError) { throw err; }
-      logger.error(
-        { backendRefLength: backendRef.length },
-        'Failed to parse armored key material',
-      );
+      if (err instanceof SepError) {
+        throw err;
+      }
+      logger.error({ backendRefLength: backendRef.length }, 'Failed to parse armored key material');
       throw new SepError(ErrorCode.KEY_BACKEND_UNAVAILABLE, {
         message: 'Failed to parse key material from backend reference',
       });
@@ -57,10 +56,18 @@ export class ArmoredKeyMaterialProvider implements IKeyMaterialProvider {
   private mapAlgorithm(openpgpAlgorithm: string): string {
     // openpgp.js returns algorithm names like 'rsaEncryptSign', 'ecdh', etc.
     const alg = openpgpAlgorithm.toLowerCase();
-    if (alg.startsWith('rsa')) { return 'rsa'; }
-    if (alg === 'ecdh') { return 'ecdh'; }
-    if (alg === 'ecdsa') { return 'ecdsa'; }
-    if (alg === 'eddsa') { return 'eddsa'; }
+    if (alg.startsWith('rsa')) {
+      return 'rsa';
+    }
+    if (alg === 'ecdh') {
+      return 'ecdh';
+    }
+    if (alg === 'ecdsa') {
+      return 'ecdsa';
+    }
+    if (alg === 'eddsa') {
+      return 'eddsa';
+    }
     return alg;
   }
 }

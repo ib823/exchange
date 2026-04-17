@@ -98,19 +98,17 @@ describe('IncidentsService', () => {
 
     it('throws NotFoundException for cross-tenant access (404, not 403)', async () => {
       mockDb.incident.findUnique.mockResolvedValue(baseIncident);
-      await expect(
-        service.findById('inc-1', crossTenantActor),
-      ).rejects.toThrow('Incident not found');
-      await expect(
-        service.findById('inc-1', crossTenantActor),
-      ).rejects.toThrow(expect.objectContaining({ status: 404 }) as Error);
+      await expect(service.findById('inc-1', crossTenantActor)).rejects.toThrow(
+        'Incident not found',
+      );
+      await expect(service.findById('inc-1', crossTenantActor)).rejects.toThrow(
+        expect.objectContaining({ status: 404 }) as Error,
+      );
     });
 
     it('throws NotFoundException when incident does not exist', async () => {
       mockDb.incident.findUnique.mockResolvedValue(null);
-      await expect(
-        service.findById('inc-missing', actor),
-      ).rejects.toThrow('Incident not found');
+      await expect(service.findById('inc-missing', actor)).rejects.toThrow('Incident not found');
     });
   });
 
@@ -121,7 +119,18 @@ describe('IncidentsService', () => {
       mockDb.incident.findUnique.mockResolvedValue(openIncident);
       mockDb.incident.update.mockResolvedValue(upgradedIncident);
 
-      const result = await service.update('inc-1', { severity: 'P1', title: undefined, description: undefined, assignedTo: undefined, state: undefined, resolution: undefined }, actor);
+      const result = await service.update(
+        'inc-1',
+        {
+          severity: 'P1',
+          title: undefined,
+          description: undefined,
+          assignedTo: undefined,
+          state: undefined,
+          resolution: undefined,
+        },
+        actor,
+      );
       expect(result.severity).toBe('P1');
     });
 
@@ -130,7 +139,18 @@ describe('IncidentsService', () => {
       mockDb.incident.findUnique.mockResolvedValue(openIncident);
 
       await expect(
-        service.update('inc-1', { severity: 'P3', title: undefined, description: undefined, assignedTo: undefined, state: undefined, resolution: undefined }, actor),
+        service.update(
+          'inc-1',
+          {
+            severity: 'P3',
+            title: undefined,
+            description: undefined,
+            assignedTo: undefined,
+            state: undefined,
+            resolution: undefined,
+          },
+          actor,
+        ),
       ).rejects.toThrow('VALIDATION_SCHEMA_FAILED');
     });
   });
@@ -142,7 +162,18 @@ describe('IncidentsService', () => {
       mockDb.incident.findUnique.mockResolvedValue(openIncident);
       mockDb.incident.update.mockResolvedValue(triagedIncident);
 
-      const result = await service.update('inc-1', { state: 'TRIAGED', severity: undefined, title: undefined, description: undefined, assignedTo: undefined, resolution: undefined }, actor);
+      const result = await service.update(
+        'inc-1',
+        {
+          state: 'TRIAGED',
+          severity: undefined,
+          title: undefined,
+          description: undefined,
+          assignedTo: undefined,
+          resolution: undefined,
+        },
+        actor,
+      );
 
       expect(result.state).toBe('TRIAGED');
       expect(mockAudit.record).toHaveBeenCalledWith(
@@ -158,7 +189,18 @@ describe('IncidentsService', () => {
       mockDb.incident.findUnique.mockResolvedValue(openIncident);
 
       await expect(
-        service.update('inc-1', { state: 'RESOLVED', severity: undefined, title: undefined, description: undefined, assignedTo: undefined, resolution: 'Fixed' }, actor),
+        service.update(
+          'inc-1',
+          {
+            state: 'RESOLVED',
+            severity: undefined,
+            title: undefined,
+            description: undefined,
+            assignedTo: undefined,
+            resolution: 'Fixed',
+          },
+          actor,
+        ),
       ).rejects.toThrow('VALIDATION_SCHEMA_FAILED');
     });
 
@@ -167,17 +209,45 @@ describe('IncidentsService', () => {
       mockDb.incident.findUnique.mockResolvedValue(inProgressIncident);
 
       await expect(
-        service.update('inc-1', { state: 'RESOLVED', severity: undefined, title: undefined, description: undefined, assignedTo: undefined, resolution: undefined }, actor),
+        service.update(
+          'inc-1',
+          {
+            state: 'RESOLVED',
+            severity: undefined,
+            title: undefined,
+            description: undefined,
+            assignedTo: undefined,
+            resolution: undefined,
+          },
+          actor,
+        ),
       ).rejects.toThrow('VALIDATION_SCHEMA_FAILED');
     });
 
     it('allows RESOLVED transition when resolution is provided', async () => {
       const inProgressIncident = { ...baseIncident, state: 'IN_PROGRESS', resolution: null };
-      const resolvedIncident = { ...baseIncident, state: 'RESOLVED', resolution: 'Fixed endpoint', resolvedAt: new Date(), resolvedBy: 'user-1' };
+      const resolvedIncident = {
+        ...baseIncident,
+        state: 'RESOLVED',
+        resolution: 'Fixed endpoint',
+        resolvedAt: new Date(),
+        resolvedBy: 'user-1',
+      };
       mockDb.incident.findUnique.mockResolvedValue(inProgressIncident);
       mockDb.incident.update.mockResolvedValue(resolvedIncident);
 
-      const result = await service.update('inc-1', { state: 'RESOLVED', resolution: 'Fixed endpoint', severity: undefined, title: undefined, description: undefined, assignedTo: undefined }, actor);
+      const result = await service.update(
+        'inc-1',
+        {
+          state: 'RESOLVED',
+          resolution: 'Fixed endpoint',
+          severity: undefined,
+          title: undefined,
+          description: undefined,
+          assignedTo: undefined,
+        },
+        actor,
+      );
 
       expect(result.state).toBe('RESOLVED');
       expect(mockAudit.record).toHaveBeenCalledWith(
@@ -190,7 +260,18 @@ describe('IncidentsService', () => {
       mockDb.incident.findUnique.mockResolvedValue(closedIncident);
 
       await expect(
-        service.update('inc-1', { state: 'OPEN', severity: undefined, title: undefined, description: undefined, assignedTo: undefined, resolution: undefined }, actor),
+        service.update(
+          'inc-1',
+          {
+            state: 'OPEN',
+            severity: undefined,
+            title: undefined,
+            description: undefined,
+            assignedTo: undefined,
+            resolution: undefined,
+          },
+          actor,
+        ),
       ).rejects.toThrow('VALIDATION_SCHEMA_FAILED');
     });
   });

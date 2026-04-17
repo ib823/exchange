@@ -76,7 +76,9 @@ export class KeyRetrievalService {
     try {
       material = await this.keyMaterialProvider.loadKeyMaterial(row.backendRef);
     } catch (err) {
-      if (err instanceof SepError) {throw err;}
+      if (err instanceof SepError) {
+        throw err;
+      }
       logger.error(
         { keyReferenceId: row.id, backendType: row.backendType },
         'Key material backend unavailable',

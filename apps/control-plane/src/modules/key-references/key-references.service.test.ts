@@ -31,7 +31,12 @@ const mockDatabaseService = {
 
 vi.mock('@sep/common', async () => {
   const actual = await vi.importActual('@sep/common');
-  return { ...actual, getConfig: (): { crypto: { keyExpiryAlertDays: number } } => ({ crypto: { keyExpiryAlertDays: 30 } }) };
+  return {
+    ...actual,
+    getConfig: (): { crypto: { keyExpiryAlertDays: number } } => ({
+      crypto: { keyExpiryAlertDays: 30 },
+    }),
+  };
 });
 
 const mockAudit = { record: vi.fn().mockResolvedValue(undefined) };
@@ -114,19 +119,19 @@ describe('KeyReferencesService', () => {
 
     it('throws NotFoundException for cross-tenant access (404, not 403)', async () => {
       mockDb.keyReference.findUnique.mockResolvedValue(baseKeyRef);
-      await expect(
-        service.findById('key-1', crossTenantActor),
-      ).rejects.toThrow('Key reference not found');
-      await expect(
-        service.findById('key-1', crossTenantActor),
-      ).rejects.toThrow(expect.objectContaining({ status: 404 }) as Error);
+      await expect(service.findById('key-1', crossTenantActor)).rejects.toThrow(
+        'Key reference not found',
+      );
+      await expect(service.findById('key-1', crossTenantActor)).rejects.toThrow(
+        expect.objectContaining({ status: 404 }) as Error,
+      );
     });
 
     it('throws NotFoundException when key reference does not exist', async () => {
       mockDb.keyReference.findUnique.mockResolvedValue(null);
-      await expect(
-        service.findById('key-missing', actor),
-      ).rejects.toThrow('Key reference not found');
+      await expect(service.findById('key-missing', actor)).rejects.toThrow(
+        'Key reference not found',
+      );
     });
 
     it('adds expiringWithinDays flag for keys expiring within alert window', async () => {
@@ -174,9 +179,7 @@ describe('KeyReferencesService', () => {
       const draftKey = { ...baseKeyRef, state: 'DRAFT' };
       mockDb.keyReference.findUnique.mockResolvedValue(draftKey);
 
-      await expect(
-        service.activate('key-1', actor),
-      ).rejects.toThrow('VALIDATION_SCHEMA_FAILED');
+      await expect(service.activate('key-1', actor)).rejects.toThrow('VALIDATION_SCHEMA_FAILED');
     });
   });
 
@@ -209,9 +212,7 @@ describe('KeyReferencesService', () => {
       const draftKey = { ...baseKeyRef, state: 'DRAFT' };
       mockDb.keyReference.findUnique.mockResolvedValue(draftKey);
 
-      await expect(
-        service.revoke('key-1', actor),
-      ).rejects.toThrow('VALIDATION_SCHEMA_FAILED');
+      await expect(service.revoke('key-1', actor)).rejects.toThrow('VALIDATION_SCHEMA_FAILED');
     });
   });
 
@@ -224,9 +225,9 @@ describe('KeyReferencesService', () => {
       mockDb.keyReference.findUnique.mockResolvedValue(prodKey);
       mockDb.approval.findFirst.mockResolvedValue(null);
 
-      await expect(
-        service.activate('key-1', actor),
-      ).rejects.toThrowError(expect.objectContaining({ code: 'APPROVAL_REQUIRED' }) as Error);
+      await expect(service.activate('key-1', actor)).rejects.toThrowError(
+        expect.objectContaining({ code: 'APPROVAL_REQUIRED' }) as Error,
+      );
     });
 
     it('activates a PRODUCTION key when an approved Approval exists', async () => {
@@ -255,18 +256,18 @@ describe('KeyReferencesService', () => {
         expiresAt: futureDate,
       });
 
-      await expect(
-        service.activate('key-1', actor),
-      ).rejects.toThrowError(expect.objectContaining({ code: 'APPROVAL_SELF_APPROVAL_FORBIDDEN' }) as Error);
+      await expect(service.activate('key-1', actor)).rejects.toThrowError(
+        expect.objectContaining({ code: 'APPROVAL_SELF_APPROVAL_FORBIDDEN' }) as Error,
+      );
     });
 
     it('rejects revoking a PRODUCTION key without an approved Approval', async () => {
       mockDb.keyReference.findUnique.mockResolvedValue(activeProdKey);
       mockDb.approval.findFirst.mockResolvedValue(null);
 
-      await expect(
-        service.revoke('key-1', actor),
-      ).rejects.toThrowError(expect.objectContaining({ code: 'APPROVAL_REQUIRED' }) as Error);
+      await expect(service.revoke('key-1', actor)).rejects.toThrowError(
+        expect.objectContaining({ code: 'APPROVAL_REQUIRED' }) as Error,
+      );
     });
 
     it('revokes a PRODUCTION key when an approved Approval exists', async () => {
@@ -357,7 +358,9 @@ describe('KeyReferencesService', () => {
     it('rejects marking a DESTROYED key as compromised', async () => {
       const destroyedKey = { ...baseKeyRef, state: 'DESTROYED' };
       mockDb.keyReference.findUnique.mockResolvedValue(destroyedKey);
-      await expect(service.markCompromised('key-1', actor, 'reason')).rejects.toThrow('VALIDATION_SCHEMA_FAILED');
+      await expect(service.markCompromised('key-1', actor, 'reason')).rejects.toThrow(
+        'VALIDATION_SCHEMA_FAILED',
+      );
     });
 
     it('destroys a REVOKED key', async () => {

@@ -1,9 +1,12 @@
 import { z } from 'zod';
 import { CuidSchema, EnvironmentSchema, KeyStateSchema } from './shared.schema';
 
-export const KeyUsageSchema = z.enum(['ENCRYPT','DECRYPT','SIGN','VERIFY','WRAP','UNWRAP']);
+export const KeyUsageSchema = z.enum(['ENCRYPT', 'DECRYPT', 'SIGN', 'VERIFY', 'WRAP', 'UNWRAP']);
 export const KeyBackendTypeSchema = z.enum([
-  'PLATFORM_VAULT','TENANT_VAULT','EXTERNAL_KMS','SOFTWARE_LOCAL',
+  'PLATFORM_VAULT',
+  'TENANT_VAULT',
+  'EXTERNAL_KMS',
+  'SOFTWARE_LOCAL',
 ]);
 
 export const CreateKeyReferenceSchema = z.object({

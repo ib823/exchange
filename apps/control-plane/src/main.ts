@@ -20,24 +20,21 @@ async function bootstrap(): Promise<void> {
 
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
-    new FastifyAdapter({ logger: false }),   // Pino handles logging, not Fastify's built-in
+    new FastifyAdapter({ logger: false }), // Pino handles logging, not Fastify's built-in
     { bufferLogs: true },
   );
 
   // ── Security headers ──────────────────────────────────────────────────────
-  await app.register(
-    await import('@fastify/helmet').then((m) => m.default),
-    {
-      contentSecurityPolicy: {
-        directives: {
-          defaultSrc: ["'self'"],
-          scriptSrc: ["'self'"],
-          objectSrc: ["'none'"],
-          upgradeInsecureRequests: [],
-        },
+  await app.register(await import('@fastify/helmet').then((m) => m.default), {
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        upgradeInsecureRequests: [],
       },
     },
-  );
+  });
 
   // ── Global prefix and versioning ──────────────────────────────────────────
   app.setGlobalPrefix(cfg.controlPlane.apiPrefix);
@@ -70,10 +67,7 @@ async function bootstrap(): Promise<void> {
   // ── Start ─────────────────────────────────────────────────────────────────
   await app.listen(cfg.controlPlane.port, cfg.controlPlane.host);
 
-  logger.info(
-    { port: cfg.controlPlane.port, env: cfg.app.appEnv },
-    'Control plane started',
-  );
+  logger.info({ port: cfg.controlPlane.port, env: cfg.app.appEnv }, 'Control plane started');
 }
 
 void bootstrap();

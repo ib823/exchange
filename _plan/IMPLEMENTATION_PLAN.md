@@ -4,6 +4,7 @@
 **Authoring context:** Written after Phase 1 forensic audit (readiness 58/100, 37 live findings) and dependency review. Planning discipline is **rolling-wave** (see §1.3).
 **Supersedes:** Nothing — this is the first Phase 2 plan. Milestone scopes refine those in `CLAUDE.md` §4 with forensic findings baked in.
 **Companion documents:**
+
 - `_plan/M3_0_FOUNDATION_RESET.md` — detailed execution plan for M3.0
 - `_plan/control_mapping.csv` — finding-to-milestone traceability matrix
 - `_audit/FORENSIC_REPORT.md` — Phase 1 forensic evidence base
@@ -15,7 +16,7 @@
 
 ### 1.1 Purpose of this document
 
-This plan answers: *given that the platform is 5 days old, 58/100, and has 37 open findings with a formal acceptance register already committing those findings to M3–M6, how does the team execute the next four months without drift, silent scope-creep, or re-litigation of settled architectural decisions?*
+This plan answers: _given that the platform is 5 days old, 58/100, and has 37 open findings with a formal acceptance register already committing those findings to M3–M6, how does the team execute the next four months without drift, silent scope-creep, or re-litigation of settled architectural decisions?_
 
 It does **not** replace `CLAUDE.md` (which remains the implementation-scope reference) or `PLANS.md` (which remains the live milestone tracker). It refines both with the forensic evidence and names the decision points that must be resolved at each milestone boundary.
 
@@ -98,11 +99,11 @@ The architecture inherits from `CLAUDE.md` §2. This section records refinements
 
 Three tiers, all served from the same codebase:
 
-| Tier | Isolation | Backing infra |
-|---|---|---|
-| **STANDARD** (shared) | Logical — same DB, same Redis, same Vault. **FORCE ROW LEVEL SECURITY** on every tenant-scoped table. `DatabaseService.forTenant()` opens a transaction and `SET LOCAL app.current_tenant_id` before any query. | One cluster |
-| **DEDICATED** | Namespace — separate Vault namespace, separate Redis logical DB, separate Postgres schema (or separate DB instance for larger tenants). RLS still enforced as defence-in-depth. | Shared cluster, per-tenant namespaces |
-| **PRIVATE** | Physical — separate cluster. Customer-operated or Anthropic-operated-on-customer-cloud. No shared infrastructure with other tenants. | Separate cluster per tenant |
+| Tier                  | Isolation                                                                                                                                                                                                       | Backing infra                         |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| **STANDARD** (shared) | Logical — same DB, same Redis, same Vault. **FORCE ROW LEVEL SECURITY** on every tenant-scoped table. `DatabaseService.forTenant()` opens a transaction and `SET LOCAL app.current_tenant_id` before any query. | One cluster                           |
+| **DEDICATED**         | Namespace — separate Vault namespace, separate Redis logical DB, separate Postgres schema (or separate DB instance for larger tenants). RLS still enforced as defence-in-depth.                                 | Shared cluster, per-tenant namespaces |
+| **PRIVATE**           | Physical — separate cluster. Customer-operated or Anthropic-operated-on-customer-cloud. No shared infrastructure with other tenants.                                                                            | Separate cluster per tenant           |
 
 The `ServiceTier` enum in `packages/db/prisma/schema.prisma` already encodes these three tiers. The runtime differentiation is **M3 scope**, not present today.
 
@@ -118,7 +119,7 @@ interface KeyCustodyBackend {
   readonly backendType: 'vault' | 'aws-kms' | 'azure-kv';
   retrieve(keyRef: KeyReference): Promise<CryptoKey>;
   store(material: KeyMaterial, metadata: KeyMetadata): Promise<KeyReference>;
-  sign?(keyRef: KeyReference, payload: Uint8Array): Promise<Signature>;  // transit-style
+  sign?(keyRef: KeyReference, payload: Uint8Array): Promise<Signature>; // transit-style
   verify?(keyRef: KeyReference, payload: Uint8Array, sig: Signature): Promise<boolean>;
   rotate(keyRef: KeyReference): Promise<KeyReference>;
 }
@@ -137,6 +138,7 @@ interface KeyCustodyBackend {
 ### 2.4 Object storage
 
 S3-compatible access via `@aws-sdk/client-s3`:
+
 - **Dev:** MinIO (already in `docker-compose.yml`)
 - **Test:** MinIO via testcontainers (M3.5)
 - **Production:** AWS S3 (or provider-equivalent: Cloudflare R2, Backblaze B2, etc.)
@@ -148,6 +150,7 @@ Pre-signed URLs via `@aws-sdk/s3-request-presigner` for the currently-ABSENT lar
 ### 2.5 Queue and orchestration
 
 **BullMQ + Redis 7** stays for Phase 1. Sufficient for:
+
 - Single-tenant job sequencing (intake → crypto → delivery → inbound)
 - Exponential backoff with jitter (NEW-02 remediation in M3)
 - Dead-letter queue handling
@@ -159,14 +162,14 @@ Pre-signed URLs via `@aws-sdk/s3-request-presigner` for the currently-ABSENT lar
 
 Three complementary layers, installed in M3.0, wired progressively through M3/M4/M6:
 
-| Layer | Tool | Installed | Wired |
-|---|---|---|---|
-| Structured logs | Pino 9 + 90-path redaction | M3.0 | M3 (refinement) |
-| Metrics | prom-client + OTEL metrics bridge | M3.0 | M4 (HTTP endpoint) |
-| Distributed traces | OTEL SDK + auto-instrumentations + OTLP exporter | M3.0 | M3 (tracer init in main.ts) |
-| Alerting + SLOs | Prometheus + Alertmanager | — | M6 |
-| Dashboards | Grafana (in compose) | — | M6 |
-| SIEM forwarding | TBD | — | M6 |
+| Layer              | Tool                                             | Installed | Wired                       |
+| ------------------ | ------------------------------------------------ | --------- | --------------------------- |
+| Structured logs    | Pino 9 + 90-path redaction                       | M3.0      | M3 (refinement)             |
+| Metrics            | prom-client + OTEL metrics bridge                | M3.0      | M4 (HTTP endpoint)          |
+| Distributed traces | OTEL SDK + auto-instrumentations + OTLP exporter | M3.0      | M3 (tracer init in main.ts) |
+| Alerting + SLOs    | Prometheus + Alertmanager                        | —         | M6                          |
+| Dashboards         | Grafana (in compose)                             | —         | M6                          |
+| SIEM forwarding    | TBD                                              | —         | M6                          |
 
 **Correlation ID propagation** through all three layers from M3 onward. The `x-correlation-id` header flows control-plane → BullMQ job → data-plane processor → outbound SFTP/HTTPS headers → inbound callback. This is the forensic thread when exchange-level incident triage is needed.
 
@@ -180,24 +183,25 @@ To avoid re-litigation: NestJS 11 + Fastify 5 + Prisma + BullMQ + Redis 7 + Post
 
 ### 3.1 At-a-glance
 
-| Milestone | Status | Est. duration | Primary exit criterion | Depends on |
-|---|---|---|---|---|
-| **M3.0** Foundation Reset | Ready | 3–5 eng-days | Refreshed stack, CI green, no regression in test count | M2 closed ✓ |
-| **M3** Security & Trust | Blocked on M3.0 | 15–20 eng-days | All 3 CRITICAL + 7 HIGH findings closed; 14 threat tests pass | M3.0 |
-| **M3.5** Data Plane Reality | Blocked on M3 | 10–15 eng-days | One real SFTP + one real HTTPS round-trip, both in CI, payload bytes from real S3 | M3 |
-| **M4** Operator Console | Parallel to M3.5 from M3.4 | 15–20 eng-days | Dashboards + approvals + audit views live; metrics HTTP endpoint exposed | M3 (for auth); can start while M3.5 runs |
-| **M5** Partner Packs + Regulatory | Blocked on M3.5 | 20–25 eng-days | 3 generic profiles E2E + BNM/PDPA/LHDN control matrices delivered | M3.5 |
-| **M6** Operational Hardening | Blocked on M5 | 15–20 eng-days | SLOs + alerting + runbooks + DR drill + SBOM signing | M5 |
+| Milestone                         | Status                     | Est. duration  | Primary exit criterion                                                            | Depends on                               |
+| --------------------------------- | -------------------------- | -------------- | --------------------------------------------------------------------------------- | ---------------------------------------- |
+| **M3.0** Foundation Reset         | Ready                      | 3–5 eng-days   | Refreshed stack, CI green, no regression in test count                            | M2 closed ✓                              |
+| **M3** Security & Trust           | Blocked on M3.0            | 15–20 eng-days | All 3 CRITICAL + 7 HIGH findings closed; 14 threat tests pass                     | M3.0                                     |
+| **M3.5** Data Plane Reality       | Blocked on M3              | 10–15 eng-days | One real SFTP + one real HTTPS round-trip, both in CI, payload bytes from real S3 | M3                                       |
+| **M4** Operator Console           | Parallel to M3.5 from M3.4 | 15–20 eng-days | Dashboards + approvals + audit views live; metrics HTTP endpoint exposed          | M3 (for auth); can start while M3.5 runs |
+| **M5** Partner Packs + Regulatory | Blocked on M3.5            | 20–25 eng-days | 3 generic profiles E2E + BNM/PDPA/LHDN control matrices delivered                 | M3.5                                     |
+| **M6** Operational Hardening      | Blocked on M5              | 15–20 eng-days | SLOs + alerting + runbooks + DR drill + SBOM signing                              | M5                                       |
 
 **Total from M3.0 start to M6 close:** 78–105 engineer-days (≈ 3.5–5 months, single contributor; ≈ 2 months with 2 contributors on non-conflicting tracks).
 
-**First commercial-credible milestone:** End of M5. The platform can demonstrate end-to-end Malaysian bank H2H, ERP outbound, and regulator exchange flows against real simulators, with regulatory evidence packs per customer. M6 is what makes it *production-ready*, not *demo-ready*.
+**First commercial-credible milestone:** End of M5. The platform can demonstrate end-to-end Malaysian bank H2H, ERP outbound, and regulator exchange flows against real simulators, with regulatory evidence packs per customer. M6 is what makes it _production-ready_, not _demo-ready_.
 
 ### 3.2 M3 — Security and Trust Controls
 
 **Goal:** Close every finding in the acceptance register that was deferred to M3 gate. Remove "application-layer isolation" as a compensating control — it becomes defence-in-depth, with the structural control living in Postgres RLS and Vault custody.
 
 **Scope (in):**
+
 - DB-RLS on every tenant-scoped table (18 models, ~12 need RLS now). Closes R2-001, R3-001.
 - Real Vault custody via custom `undici`-based client + AWS KMS backend stub. Closes R6-001.
 - Audit writes in transactions with state changes (`$transaction` wrapping). Closes R2-002, R4-003.
@@ -215,6 +219,7 @@ To avoid re-litigation: NestJS 11 + Fastify 5 + Prisma + BullMQ + Redis 7 + Post
 - SSRF validator DNS-rebinding hardening (NEW-01) — pin IP on socket or re-resolve immediately pre-connect.
 
 **Scope (out — explicit):**
+
 - Real SFTP/HTTPS transport (M3.5)
 - Real object storage (M3.5)
 - Metrics HTTP endpoint exposure (M4)
@@ -222,6 +227,7 @@ To avoid re-litigation: NestJS 11 + Fastify 5 + Prisma + BullMQ + Redis 7 + Post
 - Regulatory control matrices (M5)
 
 **Exit criteria:**
+
 - Hostile-audit role R2 (database), R3 (application security), R6 (cryptographic implementation) all move from FAIL → PASS under re-audit.
 - 14/14 threat scenario tests pass; each explicitly mapped to a CWE and a remediation.
 - Zero `as unknown as` casts in controller and service runtime code (processor-layer remains).
@@ -230,6 +236,7 @@ To avoid re-litigation: NestJS 11 + Fastify 5 + Prisma + BullMQ + Redis 7 + Post
 - MFA required for all Platform Super Admin and Security Admin actions. Configurable for other roles at tenant level.
 
 **Decision points to resolve at M3 start** (convert outline → detailed plan at this boundary):
+
 - D-M3-1: Vault HA topology for production — single leader vs Raft cluster (default: Raft, 3-node, Consul-less)
 - D-M3-2: RLS policy model — strict `USING` + `WITH CHECK` on every table, or simpler `USING`-only with app-layer insert validation
 - D-M3-3: Refresh token storage — Redis (fast, lossy-on-restart) vs Postgres (durable, slower)
@@ -239,6 +246,7 @@ To avoid re-litigation: NestJS 11 + Fastify 5 + Prisma + BullMQ + Redis 7 + Post
 **Findings closed:** R2-001, R2-002, R3-001, R3-002, R3-004, R4-001, R4-002 (full), R4-003, R4-008, R6-001, R6-003, NEW-01, NEW-02, NEW-03, NEW-04, NEW-06, NEW-07 (gating), partial NEW-08.
 
 **Risk flags:**
+
 - RLS rollout is irreversible without data migration. Dry-run on staging first.
 - Vault integration has a blast radius — a Vault outage in M3+ stops all crypto operations. Document failure modes before go-live (M6 runbook).
 - MFA rollout for existing users requires enrollment flow; no existing users in Phase 1 so clean enrollment on first login.
@@ -248,6 +256,7 @@ To avoid re-litigation: NestJS 11 + Fastify 5 + Prisma + BullMQ + Redis 7 + Post
 **Goal:** Unstub the three STUB capabilities that PLANS.md does not explicitly schedule but that M5's E2E tests silently depend on: SFTP transport, HTTPS transport, object storage. **Without M3.5, M5 passes against the same stubs it passes against today.**
 
 **Scope (in):**
+
 - Real `ssh2-sftp-client` wiring in `SftpConnector`. Host key verification. Credential rotation hook. Timeout per operation. Connection pool with idle eviction.
 - Real HTTPS client in `HttpsConnector` using `undici`. mTLS support. Redirect limit = 0 (prevent SSRF via redirect chain). TLS ≥ 1.2 enforced. Custom root CA support for partner-issued certs.
 - `@aws-sdk/client-s3` wired in `ObjectStorageService`. `InMemoryObjectStorageService` retained for unit tests only. Pre-signed URL generation for large-file inbound.
@@ -260,12 +269,14 @@ To avoid re-litigation: NestJS 11 + Fastify 5 + Prisma + BullMQ + Redis 7 + Post
 - API versioning (URI-prefix) applied consistently — if deferred from M3 per sequencing decision.
 
 **Scope (out):**
+
 - Operator console screens (M4)
 - Regulatory-specific encoders (M5)
 - Throughput-focused performance tuning (M6)
 - AS2 protocol (permanently deferred in Phase 1; may re-enter in Phase 2)
 
 **Exit criteria:**
+
 - One full round-trip test in CI, against real MinIO + mock SFTP + mock HTTPS, decrypting actual payload bytes from object storage (not reference strings). Proves transport stubs are gone.
 - Forensic coverage matrix recomputed: zero STUB entries in `transport`, `exchange_engine` (except "Customer-side agent" which remains deferred), and `api` rows.
 - Connection-pool leak test: 1000 sequential SFTP sends do not exhaust file descriptors.
@@ -273,6 +284,7 @@ To avoid re-litigation: NestJS 11 + Fastify 5 + Prisma + BullMQ + Redis 7 + Post
 - TLS test: attempt TLS 1.0/1.1 connection — refused.
 
 **Decision points:**
+
 - D-M3.5-1: SFTP authentication — password vs key-based vs SSH certificate. Default: key-based, with password path gated by partner profile flag.
 - D-M3.5-2: Pre-signed URL expiry — 15 min vs 1 hour. OWASP-leaning: 15 min.
 - D-M3.5-3: Partner profile credential storage — inline encrypted vs Vault transit. Default: Vault transit.
@@ -284,6 +296,7 @@ To avoid re-litigation: NestJS 11 + Fastify 5 + Prisma + BullMQ + Redis 7 + Post
 **Goal:** Ship the Next.js operator console with all 9 screens from `CLAUDE.md` §M4.3. Expose metrics HTTP endpoints on both control-plane and data-plane (closes R7-001 finally).
 
 **Scope (in):**
+
 - Next.js 14 + Tailwind + shadcn/ui per CLAUDE.md M4.1–M4.2
 - NextAuth.js with role-aware session
 - All 9 screens from CLAUDE.md §M4.3
@@ -296,11 +309,13 @@ To avoid re-litigation: NestJS 11 + Fastify 5 + Prisma + BullMQ + Redis 7 + Post
 - Cyber Security Act 2024 incident reporting workflow UI (closes R8-001 non-code portion — requires owner assigned before M4 starts)
 
 **Scope (out):**
+
 - White-label branding (OD-004, deferred — founder/commercial decision)
 - Role-based UI customization beyond CLAUDE.md spec
 - Mobile app
 
 **Exit criteria:**
+
 - All 9 screens functional end-to-end against M3 + M3.5 backend
 - Role enforcement: each role sees only its controls (tested per role × screen matrix)
 - Audit/timeline views immutable (no UI path to edit)
@@ -314,6 +329,7 @@ To avoid re-litigation: NestJS 11 + Fastify 5 + Prisma + BullMQ + Redis 7 + Post
 **Goal:** Generic (non-production-specific) profiles for bank H2H, regulator/API, and ERP flows. Regulatory evidence matrices for BNM RMiT, PDPA, LHDN e-Invoice, Cyber Security Act 2024.
 
 **Scope (in):**
+
 - Generic bank H2H profile fixture + loader
 - Generic regulator/API profile fixture + loader
 - Generic ERP source profile fixture + loader
@@ -327,12 +343,14 @@ To avoid re-litigation: NestJS 11 + Fastify 5 + Prisma + BullMQ + Redis 7 + Post
 - Runbooks per PLANS.md M6.9–M6.15 **pulled forward to M5** (forensic report flagged runbooks as M5 scope despite PLANS.md showing M6)
 
 **Scope (out):**
+
 - SLOs (M6)
 - Alert rules (M6)
 - Load testing (M6)
 - Real bank/regulator production onboarding (post-Phase-1 commercial)
 
 **Exit criteria:**
+
 - `docs/compliance/` tree contains: `bnm-rmit-matrix.csv`, `pdpa-data-inventory.csv`, `pdpa-cross-border-controls.md`, `lhdn-einvoice-scope.md`, `csa-2024-incident-reporting.md`
 - Every CRITICAL/HIGH control in BNM RMiT matrix has a linked evidence artefact (test ID, log query, dashboard panel, or runbook step)
 - OpenPGP interop: encrypt with openpgp.js → decrypt with GnuPG succeeds; same with Sequoia
@@ -340,6 +358,7 @@ To avoid re-litigation: NestJS 11 + Fastify 5 + Prisma + BullMQ + Redis 7 + Post
 - Grep confirms no hard-coded bank/regulator parameters in source (CLAUDE.md M5.11)
 
 **Decision points at M5 start:**
+
 - D-M5-1: LHDN e-Invoice — implement or scope-out? (R8-004 open; customer demand determines)
 - D-M5-2: Runbooks — adopt SRE incident severity framework (P1/P2/P3/P4) or BNM RMiT severity classifications or hybrid
 - D-M5-3: Evaluate Temporal adoption (decision gate per §2.5)
@@ -351,6 +370,7 @@ To avoid re-litigation: NestJS 11 + Fastify 5 + Prisma + BullMQ + Redis 7 + Post
 **Goal:** Production-ready posture. SLOs, alerting, SBOM signing + provenance, DR drill, load-tested.
 
 **Scope (in):**
+
 - Prometheus metrics instrumentation completeness audit (per CLAUDE.md §4 P1/P2/P3 conditions)
 - Grafana dashboards: submission, delivery, crypto, queue, audit, key-lifecycle
 - Prometheus alert rules per CLAUDE.md §4 severity matrix
@@ -369,6 +389,7 @@ To avoid re-litigation: NestJS 11 + Fastify 5 + Prisma + BullMQ + Redis 7 + Post
 - Disaster recovery plan — RPO/RTO targets per tier (STANDARD vs DEDICATED vs PRIVATE)
 
 **Exit criteria:**
+
 - All SLO targets met in load test
 - All alert rules fire under fault injection
 - Recovery procedures exercised end-to-end
@@ -378,6 +399,7 @@ To avoid re-litigation: NestJS 11 + Fastify 5 + Prisma + BullMQ + Redis 7 + Post
 - External pen-test report received and CRITICAL/HIGH findings either closed or on an acceptance register
 
 **Decision points at M6 start:**
+
 - D-M6-1: Cloud provider (OD-001) — AWS vs Azure vs GCP. Required decision.
 - D-M6-2: Multi-region (OD-003) — single-region first (recommended) vs multi-region from day one.
 - D-M6-3: Pen-test vendor selection.
@@ -392,26 +414,27 @@ To avoid re-litigation: NestJS 11 + Fastify 5 + Prisma + BullMQ + Redis 7 + Post
 
 **Minimum API set** (from blueprint §12.1, refined):
 
-| Endpoint | Method | Purpose | Introduced |
-|---|---|---|---|
-| `/api/v1/submissions` | POST | Submit payload (inline, small) | M1 (URI version added M3) |
-| `/api/v1/submissions/upload-url` | POST | Request pre-signed URL for large payload | M3.5 |
-| `/api/v1/submissions/:id` | GET | Status | M1 |
-| `/api/v1/submissions/:id/timeline` | GET | Event timeline | M1 |
-| `/api/v1/submissions` | GET | List (paginated, filtered) | M1 |
-| `/api/v1/callbacks/:profileId` | POST | Callback receive | M3.5 |
-| `/api/v1/partner-profiles` | CRUD | Profile management | M1 (Zod-swap M3.0) |
-| `/api/v1/key-references` | CRUD | Key inventory | M1 |
-| `/api/v1/approvals` | GET, POST | Dual-control queue + action | M1 |
-| `/api/v1/audit-events` | GET | Audit search (ComplianceReviewer role) | M1 |
-| `/api/v1/tenants` | CRUD | Tenant admin (PlatformSuperAdmin) | M1 |
-| `/api/v1/auth/login` | POST | Password + MFA | M3 (MFA added) |
-| `/api/v1/auth/refresh` | POST | Refresh token | M3 |
-| `/api/v1/auth/mfa/enroll` | POST | TOTP enrollment | M3 |
-| `/api/v1/health`, `/live`, `/ready` | GET | Liveness / readiness (public) | M1 |
-| `/metrics` | GET | Prometheus scrape (gated by network policy) | M4 |
+| Endpoint                            | Method    | Purpose                                     | Introduced                |
+| ----------------------------------- | --------- | ------------------------------------------- | ------------------------- |
+| `/api/v1/submissions`               | POST      | Submit payload (inline, small)              | M1 (URI version added M3) |
+| `/api/v1/submissions/upload-url`    | POST      | Request pre-signed URL for large payload    | M3.5                      |
+| `/api/v1/submissions/:id`           | GET       | Status                                      | M1                        |
+| `/api/v1/submissions/:id/timeline`  | GET       | Event timeline                              | M1                        |
+| `/api/v1/submissions`               | GET       | List (paginated, filtered)                  | M1                        |
+| `/api/v1/callbacks/:profileId`      | POST      | Callback receive                            | M3.5                      |
+| `/api/v1/partner-profiles`          | CRUD      | Profile management                          | M1 (Zod-swap M3.0)        |
+| `/api/v1/key-references`            | CRUD      | Key inventory                               | M1                        |
+| `/api/v1/approvals`                 | GET, POST | Dual-control queue + action                 | M1                        |
+| `/api/v1/audit-events`              | GET       | Audit search (ComplianceReviewer role)      | M1                        |
+| `/api/v1/tenants`                   | CRUD      | Tenant admin (PlatformSuperAdmin)           | M1                        |
+| `/api/v1/auth/login`                | POST      | Password + MFA                              | M3 (MFA added)            |
+| `/api/v1/auth/refresh`              | POST      | Refresh token                               | M3                        |
+| `/api/v1/auth/mfa/enroll`           | POST      | TOTP enrollment                             | M3                        |
+| `/api/v1/health`, `/live`, `/ready` | GET       | Liveness / readiness (public)               | M1                        |
+| `/metrics`                          | GET       | Prometheus scrape (gated by network policy) | M4                        |
 
 **Design principles:**
+
 - URI-based versioning (`/api/v1/*`). Header-based rejected — harder to cache, harder to observe, harder to deprecate.
 - Idempotency: every state-changing request carries `Idempotency-Key` header or a body-level `idempotencyKey` field. Enforced via `@@unique([tenantId, idempotencyKey])` in schema (already present per forensic report §3.3).
 - Every response carries `x-correlation-id`. Clients should propagate on follow-up requests.
@@ -428,6 +451,7 @@ Full `openapi.yaml` will be generated as a build artefact in CI from M3.0 onward
 CloudEvents 1.0 envelope for all internal events. Three event families:
 
 **Audit events** (persisted to `audit_events`, hash-chained):
+
 ```json
 {
   "specversion": "1.0",
@@ -455,6 +479,7 @@ CloudEvents 1.0 envelope for all internal events. Three event families:
 ```
 
 **Submission lifecycle events** (emitted to internal bus, not audit):
+
 ```
 sep.submission.received
 sep.submission.validated
@@ -465,6 +490,7 @@ sep.submission.failed
 ```
 
 **Key lifecycle events:**
+
 ```
 sep.key.registered
 sep.key.activated
@@ -482,6 +508,7 @@ All event types are strongly typed via Zod schemas in `packages/schemas/src/even
 **Already implemented** per forensic report §3.1 and `audit.service.test.ts`. Documenting here for completeness.
 
 Each `audit_events` row carries:
+
 - `immutable_hash` = SHA-256 of (`tenant_id || actor_id || action || result || event_time || previous_hash`)
 - `previous_hash` = hash from the prior event for the same tenant (or genesis hash for first event)
 
@@ -502,6 +529,7 @@ DRAFT → PENDING_APPROVAL → ACTIVE → ROTATING → ACTIVE'
 ```
 
 **Gaps (M3 work):**
+
 - 90-day expiry alert tier (currently 30/7 only) — R6-003
 - Rotation workflow with dual-key overlap window — PLANS.md M3.2/M3.3 not started
 - Scheduled expiry scan job (daily) — PLANS.md M3.4 not started
@@ -513,17 +541,17 @@ DRAFT → PENDING_APPROVAL → ACTIVE → ROTATING → ACTIVE'
 
 Classifications (documented for external API consumers):
 
-| Class | HTTP | Retryable | Examples |
-|---|---|---|---|
-| `VALIDATION_ERROR` | 400 | No | Zod parse failure |
-| `AUTHENTICATION_ERROR` | 401 | No | Missing/invalid token |
-| `AUTHORIZATION_ERROR` | 403 | No | RBAC/BOLA denial |
-| `NOT_FOUND` | 404 | No | Resource doesn't exist in tenant |
-| `CONFLICT` | 409 | No | Idempotency key collision with different payload |
-| `RATE_LIMITED` | 429 | Yes (after retry-after) | Throttler triggered |
-| `PARTNER_ERROR` | 502 | Yes | SFTP timeout, HTTPS 5xx from partner |
-| `TRANSIENT_ERROR` | 503 | Yes | Queue full, Redis unavailable |
-| `INTERNAL_ERROR` | 500 | Maybe | Uncaught; sanitized in production |
+| Class                  | HTTP | Retryable               | Examples                                         |
+| ---------------------- | ---- | ----------------------- | ------------------------------------------------ |
+| `VALIDATION_ERROR`     | 400  | No                      | Zod parse failure                                |
+| `AUTHENTICATION_ERROR` | 401  | No                      | Missing/invalid token                            |
+| `AUTHORIZATION_ERROR`  | 403  | No                      | RBAC/BOLA denial                                 |
+| `NOT_FOUND`            | 404  | No                      | Resource doesn't exist in tenant                 |
+| `CONFLICT`             | 409  | No                      | Idempotency key collision with different payload |
+| `RATE_LIMITED`         | 429  | Yes (after retry-after) | Throttler triggered                              |
+| `PARTNER_ERROR`        | 502  | Yes                     | SFTP timeout, HTTPS 5xx from partner             |
+| `TRANSIENT_ERROR`      | 503  | Yes                     | Queue full, Redis unavailable                    |
+| `INTERNAL_ERROR`       | 500  | Maybe                   | Uncaught; sanitized in production                |
 
 Client-facing responses never leak internal structure. Error IDs (`errorId`) link responses to detailed server logs for support triage.
 
@@ -531,18 +559,18 @@ Client-facing responses never leak internal structure. Error IDs (`errorId`) lin
 
 See `_plan/control_mapping.csv` for the full finding × milestone × evidence matrix. Portfolio summary:
 
-| Control theme | Milestones | Evidence artefact |
-|---|---|---|
-| Identity & access | M3 | RBAC matrix test suite, auth integration tests |
-| Tenant isolation | M3 | RLS policy test matrix, cross-tenant negative tests |
-| Key management | M3 | Vault integration tests, rotation E2E test, expiry scan job log |
-| Transport security | M3.5 | SFTP host-key tests, mTLS tests, TLS floor tests |
-| Payload integrity | M3.5 | SHA-256 verification test, signature verification test |
-| Operational resilience | M6 | Load test report, DR drill log, retry/DLQ tests |
-| Data protection | M3 + M5 | Retention job logs, erasure workflow test, residency enforcement test |
-| Audit & evidence | M3 + M4 | Hash chain test, append-only test, evidence pack export test |
-| Regulatory | M5 | BNM/PDPA/LHDN matrices, incident reporting workflow test |
-| Supply chain | M3.0 + M6 | SBOM, provenance, signature verification |
+| Control theme          | Milestones | Evidence artefact                                                     |
+| ---------------------- | ---------- | --------------------------------------------------------------------- |
+| Identity & access      | M3         | RBAC matrix test suite, auth integration tests                        |
+| Tenant isolation       | M3         | RLS policy test matrix, cross-tenant negative tests                   |
+| Key management         | M3         | Vault integration tests, rotation E2E test, expiry scan job log       |
+| Transport security     | M3.5       | SFTP host-key tests, mTLS tests, TLS floor tests                      |
+| Payload integrity      | M3.5       | SHA-256 verification test, signature verification test                |
+| Operational resilience | M6         | Load test report, DR drill log, retry/DLQ tests                       |
+| Data protection        | M3 + M5    | Retention job logs, erasure workflow test, residency enforcement test |
+| Audit & evidence       | M3 + M4    | Hash chain test, append-only test, evidence pack export test          |
+| Regulatory             | M5         | BNM/PDPA/LHDN matrices, incident reporting workflow test              |
+| Supply chain           | M3.0 + M6  | SBOM, provenance, signature verification                              |
 
 ---
 
@@ -550,13 +578,13 @@ See `_plan/control_mapping.csv` for the full finding × milestone × evidence ma
 
 ### 5.1 Coverage targets (per layer)
 
-| Layer | Line % | Branch % | Current | Target by M6 |
-|---|---|---|---|---|
-| `packages/crypto` | 80 | 80 | enforced 80/80/50/80 | 90/90/75/90 |
-| `packages/db` | 60 | 60 | enforced 40/60/75/40 | 75/75/75/75 |
-| `packages/common` | 75 | 75 | enforced 50/75/85/50 | 85/85/85/85 |
-| `apps/control-plane` | 75 | 70 | enforced 45/55/70/45 | 75/70/85/75 |
-| `apps/data-plane` | 70 | 65 | enforced 20/15/15/20 | 70/65/75/70 |
+| Layer                | Line % | Branch % | Current              | Target by M6 |
+| -------------------- | ------ | -------- | -------------------- | ------------ |
+| `packages/crypto`    | 80     | 80       | enforced 80/80/50/80 | 90/90/75/90  |
+| `packages/db`        | 60     | 60       | enforced 40/60/75/40 | 75/75/75/75  |
+| `packages/common`    | 75     | 75       | enforced 50/75/85/50 | 85/85/85/85  |
+| `apps/control-plane` | 75     | 70       | enforced 45/55/70/45 | 75/70/85/75  |
+| `apps/data-plane`    | 70     | 65       | enforced 20/15/15/20 | 70/65/75/70  |
 
 Current thresholds (per forensic §6.1) are intentionally low-floor; ratcheting up in M3, M3.5, M6 is part of the plan.
 
@@ -577,6 +605,7 @@ Current thresholds (per forensic §6.1) are intentionally low-floor; ratcheting 
 **Chaos/fault-injection (M6):** Key expiry mid-flow, SFTP timeout, partial upload, duplicate submission, callback replay, Vault outage, Redis outage, Postgres primary failover.
 
 **Security test gates in CI (from M3.0):**
+
 - OSV Scanner (SCA)
 - TruffleHog (secret scan)
 - gitleaks (local pre-commit)
@@ -587,16 +616,16 @@ Current thresholds (per forensic §6.1) are intentionally low-floor; ratcheting 
 
 Per forensic §6.2:
 
-| Test | Milestone | Blocking exit? |
-|---|---|---|
-| OpenPGP interop against GnuPG/Sequoia | M5 | Yes |
-| RBAC role × endpoint matrix | M3 | Yes |
-| Retry/DLQ backoff curve assertion | M3 | Yes (adds jitter) |
-| Contract tests (MSW) | M3.5 | Yes |
-| E2E with testcontainers | M3.5 | Yes |
-| Mock SFTP / HTTPS / Bank ack simulators | M3.5 | Yes |
-| Load / k6 / chaos | M6 | Yes |
-| Threat scenario tests (14) | M3 | Yes |
+| Test                                    | Milestone | Blocking exit?    |
+| --------------------------------------- | --------- | ----------------- |
+| OpenPGP interop against GnuPG/Sequoia   | M5        | Yes               |
+| RBAC role × endpoint matrix             | M3        | Yes               |
+| Retry/DLQ backoff curve assertion       | M3        | Yes (adds jitter) |
+| Contract tests (MSW)                    | M3.5      | Yes               |
+| E2E with testcontainers                 | M3.5      | Yes               |
+| Mock SFTP / HTTPS / Bank ack simulators | M3.5      | Yes               |
+| Load / k6 / chaos                       | M6        | Yes               |
+| Threat scenario tests (14)              | M3        | Yes               |
 
 ---
 
@@ -604,17 +633,18 @@ Per forensic §6.2:
 
 ### 6.1 Environment matrix
 
-| Environment | Purpose | Tenancy | Data |
-|---|---|---|---|
-| `dev` | Local developer laptops | Single-tenant ephemeral | Seed fixtures |
-| `test` | CI test runs | Per-test via testcontainers | Generated per test |
-| `cert` | Partner certification | Real partner sandbox creds | Synthetic customer data |
-| `staging` | Pre-prod, prod-parity | Multi-tenant | Shadowed prod structure, synthetic data |
-| `prod` | Customer-facing | Per tenant-tier config | Real |
+| Environment | Purpose                 | Tenancy                     | Data                                    |
+| ----------- | ----------------------- | --------------------------- | --------------------------------------- |
+| `dev`       | Local developer laptops | Single-tenant ephemeral     | Seed fixtures                           |
+| `test`      | CI test runs            | Per-test via testcontainers | Generated per test                      |
+| `cert`      | Partner certification   | Real partner sandbox creds  | Synthetic customer data                 |
+| `staging`   | Pre-prod, prod-parity   | Multi-tenant                | Shadowed prod structure, synthetic data |
+| `prod`      | Customer-facing         | Per tenant-tier config      | Real                                    |
 
 ### 6.2 IaC
 
 **Terraform** is the default choice (M6 scope). Modules:
+
 - `modules/postgres` — primary + replicas, extensions (RLS is native)
 - `modules/redis` — AOF + RDB
 - `modules/s3` — versioning, lifecycle, residency bucket config
@@ -637,11 +667,11 @@ Per forensic §6.2:
 
 Placeholder targets (finalise at M6):
 
-| Tier | RPO | RTO |
-|---|---|---|
-| STANDARD | 1h | 4h |
-| DEDICATED | 15min | 1h |
-| PRIVATE | per-customer SLA | per-customer SLA |
+| Tier      | RPO              | RTO              |
+| --------- | ---------------- | ---------------- |
+| STANDARD  | 1h               | 4h               |
+| DEDICATED | 15min            | 1h               |
+| PRIVATE   | per-customer SLA | per-customer SLA |
 
 Backup cadence, replication topology, and failover drills designed at M6.
 
@@ -651,31 +681,31 @@ Backup cadence, replication topology, and failover drills designed at M6.
 
 ### 7.1 Closed by this plan (2026-04-17)
 
-| ID | Question | Resolution |
-|---|---|---|
-| Q2 | Blueprint precedence | §1.2 authority hierarchy |
-| Q3 | Acceptance register vs hostile audit | §1.2 — acceptance register governs; audit is evidence |
-| Q4 | Tenancy model | §2.2 — three tiers from one codebase |
-| Q6 | Object storage | §2.4 — `@aws-sdk/client-s3`, MinIO in dev, S3 in prod |
-| Q7 | Transport scope | §3.3 — M3.5 milestone inserted specifically for this |
-| Q10 | Test-count discrepancy | M3.0 §12 — corrected in PLANS.md |
-| Q11 | CI pinning policy | M3.0 §8.1 — SHA-pin + Dependabot |
-| Q12 | Data residency | §2.4 + M3.0 §10.3 — `myResidency` tenant flag, default SG, MY when set |
+| ID  | Question                             | Resolution                                                             |
+| --- | ------------------------------------ | ---------------------------------------------------------------------- |
+| Q2  | Blueprint precedence                 | §1.2 authority hierarchy                                               |
+| Q3  | Acceptance register vs hostile audit | §1.2 — acceptance register governs; audit is evidence                  |
+| Q4  | Tenancy model                        | §2.2 — three tiers from one codebase                                   |
+| Q6  | Object storage                       | §2.4 — `@aws-sdk/client-s3`, MinIO in dev, S3 in prod                  |
+| Q7  | Transport scope                      | §3.3 — M3.5 milestone inserted specifically for this                   |
+| Q10 | Test-count discrepancy               | M3.0 §12 — corrected in PLANS.md                                       |
+| Q11 | CI pinning policy                    | M3.0 §8.1 — SHA-pin + Dependabot                                       |
+| Q12 | Data residency                       | §2.4 + M3.0 §10.3 — `myResidency` tenant flag, default SG, MY when set |
 
 ### 7.2 Still open (must resolve at named milestone)
 
-| ID | Question | Decide by | Owner |
-|---|---|---|---|
-| OD-001 | Cloud provider | M6 start | Founder |
-| OD-002 | Key custody backend selection (refined) | Now superseded by §2.3 three-backend abstraction; per-tenant choice |
-| OD-003 | Multi-region | M6 start | Founder |
-| OD-004 | White-label operator console | M4 start | Commercial lead |
-| OD-005 | Billing/entitlement engine | Post-Phase-1 | Commercial lead |
-| D-M3-1..5 | M3 execution detail | M3 start | Security + platform leads |
-| D-M3.5-1..3 | M3.5 execution detail | M3.5 start | Platform lead |
-| D-M5-1..3 | M5 execution detail | M5 start | Product + compliance leads |
-| D-M6-1..3 | M6 execution detail | M6 start | Platform lead + founder |
-| **Regulatory ownership** | Who owns R8-001..004 non-code work | **Before M4** | **Founder** (must assign) |
+| ID                       | Question                                | Decide by                                                           | Owner                      |
+| ------------------------ | --------------------------------------- | ------------------------------------------------------------------- | -------------------------- |
+| OD-001                   | Cloud provider                          | M6 start                                                            | Founder                    |
+| OD-002                   | Key custody backend selection (refined) | Now superseded by §2.3 three-backend abstraction; per-tenant choice |
+| OD-003                   | Multi-region                            | M6 start                                                            | Founder                    |
+| OD-004                   | White-label operator console            | M4 start                                                            | Commercial lead            |
+| OD-005                   | Billing/entitlement engine              | Post-Phase-1                                                        | Commercial lead            |
+| D-M3-1..5                | M3 execution detail                     | M3 start                                                            | Security + platform leads  |
+| D-M3.5-1..3              | M3.5 execution detail                   | M3.5 start                                                          | Platform lead              |
+| D-M5-1..3                | M5 execution detail                     | M5 start                                                            | Product + compliance leads |
+| D-M6-1..3                | M6 execution detail                     | M6 start                                                            | Platform lead + founder    |
+| **Regulatory ownership** | Who owns R8-001..004 non-code work      | **Before M4**                                                       | **Founder** (must assign)  |
 
 **Regulatory ownership is the current blocker.** R8-001 (Cyber Security Act 2024 incident reporting) cannot be addressed by code alone. Someone — named human, with title — must be accountable for the statutory reporting-deadline workflow, NCII applicability decisions, and the legal/compliance review of the BNM/PDPA/LHDN matrices. Without this assignment, M4 ships a UI against nobody, and M5 delivers matrices that nobody signed.
 
@@ -683,20 +713,20 @@ Backup cadence, replication topology, and failover drills designed at M6.
 
 ## 8. Risk register
 
-| # | Risk | Likelihood | Impact | Mitigation | Owner | Active in |
-|---|---|---|---|---|---|---|
-| 1 | RLS rollout introduces data-access regression | Medium | High | Dry-run on staging; cross-tenant negative test suite must pass before enabling in prod | Platform | M3 |
-| 2 | Vault outage blocks all crypto operations | Medium | Critical | HA topology (Raft 3-node); documented failure mode; cached key material with short TTL | Security | M3+ |
-| 3 | Solo-author continues through M3 without code review | High | High | Establish CODEOWNERS + branch protection before M3 starts; hire or peer-contract a second engineer | Founder | Now |
-| 4 | Regulatory work deferred indefinitely due to unassigned owner | High | Critical (customer-facing) | Assign before M4 or formally scope-out with contract language | Founder | Now |
-| 5 | Dependency upgrades in M3.0 break existing tests | Medium | Medium | M3.0 §14 verification checklist; rollback plan in §16 | Platform | M3.0 |
-| 6 | M5 E2E tests silently pass against M3.5 stubs that weren't fully unstubbed | Medium | High | M3.5 §3.3 exit criterion requires real round-trip in CI | Platform | M3.5 |
-| 7 | Operator console scope creeps into M4, delays M5 | Medium | Medium | CLAUDE.md §M4.3 is canonical; new screens require explicit ADR | Product | M4 |
-| 8 | Pen-test (M6) surfaces criticals that force re-architecting | Low | High | Scope pen-test at M5 close, not M6 close; allow M6 schedule buffer | Security | M6 |
-| 9 | Commercial timeline pressure forces skipping M5 regulatory work | Medium | Critical | Regulatory matrices are a contractual deliverable, not a nice-to-have; refuse to sign customer contracts that assume them before M5 close | Founder + commercial | M5 |
-| 10 | Cloud provider decision (OD-001) slips past M6 start | Medium | High | Force decision at M5 close gate | Founder | M5 close |
-| 11 | Vitest 3 migration breaks test discovery, causing silent pass | Low | High | M3.0 verification: test count must be ≥ 289 baseline | Platform | M3.0 |
-| 12 | AI-assisted development introduces silent regressions not caught by tests | Medium | Medium | Require CODEOWNERS review for all security-critical paths (`packages/crypto`, `*/guards/*`, `*/audit*`, RLS migrations) | Platform | Always |
+| #   | Risk                                                                       | Likelihood | Impact                     | Mitigation                                                                                                                                | Owner                | Active in |
+| --- | -------------------------------------------------------------------------- | ---------- | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | -------------------- | --------- |
+| 1   | RLS rollout introduces data-access regression                              | Medium     | High                       | Dry-run on staging; cross-tenant negative test suite must pass before enabling in prod                                                    | Platform             | M3        |
+| 2   | Vault outage blocks all crypto operations                                  | Medium     | Critical                   | HA topology (Raft 3-node); documented failure mode; cached key material with short TTL                                                    | Security             | M3+       |
+| 3   | Solo-author continues through M3 without code review                       | High       | High                       | Establish CODEOWNERS + branch protection before M3 starts; hire or peer-contract a second engineer                                        | Founder              | Now       |
+| 4   | Regulatory work deferred indefinitely due to unassigned owner              | High       | Critical (customer-facing) | Assign before M4 or formally scope-out with contract language                                                                             | Founder              | Now       |
+| 5   | Dependency upgrades in M3.0 break existing tests                           | Medium     | Medium                     | M3.0 §14 verification checklist; rollback plan in §16                                                                                     | Platform             | M3.0      |
+| 6   | M5 E2E tests silently pass against M3.5 stubs that weren't fully unstubbed | Medium     | High                       | M3.5 §3.3 exit criterion requires real round-trip in CI                                                                                   | Platform             | M3.5      |
+| 7   | Operator console scope creeps into M4, delays M5                           | Medium     | Medium                     | CLAUDE.md §M4.3 is canonical; new screens require explicit ADR                                                                            | Product              | M4        |
+| 8   | Pen-test (M6) surfaces criticals that force re-architecting                | Low        | High                       | Scope pen-test at M5 close, not M6 close; allow M6 schedule buffer                                                                        | Security             | M6        |
+| 9   | Commercial timeline pressure forces skipping M5 regulatory work            | Medium     | Critical                   | Regulatory matrices are a contractual deliverable, not a nice-to-have; refuse to sign customer contracts that assume them before M5 close | Founder + commercial | M5        |
+| 10  | Cloud provider decision (OD-001) slips past M6 start                       | Medium     | High                       | Force decision at M5 close gate                                                                                                           | Founder              | M5 close  |
+| 11  | Vitest 3 migration breaks test discovery, causing silent pass              | Low        | High                       | M3.0 verification: test count must be ≥ 289 baseline                                                                                      | Platform             | M3.0      |
+| 12  | AI-assisted development introduces silent regressions not caught by tests  | Medium     | Medium                     | Require CODEOWNERS review for all security-critical paths (`packages/crypto`, `*/guards/*`, `*/audit*`, RLS migrations)                   | Platform             | Always    |
 
 ---
 
@@ -752,6 +782,7 @@ Produce /_plan/M3_HANDOFF.md on completion.
 ### 9.4 Subsequent milestones
 
 Repeat the §9.2 + §9.3 pattern for M3.5, M4, M5, M6. Each milestone produces:
+
 - `_plan/Mx_EXECUTION_PLAN.md` before execution
 - `_plan/Mx_HANDOFF.md` after execution
 

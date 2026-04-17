@@ -46,7 +46,11 @@ export class ApprovalsService {
     }
   }
 
-  async findPending(actor: TokenPayload, page: number, pageSize: number): Promise<{
+  async findPending(
+    actor: TokenPayload,
+    page: number,
+    pageSize: number,
+  ): Promise<{
     data: ApprovalRow[];
     meta: { page: number; pageSize: number; total: number; totalPages: number };
   }> {

@@ -22,5 +22,5 @@ export const DEFAULT_JOB_OPTIONS = {
   attempts: 3,
   backoff: { type: 'exponential' as const, delay: 5000 },
   removeOnComplete: { count: 100 },
-  removeOnFail: false,   // Keep failed jobs for inspection
+  removeOnFail: false, // Keep failed jobs for inspection
 };

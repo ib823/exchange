@@ -1,5 +1,7 @@
 # CLAUDE.md — Malaysia Secure Exchange Platform
+
 # Master execution guide for Claude Code CLI in GitHub Codespace
+
 # Version: 1.0 | Status: AUTHORITATIVE — read this before every session
 
 ---
@@ -8,6 +10,7 @@
 
 You are building a **security-sensitive enterprise platform** for Malaysia.
 Priority order (non-negotiable):
+
 1. Security and correctness
 2. Deterministic, auditable behavior
 3. Explicit configuration — no magic defaults
@@ -16,6 +19,7 @@ Priority order (non-negotiable):
 6. Speed
 
 **NEVER:**
+
 - Hard-code cryptographic parameters (they belong in partner profiles)
 - Log secrets, private keys, plaintext payloads, or bearer tokens
 - Bypass tenant boundary checks
@@ -71,30 +75,30 @@ secure-exchange-platform/
 
 ## 2. TECH STACK DECISIONS (LOCKED)
 
-| Concern | Choice | Rationale |
-|---|---|---|
-| Language | TypeScript 5.x | Type safety across all boundaries |
-| Monorepo | pnpm workspaces + Turborepo | Fast incremental builds, cache |
-| Control plane framework | NestJS 10 | Enterprise patterns, DI, OpenAPI, guards |
-| Data plane framework | NestJS 10 + BullMQ | Worker queues, retry, dead-letter |
-| Operator console | Next.js 14 (App Router) + shadcn/ui | Server components, role-aware UI |
-| Database ORM | Prisma + PostgreSQL 16 | Type-safe, migrations, multi-tenant |
-| Queue / cache | Redis 7 + BullMQ | Reliable job queues, delayed retry |
-| Object storage | MinIO (local) / S3-compatible (prod) | Payload artifacts, encrypted at rest |
-| Cryptography | openpgp.js (RFC 9580) | Maintained, auditable, no custom crypto |
-| SFTP transport | ssh2-sftp-client | Mature, supports host verification |
-| Secret management | HashiCorp Vault (local dev) | KMS-agnostic abstraction layer |
-| Schema validation | Zod (shared across all layers) | Runtime + compile-time safety |
-| Structured logging | Pino + pino-pretty | JSON, fast, redaction support |
-| Tracing | OpenTelemetry SDK | Vendor-neutral, correlation IDs |
-| Metrics | prom-client + Prometheus | Scrape-ready metrics |
-| Testing — unit/component | Vitest | Fast, TS-native |
-| Testing — API | Supertest + @nestjs/testing | Contract-safe API tests |
-| Testing — contract | Pact | Consumer-driven contract testing |
-| Testing — E2E | Testcontainers + Vitest | Real infra, isolated |
-| Auth | JWT (access) + API Keys | Service-to-service + client auth |
-| CI/CD | GitHub Actions | Codespace-native |
-| IaC | Terraform + Docker Compose | Local and cloud parity |
+| Concern                  | Choice                               | Rationale                                |
+| ------------------------ | ------------------------------------ | ---------------------------------------- |
+| Language                 | TypeScript 5.x                       | Type safety across all boundaries        |
+| Monorepo                 | pnpm workspaces + Turborepo          | Fast incremental builds, cache           |
+| Control plane framework  | NestJS 10                            | Enterprise patterns, DI, OpenAPI, guards |
+| Data plane framework     | NestJS 10 + BullMQ                   | Worker queues, retry, dead-letter        |
+| Operator console         | Next.js 14 (App Router) + shadcn/ui  | Server components, role-aware UI         |
+| Database ORM             | Prisma + PostgreSQL 16               | Type-safe, migrations, multi-tenant      |
+| Queue / cache            | Redis 7 + BullMQ                     | Reliable job queues, delayed retry       |
+| Object storage           | MinIO (local) / S3-compatible (prod) | Payload artifacts, encrypted at rest     |
+| Cryptography             | openpgp.js (RFC 9580)                | Maintained, auditable, no custom crypto  |
+| SFTP transport           | ssh2-sftp-client                     | Mature, supports host verification       |
+| Secret management        | HashiCorp Vault (local dev)          | KMS-agnostic abstraction layer           |
+| Schema validation        | Zod (shared across all layers)       | Runtime + compile-time safety            |
+| Structured logging       | Pino + pino-pretty                   | JSON, fast, redaction support            |
+| Tracing                  | OpenTelemetry SDK                    | Vendor-neutral, correlation IDs          |
+| Metrics                  | prom-client + Prometheus             | Scrape-ready metrics                     |
+| Testing — unit/component | Vitest                               | Fast, TS-native                          |
+| Testing — API            | Supertest + @nestjs/testing          | Contract-safe API tests                  |
+| Testing — contract       | Pact                                 | Consumer-driven contract testing         |
+| Testing — E2E            | Testcontainers + Vitest              | Real infra, isolated                     |
+| Auth                     | JWT (access) + API Keys              | Service-to-service + client auth         |
+| CI/CD                    | GitHub Actions                       | Codespace-native                         |
+| IaC                      | Terraform + Docker Compose           | Local and cloud parity                   |
 
 ---
 
@@ -142,6 +146,7 @@ NEXT_PUBLIC_API_URL=http://localhost:3000
 ## 4. MILESTONE EXECUTION PLAN
 
 ### M0: Repository Bootstrap
+
 **Exit criteria:** `pnpm install && pnpm build && pnpm test` all green. Docker Compose infra starts clean.
 
 ```bash
@@ -176,6 +181,7 @@ pnpm test
 ```
 
 **Packages to create in M0:**
+
 - `packages/common`: shared error classes, status enums, constants
 - `packages/schemas`: Zod schemas for all domain entities (copy from data model spec)
 - `packages/observability`: Pino logger factory with redaction, OTEL setup stub
@@ -184,6 +190,7 @@ pnpm test
 ---
 
 ### M1: Domain and Control Plane Baseline
+
 **Exit criteria:** OpenAPI implemented, contract tests green, DB migrations run, sample data loads.
 
 ```bash
@@ -229,6 +236,7 @@ pnpm prisma db seed
 ```
 
 **Key implementation rules for M1:**
+
 - Every controller action must verify tenant ownership of every object
 - AuditEvent must be written for EVERY state-changing operation
 - Partner profile state machine: DRAFT → TEST_READY → TEST_APPROVED → PROD_PENDING_APPROVAL → PROD_ACTIVE → SUSPENDED → RETIRED
@@ -238,6 +246,7 @@ pnpm prisma db seed
 ---
 
 ### M2: Data Plane and Transport Baseline
+
 **Exit criteria:** End-to-end mocked delivery works, evidence chain complete, retry/failure states tested.
 
 ```bash
@@ -293,6 +302,7 @@ pnpm add ssh2-sftp-client node-fetch
 ```
 
 **Key implementation rules for M2:**
+
 - Crypto failures MUST transition submission to FAILED_FINAL immediately (no retry)
 - Transport failures are retryable by default; policy override per profile
 - Every delivery attempt writes a DeliveryAttempt record
@@ -302,6 +312,7 @@ pnpm add ssh2-sftp-client node-fetch
 ---
 
 ### M3: Security and Trust Controls
+
 **Exit criteria:** Threat model reviewed, crypto unit tests green, evidence fully logged.
 
 ```bash
@@ -353,6 +364,7 @@ pnpm add node-vault
 ---
 
 ### M4: Operator Console and Workflow Layer
+
 **Exit criteria:** All screens match docs/06_RBAC_WORKFLOWS.md workflows, role separation enforced.
 
 ```bash
@@ -394,6 +406,7 @@ pnpm add -w shadcn-ui @radix-ui/react-* lucide-react
 ---
 
 ### M5: Partner Packs
+
 **Exit criteria:** Generic profiles pass outbound/inbound scenarios, no production assumptions in code.
 
 ```bash
@@ -438,6 +451,7 @@ pnpm add -w shadcn-ui @radix-ui/react-* lucide-react
 ---
 
 ### M6: Operational Hardening
+
 **Exit criteria:** Reliability targets met in test, recovery documented and exercised.
 
 ```bash
@@ -485,6 +499,7 @@ pnpm add -Dw k6
 ## 5. CODING CONVENTIONS
 
 ### TypeScript rules
+
 ```typescript
 // Config — never raw process.env in business logic
 import { config } from '@sep/common/config';
@@ -517,6 +532,7 @@ async getSubmission(tenantId: string, submissionId: string) {
 ```
 
 ### API response shape
+
 ```typescript
 // Success
 { data: T, meta?: { page, total, correlationId } }
@@ -528,15 +544,16 @@ async getSubmission(tenantId: string, submissionId: string) {
 ```
 
 ### Queue job shape
+
 ```typescript
 interface SubmissionJob {
-  jobId: string;          // BullMQ job ID
-  correlationId: string;  // trace ID
+  jobId: string; // BullMQ job ID
+  correlationId: string; // trace ID
   tenantId: string;
   submissionId: string;
   partnerProfileId: string;
   attempt: number;
-  enqueuedAt: string;     // ISO 8601
+  enqueuedAt: string; // ISO 8601
 }
 // Payload content is NEVER in the job — only references to object storage
 ```
@@ -578,6 +595,7 @@ pnpm audit             # no critical vulnerabilities
 ## 8. DOCUMENTATION DISCIPLINE
 
 After each milestone:
+
 1. Update `PLANS.md` milestone status
 2. Update any impacted doc under `docs/`
 3. Write an ADR if architecture changed
@@ -588,6 +606,7 @@ After each milestone:
 ## 9. IF BLOCKED
 
 When a required decision cannot be made safely:
+
 1. Record the blocker in `PLANS.md` under the milestone
 2. State what cannot proceed without the decision
 3. Propose 2–3 bounded options
@@ -632,22 +651,22 @@ pnpm run milestone:m1
 
 ## APPENDIX: QUICK REFERENCE — STATUS CODES
 
-| Code | Meaning |
-|---|---|
-| CRYPTO_KEY_EXPIRED | Key referenced by profile is past expiry |
-| CRYPTO_VERIFICATION_FAILED | Signature verification failed |
-| CRYPTO_UNSUPPORTED_ALGORITHM | Algorithm not in approved policy |
-| TRANSPORT_CONNECTION_FAILED | Could not connect to partner endpoint |
-| TRANSPORT_AUTH_FAILED | Partner rejected credentials |
-| PARTNER_REJECTION | Partner accepted connection but rejected payload |
-| VALIDATION_SCHEMA_FAILED | Payload did not match declared schema |
-| VALIDATION_DUPLICATE | Idempotency key already processed |
-| POLICY_ENVIRONMENT_MISMATCH | Test profile used against production endpoint |
-| RBAC_INSUFFICIENT_ROLE | Caller role does not permit this action |
-| TENANT_BOUNDARY_VIOLATION | Object does not belong to caller's tenant |
-| APPROVAL_REQUIRED | Action requires dual-control approval |
-| KEY_ROTATION_CONFLICT | Rotation already in progress for this key |
+| Code                         | Meaning                                          |
+| ---------------------------- | ------------------------------------------------ |
+| CRYPTO_KEY_EXPIRED           | Key referenced by profile is past expiry         |
+| CRYPTO_VERIFICATION_FAILED   | Signature verification failed                    |
+| CRYPTO_UNSUPPORTED_ALGORITHM | Algorithm not in approved policy                 |
+| TRANSPORT_CONNECTION_FAILED  | Could not connect to partner endpoint            |
+| TRANSPORT_AUTH_FAILED        | Partner rejected credentials                     |
+| PARTNER_REJECTION            | Partner accepted connection but rejected payload |
+| VALIDATION_SCHEMA_FAILED     | Payload did not match declared schema            |
+| VALIDATION_DUPLICATE         | Idempotency key already processed                |
+| POLICY_ENVIRONMENT_MISMATCH  | Test profile used against production endpoint    |
+| RBAC_INSUFFICIENT_ROLE       | Caller role does not permit this action          |
+| TENANT_BOUNDARY_VIOLATION    | Object does not belong to caller's tenant        |
+| APPROVAL_REQUIRED            | Action requires dual-control approval            |
+| KEY_ROTATION_CONFLICT        | Rotation already in progress for this key        |
 
 ---
 
-*Confidential — working implementation document — not legal advice — not a substitute for security review or bank onboarding specifications*
+_Confidential — working implementation document — not legal advice — not a substitute for security review or bank onboarding specifications_

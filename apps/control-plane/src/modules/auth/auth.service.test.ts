@@ -93,17 +93,17 @@ describe('AuthService', () => {
     it('rejects when no keys match the prefix', async () => {
       mockDb.apiKey.findMany.mockResolvedValue([]);
 
-      await expect(
-        service.validateApiKey('unknown0-full-key-value'),
-      ).rejects.toThrow(UnauthorizedException);
+      await expect(service.validateApiKey('unknown0-full-key-value')).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('rejects when hash does not match (invalid key)', async () => {
       mockDb.apiKey.findMany.mockResolvedValue([baseApiKey]);
 
-      await expect(
-        service.validateApiKey('abcd1234-wrong-key-value'),
-      ).rejects.toThrow(UnauthorizedException);
+      await expect(service.validateApiKey('abcd1234-wrong-key-value')).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('rejects an expired key', async () => {
@@ -114,27 +114,27 @@ describe('AuthService', () => {
       };
       mockDb.apiKey.findMany.mockResolvedValue([expiredKey]);
 
-      await expect(
-        service.validateApiKey('abcd1234-expired-key'),
-      ).rejects.toThrow(UnauthorizedException);
+      await expect(service.validateApiKey('abcd1234-expired-key')).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('rejects a key belonging to a suspended tenant', async () => {
       mockDb.apiKey.findMany.mockResolvedValue([baseApiKey]);
       mockDb.tenant.findUnique.mockResolvedValue({ status: 'SUSPENDED' });
 
-      await expect(
-        service.validateApiKey('abcd1234-full-key-value'),
-      ).rejects.toThrow(UnauthorizedException);
+      await expect(service.validateApiKey('abcd1234-full-key-value')).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('rejects when tenant does not exist', async () => {
       mockDb.apiKey.findMany.mockResolvedValue([baseApiKey]);
       mockDb.tenant.findUnique.mockResolvedValue(null);
 
-      await expect(
-        service.validateApiKey('abcd1234-full-key-value'),
-      ).rejects.toThrow(UnauthorizedException);
+      await expect(service.validateApiKey('abcd1234-full-key-value')).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('actor identity (userId) is not the API key row ID', async () => {

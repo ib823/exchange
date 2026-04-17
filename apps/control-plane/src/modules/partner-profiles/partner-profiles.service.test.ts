@@ -104,19 +104,19 @@ describe('PartnerProfilesService', () => {
 
     it('throws NotFoundException for cross-tenant access (404, not 403)', async () => {
       mockDb.partnerProfile.findUnique.mockResolvedValue(baseProfile);
-      await expect(
-        service.findById('profile-1', crossTenantActor),
-      ).rejects.toThrow('Partner profile not found');
-      await expect(
-        service.findById('profile-1', crossTenantActor),
-      ).rejects.toThrow(expect.objectContaining({ status: 404 }) as Error);
+      await expect(service.findById('profile-1', crossTenantActor)).rejects.toThrow(
+        'Partner profile not found',
+      );
+      await expect(service.findById('profile-1', crossTenantActor)).rejects.toThrow(
+        expect.objectContaining({ status: 404 }) as Error,
+      );
     });
 
     it('throws NotFoundException when profile does not exist', async () => {
       mockDb.partnerProfile.findUnique.mockResolvedValue(null);
-      await expect(
-        service.findById('profile-missing', actor),
-      ).rejects.toThrow('Partner profile not found');
+      await expect(service.findById('profile-missing', actor)).rejects.toThrow(
+        'Partner profile not found',
+      );
     });
   });
 
@@ -143,9 +143,9 @@ describe('PartnerProfilesService', () => {
       const draftProfile = { ...baseProfile, status: 'DRAFT' };
       mockDb.partnerProfile.findUnique.mockResolvedValue(draftProfile);
 
-      await expect(
-        service.transition('profile-1', 'PROD_ACTIVE', actor),
-      ).rejects.toThrow('VALIDATION_SCHEMA_FAILED');
+      await expect(service.transition('profile-1', 'PROD_ACTIVE', actor)).rejects.toThrow(
+        'VALIDATION_SCHEMA_FAILED',
+      );
     });
 
     it('requires approval for PROD_PENDING_APPROVAL -> PROD_ACTIVE transition', async () => {
@@ -153,16 +153,21 @@ describe('PartnerProfilesService', () => {
       mockDb.partnerProfile.findUnique.mockResolvedValue(pendingProfile);
       mockDb.approval.findFirst.mockResolvedValue(null);
 
-      await expect(
-        service.transition('profile-1', 'PROD_ACTIVE', actor),
-      ).rejects.toThrow('dual-control approval');
+      await expect(service.transition('profile-1', 'PROD_ACTIVE', actor)).rejects.toThrow(
+        'dual-control approval',
+      );
     });
 
     it('allows PROD_PENDING_APPROVAL -> PROD_ACTIVE when approval exists with distinct approver', async () => {
       const pendingProfile = { ...baseProfile, status: 'PROD_PENDING_APPROVAL' };
       const activeProfile = { ...baseProfile, status: 'PROD_ACTIVE', version: 2 };
       mockDb.partnerProfile.findUnique.mockResolvedValue(pendingProfile);
-      mockDb.approval.findFirst.mockResolvedValue({ id: 'approval-1', status: 'APPROVED', initiatorId: 'user-A', approverId: 'user-B' });
+      mockDb.approval.findFirst.mockResolvedValue({
+        id: 'approval-1',
+        status: 'APPROVED',
+        initiatorId: 'user-A',
+        approverId: 'user-B',
+      });
       mockDb.partnerProfile.update.mockResolvedValue(activeProfile);
 
       const result = await service.transition('profile-1', 'PROD_ACTIVE', actor);
@@ -172,11 +177,16 @@ describe('PartnerProfilesService', () => {
     it('rejects PROD_PENDING_APPROVAL -> PROD_ACTIVE when initiator equals approver', async () => {
       const pendingProfile = { ...baseProfile, status: 'PROD_PENDING_APPROVAL' };
       mockDb.partnerProfile.findUnique.mockResolvedValue(pendingProfile);
-      mockDb.approval.findFirst.mockResolvedValue({ id: 'approval-1', status: 'APPROVED', initiatorId: 'user-A', approverId: 'user-A' });
+      mockDb.approval.findFirst.mockResolvedValue({
+        id: 'approval-1',
+        status: 'APPROVED',
+        initiatorId: 'user-A',
+        approverId: 'user-A',
+      });
 
-      await expect(
-        service.transition('profile-1', 'PROD_ACTIVE', actor),
-      ).rejects.toThrow('Initiator and approver must be different users');
+      await expect(service.transition('profile-1', 'PROD_ACTIVE', actor)).rejects.toThrow(
+        'Initiator and approver must be different users',
+      );
     });
 
     it('allows SUSPENDED -> PROD_ACTIVE without approval (resume)', async () => {
@@ -194,9 +204,9 @@ describe('PartnerProfilesService', () => {
       const retiredProfile = { ...baseProfile, status: 'RETIRED' };
       mockDb.partnerProfile.findUnique.mockResolvedValue(retiredProfile);
 
-      await expect(
-        service.transition('profile-1', 'DRAFT', actor),
-      ).rejects.toThrow('VALIDATION_SCHEMA_FAILED');
+      await expect(service.transition('profile-1', 'DRAFT', actor)).rejects.toThrow(
+        'VALIDATION_SCHEMA_FAILED',
+      );
     });
   });
 
@@ -205,9 +215,9 @@ describe('PartnerProfilesService', () => {
       const activeProfile = { ...baseProfile, status: 'PROD_ACTIVE' };
       mockDb.partnerProfile.findUnique.mockResolvedValue(activeProfile);
 
-      await expect(
-        service.update('profile-1', { name: 'Updated' }, actor),
-      ).rejects.toThrow('VALIDATION_SCHEMA_FAILED');
+      await expect(service.update('profile-1', { name: 'Updated' }, actor)).rejects.toThrow(
+        'VALIDATION_SCHEMA_FAILED',
+      );
     });
   });
 });

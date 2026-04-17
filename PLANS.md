@@ -1,4 +1,5 @@
 # PLANS.md — Milestone Tracker
+
 # Update this file after every session. It is the source of truth for delivery state.
 
 Version: 2.1 | Last updated: 2026-04-13 | POST-M2 REMEDIATION COMPLETE, M2 FORMALLY CLOSED
@@ -7,18 +8,18 @@ Version: 2.1 | Last updated: 2026-04-13 | POST-M2 REMEDIATION COMPLETE, M2 FORMA
 
 ## CURRENT STATUS
 
-| Milestone | Status | Exit criteria met | Notes |
-|---|---|---|---|
-| M0 Repository bootstrap | 🟢 COMPLETE | Yes | 2026-04-12 |
-| M1 Domain + control plane | 🟢 COMPLETE | Yes | 2026-04-12. All exit criteria met except Pact contracts (deferred to M2+). |
-| Pre-M2 remediation (all waves) | 🟢 COMPLETE | Yes | 4 waves, 28 defects fixed, 2026-04-12 to 2026-04-13. See summary below. |
-| M2 Data plane + transport | 🟢 COMPLETE | Yes | 2026-04-13. All 7 steps implemented. 309 tests across 8 packages. |
-| Post-M2 remediation | 🟢 COMPLETE | Yes | 4 gate blockers + 2 coupled defects. 330 tests across 30 files. 2026-04-13. (The "289" figure in the 2026-04-16 hostile audit — NEW-TEST-COUNT — was a grep artefact that missed `it.each` parametrised rows; runner reports 330. See Documentation corrections, below.) |
-| M3.0 Foundation Reset | 🟢 COMPLETE | Yes | 2026-04-17 |
-| M3 Security + trust | 🟡 READY | No | Prerequisites met. Write `_plan/M3_EXECUTION_PLAN.md` before starting execution. |
-| M4 Operator console | 🔴 NOT STARTED | No | Can start parallel to M3 |
-| M5 Partner packs | 🔴 NOT STARTED | No | Blocked by M2 + M3 |
-| M6 Operational hardening | 🔴 NOT STARTED | No | Blocked by M5 |
+| Milestone                      | Status         | Exit criteria met | Notes                                                                                                                                                                                                                                                                    |
+| ------------------------------ | -------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| M0 Repository bootstrap        | 🟢 COMPLETE    | Yes               | 2026-04-12                                                                                                                                                                                                                                                               |
+| M1 Domain + control plane      | 🟢 COMPLETE    | Yes               | 2026-04-12. All exit criteria met except Pact contracts (deferred to M2+).                                                                                                                                                                                               |
+| Pre-M2 remediation (all waves) | 🟢 COMPLETE    | Yes               | 4 waves, 28 defects fixed, 2026-04-12 to 2026-04-13. See summary below.                                                                                                                                                                                                  |
+| M2 Data plane + transport      | 🟢 COMPLETE    | Yes               | 2026-04-13. All 7 steps implemented. 309 tests across 8 packages.                                                                                                                                                                                                        |
+| Post-M2 remediation            | 🟢 COMPLETE    | Yes               | 4 gate blockers + 2 coupled defects. 330 tests across 30 files. 2026-04-13. (The "289" figure in the 2026-04-16 hostile audit — NEW-TEST-COUNT — was a grep artefact that missed `it.each` parametrised rows; runner reports 330. See Documentation corrections, below.) |
+| M3.0 Foundation Reset          | 🟢 COMPLETE    | Yes               | 2026-04-17                                                                                                                                                                                                                                                               |
+| M3 Security + trust            | 🟡 READY       | No                | Prerequisites met. Write `_plan/M3_EXECUTION_PLAN.md` before starting execution.                                                                                                                                                                                         |
+| M4 Operator console            | 🔴 NOT STARTED | No                | Can start parallel to M3                                                                                                                                                                                                                                                 |
+| M5 Partner packs               | 🔴 NOT STARTED | No                | Blocked by M2 + M3                                                                                                                                                                                                                                                       |
+| M6 Operational hardening       | 🔴 NOT STARTED | No                | Blocked by M5                                                                                                                                                                                                                                                            |
 
 Status legend: 🔴 NOT STARTED | 🟡 READY / IN PROGRESS | 🟢 COMPLETE | 🔵 BLOCKED
 
@@ -26,15 +27,15 @@ Status legend: 🔴 NOT STARTED | 🟡 READY / IN PROGRESS | 🟢 COMPLETE | �
 
 All remediation waves are complete. The table below consolidates the 4 waves for reference.
 
-| Wave | Date | Defects fixed | Key areas |
-|---|---|---|---|
-| Pre-M1 batch 1 | 2026-04-12 | 8 | Initial audit findings |
-| Pre-M1 batch 2 | 2026-04-12 | 5 | Additional pre-M1 findings |
-| Pre-M2 v1 | 2026-04-12 | 9 | Post-M1 audit (SSRF, JWT, audit chain, FK relations, key lifecycle) |
-| Pre-M2 v2 (wave 1+2) | 2026-04-12 | 8 | Audit hash, API key FK, relationship FKs, crypto policy, dual control |
-| Pre-M2 v3 (wave 3) | 2026-04-12 | 6 | Test gate, audit RLS, pageSize cap, tenant guard, actor identity, key states |
-| Pre-M2 final | 2026-04-13 | 5 | Runtime DB role, coverage gate, CI permissions, payload size, DB accessor |
-| CI role fix | 2026-04-13 | 1 | RUNTIME_DATABASE_URL uses sep_app in CI; lint cleanup |
+| Wave                 | Date       | Defects fixed | Key areas                                                                    |
+| -------------------- | ---------- | ------------- | ---------------------------------------------------------------------------- |
+| Pre-M1 batch 1       | 2026-04-12 | 8             | Initial audit findings                                                       |
+| Pre-M1 batch 2       | 2026-04-12 | 5             | Additional pre-M1 findings                                                   |
+| Pre-M2 v1            | 2026-04-12 | 9             | Post-M1 audit (SSRF, JWT, audit chain, FK relations, key lifecycle)          |
+| Pre-M2 v2 (wave 1+2) | 2026-04-12 | 8             | Audit hash, API key FK, relationship FKs, crypto policy, dual control        |
+| Pre-M2 v3 (wave 3)   | 2026-04-12 | 6             | Test gate, audit RLS, pageSize cap, tenant guard, actor identity, key states |
+| Pre-M2 final         | 2026-04-13 | 5             | Runtime DB role, coverage gate, CI permissions, payload size, DB accessor    |
+| CI role fix          | 2026-04-13 | 1             | RUNTIME_DATABASE_URL uses sep_app in CI; lint cleanup                        |
 
 **Total defects resolved:** 42
 **Final test count:** 238 across 7 packages
@@ -48,6 +49,7 @@ All remediation waves are complete. The table below consolidates the 4 waves for
 **Objective:** Clean, green, deployable scaffold. Nothing business-specific yet.
 
 **Detailed tasks:**
+
 - [x] M0.1 pnpm workspace root init
 - [x] M0.2 turbo.json pipeline config
 - [x] M0.3 tsconfig.base.json (strict: true, paths, incremental)
@@ -65,6 +67,7 @@ All remediation waves are complete. The table below consolidates the 4 waves for
 - [x] M0.15 Verify: `pnpm install && docker compose up -d && pnpm build && pnpm test` all pass
 
 **Exit criteria checklist:**
+
 - [x] `pnpm install` exits 0
 - [x] `pnpm build` exits 0 (all packages)
 - [x] `pnpm test` exits 0 (empty suites pass)
@@ -83,6 +86,7 @@ All remediation waves are complete. The table below consolidates the 4 waves for
 **Objective:** Full control plane API working against real DB with contract tests.
 
 **Detailed tasks:**
+
 - [x] M1.1 Prisma schema — all entities complete with relations and indexes (from M0)
 - [x] M1.2 Initial migration and seed script (from M0)
 - [x] M1.3 NestJS control-plane app scaffold (from M0)
@@ -101,6 +105,7 @@ All remediation waves are complete. The table below consolidates the 4 waves for
 - [x] M1.16 RBAC enforcement tests (roles enforced via global guard + per-endpoint decorators)
 
 **Exit criteria checklist:**
+
 - [x] All OpenAPI endpoints implemented (9 modules, all controllers with decorators)
 - [ ] Contract tests green (Pact deferred to M2+)
 - [x] DB migrations clean
@@ -120,6 +125,7 @@ All remediation waves are complete. The table below consolidates the 4 waves for
 **Objective:** End-to-end encrypted delivery with evidence chain, retry, and failure handling.
 
 **Detailed tasks:**
+
 - [x] M2.1 packages/crypto — CryptoService with openpgp.js (all 6 operations: encrypt, decrypt, sign, verify, signAndEncrypt, verifyAndDecrypt)
 - [x] M2.2 KeyRetrievalService — state validation, environment check, fingerprint verification, KeyMaterialProvider abstraction
 - [x] M2.3 CryptoOperationRecord — Prisma migration, immutable table with RLS, defense-in-depth triggers, forensic indexes
@@ -139,6 +145,7 @@ All remediation waves are complete. The table below consolidates the 4 waves for
 - [x] M2.17 Metrics instrumentation — submissionCounter, deliveryCounter, deliveryRetryCounter, cryptoOperationCounter, cryptoFailureCounter wired in processors
 
 **Exit criteria checklist:**
+
 - [x] ICryptoService implemented with all 6 operations tested (53 crypto tests)
 - [x] CryptoOperationRecord table migrated, immutable, RLS-protected, indexed
 - [x] All 4 data-plane processors fully implemented (intake, crypto, delivery, inbound)
@@ -150,6 +157,7 @@ All remediation waves are complete. The table below consolidates the 4 waves for
 - [x] All new tests wired into package scripts, workspace root, and CI
 
 **Implementation notes:**
+
 - KeyMaterialProvider uses ArmoredKeyMaterialProvider for M2 (parses real PGP keys, extracts real fingerprints). Real Vault integration is M3 scope (R6-003).
 - SFTP/HTTPS connectors validate endpoints and enforce security policies but use stub delivery. Real ssh2-sftp-client and HTTP client integration is wired but the actual transport calls are M3 hardening scope.
 - Malware scan gate fails closed when enabled — scanner not yet integrated (MALWARE_SCAN_ENABLED defaults to false). Magic-byte validation active for known file types.
@@ -167,16 +175,17 @@ All remediation waves are complete. The table below consolidates the 4 waves for
 
 **Defects resolved:**
 
-| # | Finding | Severity | Fix summary |
-|---|---|---|---|
-| 1 | R3-007: Malware scan config naming mismatch | HIGH | Config reads `MALWARE_SCAN_ENABLED` (documented name) with `FEATURE_MALWARE_SCAN_ENABLED` fallback. Magic-byte validation implemented for PDF, XML, ZIP, GZ, PGP, PNG, JPEG. Fails closed on storage read failure. |
-| 2 | R6-006: Stub key provider returns hardcoded fingerprint | HIGH | ArmoredKeyMaterialProvider parses real armored PGP keys via openpgp.js, extracts actual fingerprint/algorithm/bitLength. StubKeyMaterialProvider removed from all processors. |
-| 3 | R6-007: Crypto operations act on ref strings, not payload bytes | HIGH | CryptoProcessor reads payload bytes from ObjectStorageService, passes content to CryptoService, writes crypto output back to storage. InboundProcessor uses same pattern. |
-| 4 | R6-009: Inbound decrypt-only mode accepts without verification | HIGH | DECRYPT-only inbound quarantined with P3 incident, explicit audit event (INBOUND_VERIFICATION_SKIPPED). Does NOT produce ACK_RECEIVED. |
-| 5 | R2-009: crypto_operation_records missing submissionId FK | MEDIUM | FK constraint added: `FOREIGN KEY (submissionId) REFERENCES submissions(id) ON DELETE RESTRICT`. Index added for FK lookup. |
-| 6 | R2-010: keyFingerprint stores keyReferenceId not actual fingerprint | MEDIUM | ResolvedKey now carries `fingerprint` field. CryptoRecordInput requires `keyFingerprint`. Actual cryptographic fingerprint from key material flows through entire chain. |
+| #   | Finding                                                             | Severity | Fix summary                                                                                                                                                                                                        |
+| --- | ------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | R3-007: Malware scan config naming mismatch                         | HIGH     | Config reads `MALWARE_SCAN_ENABLED` (documented name) with `FEATURE_MALWARE_SCAN_ENABLED` fallback. Magic-byte validation implemented for PDF, XML, ZIP, GZ, PGP, PNG, JPEG. Fails closed on storage read failure. |
+| 2   | R6-006: Stub key provider returns hardcoded fingerprint             | HIGH     | ArmoredKeyMaterialProvider parses real armored PGP keys via openpgp.js, extracts actual fingerprint/algorithm/bitLength. StubKeyMaterialProvider removed from all processors.                                      |
+| 3   | R6-007: Crypto operations act on ref strings, not payload bytes     | HIGH     | CryptoProcessor reads payload bytes from ObjectStorageService, passes content to CryptoService, writes crypto output back to storage. InboundProcessor uses same pattern.                                          |
+| 4   | R6-009: Inbound decrypt-only mode accepts without verification      | HIGH     | DECRYPT-only inbound quarantined with P3 incident, explicit audit event (INBOUND_VERIFICATION_SKIPPED). Does NOT produce ACK_RECEIVED.                                                                             |
+| 5   | R2-009: crypto_operation_records missing submissionId FK            | MEDIUM   | FK constraint added: `FOREIGN KEY (submissionId) REFERENCES submissions(id) ON DELETE RESTRICT`. Index added for FK lookup.                                                                                        |
+| 6   | R2-010: keyFingerprint stores keyReferenceId not actual fingerprint | MEDIUM   | ResolvedKey now carries `fingerprint` field. CryptoRecordInput requires `keyFingerprint`. Actual cryptographic fingerprint from key material flows through entire chain.                                           |
 
 **New infrastructure:**
+
 - `IObjectStorageService` interface + `InMemoryObjectStorageService` for M2 tests
 - `ArmoredKeyMaterialProvider` — parses real PGP keys for fingerprint extraction
 - Magic-byte signature map for common financial file types
@@ -192,6 +201,7 @@ All remediation waves are complete. The table below consolidates the 4 waves for
 **Objective:** Enterprise security posture. Vault integration, key rotation, dual control, immutable audit.
 
 **Detailed tasks:**
+
 - [ ] M3.1 Vault client integration + KeyCustodyAbstraction
 - [ ] M3.2 Key rotation workflow implementation
 - [ ] M3.3 Dual-key overlap window handling
@@ -207,6 +217,7 @@ All remediation waves are complete. The table below consolidates the 4 waves for
 - [ ] M3.13 Security gate review checklist complete (from CLAUDE.md §6)
 
 **Exit criteria checklist:**
+
 - [ ] Threat model reviewed
 - [ ] All crypto unit tests green
 - [ ] No sensitive data in any log output (verified by test)
@@ -225,6 +236,7 @@ All remediation waves are complete. The table below consolidates the 4 waves for
 **Objective:** Role-aware operator UI with approval workflows and immutable audit views.
 
 **Detailed tasks:**
+
 - [ ] M4.1 Next.js 14 scaffold + shadcn/ui + Tailwind
 - [ ] M4.2 NextAuth.js with role-aware session
 - [ ] M4.3 Middleware — route protection by role
@@ -242,6 +254,7 @@ All remediation waves are complete. The table below consolidates the 4 waves for
 - [ ] M4.15 Role-based control visibility tests
 
 **Exit criteria checklist:**
+
 - [ ] All workflows match docs/06_RBAC_WORKFLOWS.md exactly
 - [ ] Role separation enforced — each role only sees its controls
 - [ ] Audit/timeline views truly immutable (no edit controls)
@@ -257,6 +270,7 @@ All remediation waves are complete. The table below consolidates the 4 waves for
 **Objective:** Generic profiles for each use case type; no production assumptions in code.
 
 **Detailed tasks:**
+
 - [ ] M5.1 Generic bank H2H profile fixture + loader test
 - [ ] M5.2 Generic regulator/API profile fixture + loader test
 - [ ] M5.3 Generic ERP source profile fixture + loader test
@@ -270,6 +284,7 @@ All remediation waves are complete. The table below consolidates the 4 waves for
 - [ ] M5.11 Verify no bank/regulator production assumptions in code
 
 **Exit criteria checklist:**
+
 - [ ] All 3 generic profiles load and validate
 - [ ] All outbound and inbound E2E scenarios pass with simulators
 - [ ] All negative scenarios handled correctly
@@ -284,6 +299,7 @@ All remediation waves are complete. The table below consolidates the 4 waves for
 **Objective:** Production-ready observability, reliability targets, DR, and runbooks.
 
 **Detailed tasks:**
+
 - [ ] M6.1 Prometheus metrics instrumentation in all services
 - [ ] M6.2 Grafana dashboards — submission, delivery, crypto, queue
 - [ ] M6.3 Alert rules — all P1/P2/P3 conditions from CLAUDE.md §4
@@ -301,6 +317,7 @@ All remediation waves are complete. The table below consolidates the 4 waves for
 - [ ] M6.15 Runbook: backup-restore-drill.md
 
 **Exit criteria checklist:**
+
 - [ ] All SLO targets met in test
 - [ ] All alert rules fire correctly under test conditions
 - [ ] Recovery procedures documented and exercised
@@ -318,44 +335,44 @@ All remediation waves are complete. The table below consolidates the 4 waves for
 <details>
 <summary>Wave v2 — 8 defects (2026-04-12)</summary>
 
-| Issue | Finding | Fix summary |
-|---|---|---|
-| 1 | R3-002 HIGH: SSRF via webhook URL | URL trust validator; blocks private/loopback/metadata/link-local IPs |
-| 2 | R3-005 MEDIUM: JWT no algorithm allowlist | Locked to HS256 in verify, sign, and JwtModule.register |
-| 3 | R4-001 MEDIUM: Exception filter non-platform logger | Replaced NestJS Logger with @sep/observability createLogger |
-| 4 | R6-004 MEDIUM: Algorithm policy incomplete | Forbidden registry for SHA-1, MD5, 3DES, IDEA, RC4, DES, DSA, RIPEMD-160 |
-| 5 | R6-002 HIGH: Key activation/revocation single-actor | Dual-control approval required for production key activate and revoke |
-| 6 | R2-004: Audit hash timestamp mismatch | Application-generated timestamp for both hash and eventTime |
-| 7 | R2-002a: ApiKey.tenantId no FK | Tenant FK with RESTRICT cascade; revokedAt/revokedBy/revocationReason fields |
-| 8 | R2-002 remainder: Five relationship FKs | InboundReceipt, KeyReference, WebhookDeliveryAttempt, Tenant relationship FKs |
+| Issue | Finding                                             | Fix summary                                                                   |
+| ----- | --------------------------------------------------- | ----------------------------------------------------------------------------- |
+| 1     | R3-002 HIGH: SSRF via webhook URL                   | URL trust validator; blocks private/loopback/metadata/link-local IPs          |
+| 2     | R3-005 MEDIUM: JWT no algorithm allowlist           | Locked to HS256 in verify, sign, and JwtModule.register                       |
+| 3     | R4-001 MEDIUM: Exception filter non-platform logger | Replaced NestJS Logger with @sep/observability createLogger                   |
+| 4     | R6-004 MEDIUM: Algorithm policy incomplete          | Forbidden registry for SHA-1, MD5, 3DES, IDEA, RC4, DES, DSA, RIPEMD-160      |
+| 5     | R6-002 HIGH: Key activation/revocation single-actor | Dual-control approval required for production key activate and revoke         |
+| 6     | R2-004: Audit hash timestamp mismatch               | Application-generated timestamp for both hash and eventTime                   |
+| 7     | R2-002a: ApiKey.tenantId no FK                      | Tenant FK with RESTRICT cascade; revokedAt/revokedBy/revocationReason fields  |
+| 8     | R2-002 remainder: Five relationship FKs             | InboundReceipt, KeyReference, WebhookDeliveryAttempt, Tenant relationship FKs |
 
 </details>
 
 <details>
 <summary>Wave v3 — 6 defects (2026-04-12)</summary>
 
-| Issue | Finding | Fix summary |
-|---|---|---|
-| 1 | passWithNoTests allows untested code | Removed from all vitest configs; wrote real tests for each package |
-| 2 | Audit RLS migration incomplete | FORCE ROW LEVEL SECURITY + DENY policies + defense-in-depth triggers |
-| 3 | List endpoints accept unbounded pageSize | PageSizePipe (max 100) on all 7 list controllers |
-| 4 | TenantGuard broken for object-level routes | Guard allows missing tenantId in path; service layer enforces |
-| 5 | JWT actor identity records credential ID | TokenPayload carries credentialId separately; userId = apikey:{name}@{tenant} |
-| 6 | Key state machine missing states | Added SUSPENDED, COMPROMISED, DESTROYED; COMPROMISED auto-creates P1 incident |
+| Issue | Finding                                    | Fix summary                                                                   |
+| ----- | ------------------------------------------ | ----------------------------------------------------------------------------- |
+| 1     | passWithNoTests allows untested code       | Removed from all vitest configs; wrote real tests for each package            |
+| 2     | Audit RLS migration incomplete             | FORCE ROW LEVEL SECURITY + DENY policies + defense-in-depth triggers          |
+| 3     | List endpoints accept unbounded pageSize   | PageSizePipe (max 100) on all 7 list controllers                              |
+| 4     | TenantGuard broken for object-level routes | Guard allows missing tenantId in path; service layer enforces                 |
+| 5     | JWT actor identity records credential ID   | TokenPayload carries credentialId separately; userId = apikey:{name}@{tenant} |
+| 6     | Key state machine missing states           | Added SUSPENDED, COMPROMISED, DESTROYED; COMPROMISED auto-creates P1 incident |
 
 </details>
 
 <details>
 <summary>Wave final — 5 defects + 1 CI fix (2026-04-13)</summary>
 
-| Issue | Finding | Fix summary |
-|---|---|---|
-| 1 | R9 GATE BLOCKER: App connects as schema owner | DatabaseService + RUNTIME_DATABASE_URL (sep_app role, DML only) |
-| 2 | Coverage thresholds never evaluated | Added --coverage flag to all 8 test:unit scripts |
-| 3 | CI jobs inherit workflow permissions | Explicit permissions block on all 9 jobs |
-| 4 | Payload size ceiling not enforced | createSubmissionSchema() with configurable .max(); VALIDATION_PAYLOAD_TOO_LARGE |
-| 5 | DB access pattern incompatible with RLS | DatabaseService.forTenant()/forSystem() replaces getPrismaClient() in all services |
-| 6 | CI RUNTIME_DATABASE_URL used sep owner role | Changed to sep_app:sep_app; added role verification step |
+| Issue | Finding                                       | Fix summary                                                                        |
+| ----- | --------------------------------------------- | ---------------------------------------------------------------------------------- |
+| 1     | R9 GATE BLOCKER: App connects as schema owner | DatabaseService + RUNTIME_DATABASE_URL (sep_app role, DML only)                    |
+| 2     | Coverage thresholds never evaluated           | Added --coverage flag to all 8 test:unit scripts                                   |
+| 3     | CI jobs inherit workflow permissions          | Explicit permissions block on all 9 jobs                                           |
+| 4     | Payload size ceiling not enforced             | createSubmissionSchema() with configurable .max(); VALIDATION_PAYLOAD_TOO_LARGE    |
+| 5     | DB access pattern incompatible with RLS       | DatabaseService.forTenant()/forSystem() replaces getPrismaClient() in all services |
+| 6     | CI RUNTIME_DATABASE_URL used sep owner role   | Changed to sep_app:sep_app; added role verification step                           |
 
 </details>
 
@@ -365,48 +382,48 @@ All remediation waves are complete. The table below consolidates the 4 waves for
 
 Findings formally accepted as not blocking M2. Each must be re-evaluated at the stated review milestone.
 
-| Finding | Severity | Acceptance date | Review milestone | Justification |
-|---|---|---|---|---|
-| R2-001 | CRITICAL | 2026-04-12 | M3 gate | DB-level RLS on all tenant-scoped tables. Application layer enforces tenant boundaries. RLS requires runtime role model and connection-level context. M3 scope. |
-| R3-001 | CRITICAL | 2026-04-12 | M3 gate | Same as R2-001 (application security perspective). Same conditions. |
-| R8-001 | CRITICAL | 2026-04-12 | M4 gate | NCII incident reporting requires legal/regulatory assessment. Cannot be resolved by code. Owner must be assigned before M4. |
-| R2-003 | HIGH | 2026-04-12 | M3 gate | Atomic audit writes (DB transactions). Cross-cutting refactor affecting all 9 service modules. M3 scope. |
-| R3-003 | HIGH | 2026-04-12 | ~~M2 start~~ CLOSED | ~~File processing security — intake processor stub.~~ Resolved: IntakeProcessor validates filenames (forbidden chars, traversal, pattern), enforces payload size ceiling, fails closed on malware scan unavailability. |
-| R3-004 | HIGH | 2026-04-12 | M3 gate | No MFA, refresh-token rotation, or login lockout. M3/M4 scope. No production traffic before M3. |
-| R6-001 | HIGH | 2026-04-12 | ~~M2 start~~ CLOSED | ~~No OpenPGP implementation.~~ Resolved: CryptoService implements all 6 ICryptoService operations using openpgp.js v5. 53 crypto tests. |
-| R6-003 | HIGH | 2026-04-12 | M3 gate | No real Vault integration for key storage. Abstraction exists, implementation deferred. |
-| R7-001 | HIGH | 2026-04-12 | M4 | Metrics not wired into running services. M4 scope per PLANS.md. |
-| R7-002 | HIGH | 2026-04-12 | M6 | No SLOs or alerting rules. M6 scope. |
-| R7-003 | HIGH | 2026-04-12 | M5 | No runbooks or DR procedures. M5 scope. |
-| R8-002 | HIGH | 2026-04-12 | M5 | No BNM RMiT control matrix. Documentation gap. |
-| R8-003 | HIGH | 2026-04-12 | M5 | No PDPA data inventory or erasure workflow. |
-| R8-004 | HIGH | 2026-04-12 | M5 | LHDN e-Invoice not implemented. M2/M5 scope. |
-| R1-001 | HIGH | 2026-04-12 | M3 | Mutable CI action references. M3 CI hardening sprint. |
-| R1-002 | HIGH | 2026-04-12 | M6 | Cross-job artifacts without integrity verification. |
-| R1-003 | HIGH | 2026-04-12 | M3 | .env contains live-looking credentials. Dev-only defaults. Mitigated by documented env separation. |
-| R5-001 | HIGH | 2026-04-12 | M3 | Semver ranges not exact-pinned. M3 dependency governance. |
-| R5-002 | HIGH | 2026-04-12 | M3 | Mutable CI actions (same root as R1-001). |
-| R5-003 | HIGH | 2026-04-12 | M6 | No SBOM, provenance, or artifact signing. |
-| R1-004 | MEDIUM | 2026-04-12 | M3 | No TypeScript project references. Build hardening. |
-| R1-005 | MEDIUM | 2026-04-12 | M3 | Mutable Docker image tags in compose. |
-| R5-004 | MEDIUM | 2026-04-12 | M3/M6 | Container image supply chain not controlled. |
-| R4-002 | MEDIUM | 2026-04-12 | M3 | No ESLint rule for sensitive logging. Partially mitigated by typed SepErrorContext. |
-| R4-003 | MEDIUM | 2026-04-12 | M3 | No transactional boundary for state + audit. Same as R2-003. |
-| R2-005 | MEDIUM | 2026-04-12 | M5 | Retention policy enforcement mechanism. Enforcement requires archival jobs. |
-| R1-008 | LOW | 2026-04-13 | M3 | No pre-commit hooks, no dead-code tooling, no .dockerignore. M3 tooling sprint. |
-| R2-007 | MEDIUM | 2026-04-13 | M3 | Missing FK-supporting indexes on 12 columns. M3 schema hardening. |
-| R2-008 | MEDIUM | 2026-04-13 | M3 | No set_updated_at() trigger for non-ORM writes. M3 schema hardening. |
-| R4-001 | MEDIUM | 2026-04-12 | M3 | Type assertions in security-sensitive paths. Replace with narrowing helpers. |
-| R4-003 | MEDIUM | 2026-04-12 | ~~M2 end~~ CLOSED | ~~Generic Error throws in data-plane stubs.~~ Resolved: All processors use SepError with typed ErrorCode. No generic Error throws remain. |
-| R4-004 | MEDIUM | 2026-04-12 | M3 | State machines use string comparison, not discriminated unions. |
-| R4-005 | MEDIUM | 2026-04-13 | M3 | Some controllers destructure raw bodies instead of schema-validated parsers. |
-| R4-007 | LOW | 2026-04-13 | M3 | Request log schema missing tenantId, operation, and normalized result fields. |
-| R5-005 | MEDIUM | 2026-04-12 | M3 | class-transformer 0.5.1 stale dependency. |
-| R5-006 | MEDIUM | 2026-04-13 | M3 | Stale/single-maintainer dependencies (swagger-cli, passport, ssh2-sftp-client, etc). |
-| R5-007 | INFO | 2026-04-13 | Next Vitest upgrade | Transitive advisories: esbuild GHSA-67mh-4wv8-2f99, vite CVE-2026-39365. Track only. |
-| R6-004 | HIGH | 2026-04-12 | M5 | No regulator-specific crypto capability (IRBM/LHDN). M2/M5 scope. |
-| R6-005 | MEDIUM | 2026-04-12 | M3 | Only 30-day and 7-day expiry alerting, no 90-day threshold. |
-| R7-004 | MEDIUM | 2026-04-12 | M4 | High-cardinality metric labels (tenant_id, partner_profile_id). |
+| Finding | Severity | Acceptance date | Review milestone    | Justification                                                                                                                                                                                                          |
+| ------- | -------- | --------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| R2-001  | CRITICAL | 2026-04-12      | M3 gate             | DB-level RLS on all tenant-scoped tables. Application layer enforces tenant boundaries. RLS requires runtime role model and connection-level context. M3 scope.                                                        |
+| R3-001  | CRITICAL | 2026-04-12      | M3 gate             | Same as R2-001 (application security perspective). Same conditions.                                                                                                                                                    |
+| R8-001  | CRITICAL | 2026-04-12      | M4 gate             | NCII incident reporting requires legal/regulatory assessment. Cannot be resolved by code. Owner must be assigned before M4.                                                                                            |
+| R2-003  | HIGH     | 2026-04-12      | M3 gate             | Atomic audit writes (DB transactions). Cross-cutting refactor affecting all 9 service modules. M3 scope.                                                                                                               |
+| R3-003  | HIGH     | 2026-04-12      | ~~M2 start~~ CLOSED | ~~File processing security — intake processor stub.~~ Resolved: IntakeProcessor validates filenames (forbidden chars, traversal, pattern), enforces payload size ceiling, fails closed on malware scan unavailability. |
+| R3-004  | HIGH     | 2026-04-12      | M3 gate             | No MFA, refresh-token rotation, or login lockout. M3/M4 scope. No production traffic before M3.                                                                                                                        |
+| R6-001  | HIGH     | 2026-04-12      | ~~M2 start~~ CLOSED | ~~No OpenPGP implementation.~~ Resolved: CryptoService implements all 6 ICryptoService operations using openpgp.js v5. 53 crypto tests.                                                                                |
+| R6-003  | HIGH     | 2026-04-12      | M3 gate             | No real Vault integration for key storage. Abstraction exists, implementation deferred.                                                                                                                                |
+| R7-001  | HIGH     | 2026-04-12      | M4                  | Metrics not wired into running services. M4 scope per PLANS.md.                                                                                                                                                        |
+| R7-002  | HIGH     | 2026-04-12      | M6                  | No SLOs or alerting rules. M6 scope.                                                                                                                                                                                   |
+| R7-003  | HIGH     | 2026-04-12      | M5                  | No runbooks or DR procedures. M5 scope.                                                                                                                                                                                |
+| R8-002  | HIGH     | 2026-04-12      | M5                  | No BNM RMiT control matrix. Documentation gap.                                                                                                                                                                         |
+| R8-003  | HIGH     | 2026-04-12      | M5                  | No PDPA data inventory or erasure workflow.                                                                                                                                                                            |
+| R8-004  | HIGH     | 2026-04-12      | M5                  | LHDN e-Invoice not implemented. M2/M5 scope.                                                                                                                                                                           |
+| R1-001  | HIGH     | 2026-04-12      | M3                  | Mutable CI action references. M3 CI hardening sprint.                                                                                                                                                                  |
+| R1-002  | HIGH     | 2026-04-12      | M6                  | Cross-job artifacts without integrity verification.                                                                                                                                                                    |
+| R1-003  | HIGH     | 2026-04-12      | M3                  | .env contains live-looking credentials. Dev-only defaults. Mitigated by documented env separation.                                                                                                                     |
+| R5-001  | HIGH     | 2026-04-12      | M3                  | Semver ranges not exact-pinned. M3 dependency governance.                                                                                                                                                              |
+| R5-002  | HIGH     | 2026-04-12      | M3                  | Mutable CI actions (same root as R1-001).                                                                                                                                                                              |
+| R5-003  | HIGH     | 2026-04-12      | M6                  | No SBOM, provenance, or artifact signing.                                                                                                                                                                              |
+| R1-004  | MEDIUM   | 2026-04-12      | M3                  | No TypeScript project references. Build hardening.                                                                                                                                                                     |
+| R1-005  | MEDIUM   | 2026-04-12      | M3                  | Mutable Docker image tags in compose.                                                                                                                                                                                  |
+| R5-004  | MEDIUM   | 2026-04-12      | M3/M6               | Container image supply chain not controlled.                                                                                                                                                                           |
+| R4-002  | MEDIUM   | 2026-04-12      | M3                  | No ESLint rule for sensitive logging. Partially mitigated by typed SepErrorContext.                                                                                                                                    |
+| R4-003  | MEDIUM   | 2026-04-12      | M3                  | No transactional boundary for state + audit. Same as R2-003.                                                                                                                                                           |
+| R2-005  | MEDIUM   | 2026-04-12      | M5                  | Retention policy enforcement mechanism. Enforcement requires archival jobs.                                                                                                                                            |
+| R1-008  | LOW      | 2026-04-13      | M3                  | No pre-commit hooks, no dead-code tooling, no .dockerignore. M3 tooling sprint.                                                                                                                                        |
+| R2-007  | MEDIUM   | 2026-04-13      | M3                  | Missing FK-supporting indexes on 12 columns. M3 schema hardening.                                                                                                                                                      |
+| R2-008  | MEDIUM   | 2026-04-13      | M3                  | No set_updated_at() trigger for non-ORM writes. M3 schema hardening.                                                                                                                                                   |
+| R4-001  | MEDIUM   | 2026-04-12      | M3                  | Type assertions in security-sensitive paths. Replace with narrowing helpers.                                                                                                                                           |
+| R4-003  | MEDIUM   | 2026-04-12      | ~~M2 end~~ CLOSED   | ~~Generic Error throws in data-plane stubs.~~ Resolved: All processors use SepError with typed ErrorCode. No generic Error throws remain.                                                                              |
+| R4-004  | MEDIUM   | 2026-04-12      | M3                  | State machines use string comparison, not discriminated unions.                                                                                                                                                        |
+| R4-005  | MEDIUM   | 2026-04-13      | M3                  | Some controllers destructure raw bodies instead of schema-validated parsers.                                                                                                                                           |
+| R4-007  | LOW      | 2026-04-13      | M3                  | Request log schema missing tenantId, operation, and normalized result fields.                                                                                                                                          |
+| R5-005  | MEDIUM   | 2026-04-12      | M3                  | class-transformer 0.5.1 stale dependency.                                                                                                                                                                              |
+| R5-006  | MEDIUM   | 2026-04-13      | M3                  | Stale/single-maintainer dependencies (swagger-cli, passport, ssh2-sftp-client, etc).                                                                                                                                   |
+| R5-007  | INFO     | 2026-04-13      | Next Vitest upgrade | Transitive advisories: esbuild GHSA-67mh-4wv8-2f99, vite CVE-2026-39365. Track only.                                                                                                                                   |
+| R6-004  | HIGH     | 2026-04-12      | M5                  | No regulator-specific crypto capability (IRBM/LHDN). M2/M5 scope.                                                                                                                                                      |
+| R6-005  | MEDIUM   | 2026-04-12      | M3                  | Only 30-day and 7-day expiry alerting, no 90-day threshold.                                                                                                                                                            |
+| R7-004  | MEDIUM   | 2026-04-12      | M4                  | High-cardinality metric labels (tenant_id, partner_profile_id).                                                                                                                                                        |
 
 | R4-008 | MEDIUM | 2026-04-13 | M3 | DatabaseService.forTenant() and config bootstrap throw raw Error instead of typed SepError. Pre-NestJS-filter throws that require bootstrap error hierarchy. |
 
@@ -430,26 +447,26 @@ Findings formally accepted as not blocking M2. Each must be re-evaluated at the 
 
 ## OPEN DECISIONS AND BLOCKERS
 
-| ID | Description | Options | Decision needed by | Owner |
-|---|---|---|---|---|
-| OD-001 | Cloud provider for production deployment | AWS / Azure / GCP | Before M6 | Founder |
-| OD-002 | HSM type for production key custody | AWS CloudHSM / Thales / Software Vault | Before M3 prod-hardening | Security lead |
-| OD-003 | Multi-region or single-region Phase 1 | Single-region first (recommended) / Multi-region | Before M6 | Founder |
-| OD-004 | White-label operator console option | Shared UI / Separate branded instance | Before M4 | Commercial lead |
-| OD-005 | Billing/entitlement engine scope | None in Phase 1 (recommended) / Simple flags / Full billing | Before M1 | Commercial lead |
+| ID     | Description                              | Options                                                     | Decision needed by       | Owner           |
+| ------ | ---------------------------------------- | ----------------------------------------------------------- | ------------------------ | --------------- |
+| OD-001 | Cloud provider for production deployment | AWS / Azure / GCP                                           | Before M6                | Founder         |
+| OD-002 | HSM type for production key custody      | AWS CloudHSM / Thales / Software Vault                      | Before M3 prod-hardening | Security lead   |
+| OD-003 | Multi-region or single-region Phase 1    | Single-region first (recommended) / Multi-region            | Before M6                | Founder         |
+| OD-004 | White-label operator console option      | Shared UI / Separate branded instance                       | Before M4                | Commercial lead |
+| OD-005 | Billing/entitlement engine scope         | None in Phase 1 (recommended) / Simple flags / Full billing | Before M1                | Commercial lead |
 
 ---
 
 ## WORKSTREAM ASSIGNMENTS
 
-| Workstream | Lead | Milestones |
-|---|---|---|
-| Platform engineering | TBD | M0, M1, M2 |
-| Security engineering | TBD | M3, M3 gate |
-| Partner profile engineering | TBD | M5 |
-| Operator UX | TBD | M4 |
-| SRE/DevOps | TBD | M0 CI, M6 |
-| Documentation and assurance | TBD | All docs, gate reviews |
+| Workstream                  | Lead | Milestones             |
+| --------------------------- | ---- | ---------------------- |
+| Platform engineering        | TBD  | M0, M1, M2             |
+| Security engineering        | TBD  | M3, M3 gate            |
+| Partner profile engineering | TBD  | M5                     |
+| Operator UX                 | TBD  | M4                     |
+| SRE/DevOps                  | TBD  | M0 CI, M6              |
+| Documentation and assurance | TBD  | All docs, gate reviews |
 
 ---
 
@@ -461,8 +478,8 @@ over the original claim.
 
 ### 2026-04-17 — NEW-TEST-COUNT (REFUTED)
 
-**Original claim (hostile audit, 2026-04-16, _audit/FORENSIC_REPORT.md §4.3
-and _audit/findings.json as NEW-TEST-COUNT):** PLANS.md claims 330 unit
+**Original claim (hostile audit, 2026-04-16, \_audit/FORENSIC_REPORT.md §4.3
+and \_audit/findings.json as NEW-TEST-COUNT):** PLANS.md claims 330 unit
 tests but the actual count is 289 — a 41-test overstatement.
 
 **Status:** REFUTED (not remediated).
@@ -491,5 +508,5 @@ and similar produce callsite-to-test ratios > 1.
 **Action taken in M3.0 §12:** the 330 line on row 16 above was left
 intact and annotated with the refutation; no rewrite to 289.
 
-Ref: _plan/M3_0_FOUNDATION_RESET.md §12 (amended); user amendment
+Ref: \_plan/M3_0_FOUNDATION_RESET.md §12 (amended); user amendment
 2026-04-17.

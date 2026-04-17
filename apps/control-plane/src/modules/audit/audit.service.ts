@@ -1,6 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { createHash } from 'crypto';
-import { DatabaseService, Prisma, type AuditAction, type ActorType, type Role, type Environment } from '@sep/db';
+import {
+  DatabaseService,
+  Prisma,
+  type AuditAction,
+  type ActorType,
+  type Role,
+  type Environment,
+} from '@sep/db';
 import { getConfig, SepError, ErrorCode } from '@sep/common';
 import { createLogger } from '@sep/observability';
 
@@ -75,8 +82,10 @@ export class AuditService {
       });
     } catch (err) {
       // Audit write failure must surface — never swallow
-      logger.error({ err, params: { action: params.action, tenantId: params.tenantId } },
-        'CRITICAL: audit event write failed');
+      logger.error(
+        { err, params: { action: params.action, tenantId: params.tenantId } },
+        'CRITICAL: audit event write failed',
+      );
       throw new SepError(ErrorCode.DATABASE_ERROR, {
         operation: 'audit.record',
         action: params.action,
@@ -126,9 +135,17 @@ export class AuditService {
         skip: (params.page - 1) * params.pageSize,
         take: params.pageSize,
         select: {
-          id: true, tenantId: true, actorType: true, actorId: true,
-          actorRole: true, objectType: true, objectId: true, action: true,
-          result: true, correlationId: true, eventTime: true,
+          id: true,
+          tenantId: true,
+          actorType: true,
+          actorId: true,
+          actorRole: true,
+          objectType: true,
+          objectId: true,
+          action: true,
+          result: true,
+          correlationId: true,
+          eventTime: true,
           metadata: true,
           // Never return immutableHash or previousHash — internal chain integrity only
         },
@@ -138,8 +155,12 @@ export class AuditService {
 
     return {
       data,
-      meta: { page: params.page, pageSize: params.pageSize, total,
-        totalPages: Math.ceil(total / params.pageSize) },
+      meta: {
+        page: params.page,
+        pageSize: params.pageSize,
+        total,
+        totalPages: Math.ceil(total / params.pageSize),
+      },
     };
   }
 }

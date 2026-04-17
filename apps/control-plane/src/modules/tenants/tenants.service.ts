@@ -11,9 +11,18 @@ export class TenantsService {
     private readonly database: DatabaseService,
   ) {}
 
-  async create(dto: CreateTenantDto, actor: TokenPayload): Promise<{
-    id: string; name: string; legalEntityName: string; serviceTier: string;
-    defaultRegion: string; status: string; createdAt: Date; updatedAt: Date;
+  async create(
+    dto: CreateTenantDto,
+    actor: TokenPayload,
+  ): Promise<{
+    id: string;
+    name: string;
+    legalEntityName: string;
+    serviceTier: string;
+    defaultRegion: string;
+    status: string;
+    createdAt: Date;
+    updatedAt: Date;
   }> {
     const tenant = await this.database.forSystem().tenant.create({
       data: {
@@ -21,7 +30,8 @@ export class TenantsService {
         legalEntityName: dto.legalEntityName,
         serviceTier: dto.serviceTier,
         defaultRegion: dto.defaultRegion,
-        metadata: dto.metadata !== undefined ? (dto.metadata as Prisma.InputJsonValue) : Prisma.JsonNull,
+        metadata:
+          dto.metadata !== undefined ? (dto.metadata as Prisma.InputJsonValue) : Prisma.JsonNull,
       },
     });
 
@@ -38,9 +48,18 @@ export class TenantsService {
     return tenant;
   }
 
-  async findById(id: string, actor: TokenPayload): Promise<{
-    id: string; name: string; legalEntityName: string; serviceTier: string;
-    defaultRegion: string; status: string; createdAt: Date; updatedAt: Date;
+  async findById(
+    id: string,
+    actor: TokenPayload,
+  ): Promise<{
+    id: string;
+    name: string;
+    legalEntityName: string;
+    serviceTier: string;
+    defaultRegion: string;
+    status: string;
+    createdAt: Date;
+    updatedAt: Date;
   }> {
     const tenant = await this.database.forSystem().tenant.findUnique({ where: { id } });
 
@@ -56,14 +75,16 @@ export class TenantsService {
     return tenant;
   }
 
-  async findAll(actor: TokenPayload, page: number, pageSize: number): Promise<{
+  async findAll(
+    actor: TokenPayload,
+    page: number,
+    pageSize: number,
+  ): Promise<{
     data: Array<Record<string, unknown>>;
     meta: { page: number; pageSize: number; total: number; totalPages: number };
   }> {
     // PLATFORM_SUPER_ADMIN sees all; others see only their own tenant
-    const where = actor.role === 'PLATFORM_SUPER_ADMIN'
-      ? {}
-      : { id: actor.tenantId };
+    const where = actor.role === 'PLATFORM_SUPER_ADMIN' ? {} : { id: actor.tenantId };
 
     const [data, total] = await Promise.all([
       this.database.forSystem().tenant.findMany({
@@ -78,9 +99,19 @@ export class TenantsService {
     return { data, meta: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) } };
   }
 
-  async update(id: string, dto: UpdateTenantDto, actor: TokenPayload): Promise<{
-    id: string; name: string; legalEntityName: string; serviceTier: string;
-    defaultRegion: string; status: string; createdAt: Date; updatedAt: Date;
+  async update(
+    id: string,
+    dto: UpdateTenantDto,
+    actor: TokenPayload,
+  ): Promise<{
+    id: string;
+    name: string;
+    legalEntityName: string;
+    serviceTier: string;
+    defaultRegion: string;
+    status: string;
+    createdAt: Date;
+    updatedAt: Date;
   }> {
     const existing = await this.database.forSystem().tenant.findUnique({ where: { id } });
     if (existing === null) {
@@ -114,8 +145,13 @@ export class TenantsService {
     return updated;
   }
 
-  async suspend(id: string, actor: TokenPayload): Promise<{
-    id: string; name: string; status: string;
+  async suspend(
+    id: string,
+    actor: TokenPayload,
+  ): Promise<{
+    id: string;
+    name: string;
+    status: string;
   }> {
     const existing = await this.database.forSystem().tenant.findUnique({ where: { id } });
     if (existing === null) {

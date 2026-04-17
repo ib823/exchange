@@ -9,7 +9,14 @@
  */
 
 import { createHash } from 'crypto';
-import { DatabaseService, type AuditAction, type ActorType, type Role, type Environment, type Prisma } from '@sep/db';
+import {
+  DatabaseService,
+  type AuditAction,
+  type ActorType,
+  type Role,
+  type Environment,
+  type Prisma,
+} from '@sep/db';
 import { getConfig, SepError, ErrorCode } from '@sep/common';
 import { createLogger } from '@sep/observability';
 
@@ -78,7 +85,9 @@ export class AuditWriterService {
         },
       });
     } catch (err) {
-      if (err instanceof SepError) {throw err;}
+      if (err instanceof SepError) {
+        throw err;
+      }
       logger.error(
         { err, action: params.action, tenantId: params.tenantId },
         'CRITICAL: audit event write failed',

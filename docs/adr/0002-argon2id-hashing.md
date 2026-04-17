@@ -26,7 +26,7 @@ import { hash, verify, Algorithm } from '@node-rs/argon2';
 
 const h = await hash(secret, {
   algorithm: Algorithm.Argon2id,
-  memoryCost: 19456,   // KiB (~19 MiB)
+  memoryCost: 19456, // KiB (~19 MiB)
   timeCost: 2,
   parallelism: 1,
 });

@@ -1,9 +1,22 @@
 import {
-  Controller, Get, Post, Patch, Body, Param, Query,
-  DefaultValuePipe, ParseIntPipe, Request,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Body,
+  Param,
+  Query,
+  DefaultValuePipe,
+  ParseIntPipe,
+  Request,
 } from '@nestjs/common';
 import {
-  ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery,
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiParam,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { createZodDto } from 'nestjs-zod';
 import { CreateIncidentSchema, UpdateIncidentSchema } from '@sep/schemas';
@@ -32,20 +45,30 @@ export class IncidentsController {
     @Body() dto: CreateIncidentDto,
     @Request() req: FastifyRequest & { user: TokenPayload },
   ): Promise<{ data: unknown }> {
-    const incident = await this.service.create({
-      tenantId: dto.tenantId,
-      severity: dto.severity,
-      title: dto.title,
-      description: dto.description,
-      sourceType: dto.sourceType,
-      sourceId: dto.sourceId,
-      assignedTo: dto.assignedTo,
-    }, req.user);
+    const incident = await this.service.create(
+      {
+        tenantId: dto.tenantId,
+        severity: dto.severity,
+        title: dto.title,
+        description: dto.description,
+        sourceType: dto.sourceType,
+        sourceId: dto.sourceId,
+        assignedTo: dto.assignedTo,
+      },
+      req.user,
+    );
     return { data: incident };
   }
 
   @Get()
-  @Roles('PLATFORM_SUPER_ADMIN', 'TENANT_ADMIN', 'SECURITY_ADMIN', 'INTEGRATION_ENGINEER', 'OPERATIONS_ANALYST', 'COMPLIANCE_REVIEWER')
+  @Roles(
+    'PLATFORM_SUPER_ADMIN',
+    'TENANT_ADMIN',
+    'SECURITY_ADMIN',
+    'INTEGRATION_ENGINEER',
+    'OPERATIONS_ANALYST',
+    'COMPLIANCE_REVIEWER',
+  )
   @ApiOperation({ summary: 'List incidents' })
   @ApiQuery({ name: 'state', required: false })
   @ApiQuery({ name: 'severity', required: false })
@@ -58,13 +81,22 @@ export class IncidentsController {
     @Request() req?: FastifyRequest & { user: TokenPayload },
   ): Promise<unknown> {
     if (req === undefined) {
-      throw new SepError(ErrorCode.RBAC_INSUFFICIENT_ROLE, { message: 'Missing authentication context' });
+      throw new SepError(ErrorCode.RBAC_INSUFFICIENT_ROLE, {
+        message: 'Missing authentication context',
+      });
     }
     return this.service.findAll(req.user, page, pageSize, { state, severity });
   }
 
   @Get(':incidentId')
-  @Roles('PLATFORM_SUPER_ADMIN', 'TENANT_ADMIN', 'SECURITY_ADMIN', 'INTEGRATION_ENGINEER', 'OPERATIONS_ANALYST', 'COMPLIANCE_REVIEWER')
+  @Roles(
+    'PLATFORM_SUPER_ADMIN',
+    'TENANT_ADMIN',
+    'SECURITY_ADMIN',
+    'INTEGRATION_ENGINEER',
+    'OPERATIONS_ANALYST',
+    'COMPLIANCE_REVIEWER',
+  )
   @ApiOperation({ summary: 'Get incident by ID' })
   @ApiParam({ name: 'incidentId', type: String })
   @ApiResponse({ status: 200, description: 'Incident detail' })
@@ -88,14 +120,18 @@ export class IncidentsController {
     @Body() dto: UpdateIncidentDto,
     @Request() req: FastifyRequest & { user: TokenPayload },
   ): Promise<{ data: unknown }> {
-    const incident = await this.service.update(incidentId, {
-      severity: dto.severity,
-      title: dto.title,
-      description: dto.description,
-      assignedTo: dto.assignedTo,
-      state: dto.state,
-      resolution: dto.resolution,
-    }, req.user);
+    const incident = await this.service.update(
+      incidentId,
+      {
+        severity: dto.severity,
+        title: dto.title,
+        description: dto.description,
+        assignedTo: dto.assignedTo,
+        state: dto.state,
+        resolution: dto.resolution,
+      },
+      req.user,
+    );
     return { data: incident };
   }
 }

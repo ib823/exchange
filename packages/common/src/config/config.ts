@@ -43,12 +43,18 @@ const ConfigSchema = z.object({
     region: z.string().default('ap-southeast-1'),
     bucketPayloads: z.string().min(1),
     bucketAuditExports: z.string().min(1),
-    forcePathStyle: z.enum(['true', 'false']).transform((v) => v === 'true').default('true'),
+    forcePathStyle: z
+      .enum(['true', 'false'])
+      .transform((v) => v === 'true')
+      .default('true'),
     maxPayloadSizeBytes: z.coerce.number().int().positive().default(52_428_800),
     // M3.0 §10.3: schema-only field (no enforcement yet). When true, the
     // tenant's payload and audit-export buckets MUST be pinned to MY region.
     // Wiring happens in M3 once RLS and tenant-scoped config resolution land.
-    myResidency: z.enum(['true', 'false']).transform((v) => v === 'true').default('false'),
+    myResidency: z
+      .enum(['true', 'false'])
+      .transform((v) => v === 'true')
+      .default('false'),
   }),
 
   vault: z.object({
@@ -115,11 +121,26 @@ const ConfigSchema = z.object({
   }),
 
   features: z.object({
-    dualControlEnabled: z.enum(['true', 'false']).transform((v) => v === 'true').default('true'),
-    webhookEnabled: z.enum(['true', 'false']).transform((v) => v === 'true').default('true'),
-    auditExportEnabled: z.enum(['true', 'false']).transform((v) => v === 'true').default('true'),
-    keyRotationEnabled: z.enum(['true', 'false']).transform((v) => v === 'true').default('true'),
-    malwareScanEnabled: z.enum(['true', 'false']).transform((v) => v === 'true').default('false'),
+    dualControlEnabled: z
+      .enum(['true', 'false'])
+      .transform((v) => v === 'true')
+      .default('true'),
+    webhookEnabled: z
+      .enum(['true', 'false'])
+      .transform((v) => v === 'true')
+      .default('true'),
+    auditExportEnabled: z
+      .enum(['true', 'false'])
+      .transform((v) => v === 'true')
+      .default('true'),
+    keyRotationEnabled: z
+      .enum(['true', 'false'])
+      .transform((v) => v === 'true')
+      .default('true'),
+    malwareScanEnabled: z
+      .enum(['true', 'false'])
+      .transform((v) => v === 'true')
+      .default('false'),
   }),
 });
 
@@ -227,7 +248,10 @@ function loadConfig(): AppConfig {
       webhookEnabled: process.env['FEATURE_WEBHOOK_ENABLED'],
       auditExportEnabled: process.env['FEATURE_AUDIT_EXPORT_ENABLED'],
       keyRotationEnabled: process.env['FEATURE_KEY_ROTATION_ENABLED'],
-      malwareScanEnabled: process.env['MALWARE_SCAN_ENABLED'] ?? process.env['FEATURE_MALWARE_SCAN_ENABLED'] ?? 'false',
+      malwareScanEnabled:
+        process.env['MALWARE_SCAN_ENABLED'] ??
+        process.env['FEATURE_MALWARE_SCAN_ENABLED'] ??
+        'false',
     },
   };
 

@@ -6,7 +6,10 @@ import type { IKeyMaterialProvider, KeyMaterial } from './key-material-provider'
 
 vi.mock('@sep/observability', () => ({
   createLogger: () => ({
-    info: vi.fn(), debug: vi.fn(), warn: vi.fn(), error: vi.fn(),
+    info: vi.fn(),
+    debug: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
   }),
 }));
 
@@ -66,56 +69,73 @@ describe('KeyRetrievalService', () => {
   });
 
   it('rejects EXPIRED state with CRYPTO_KEY_EXPIRED', async () => {
-    await expect(service.resolveKey(makeRow({ state: 'EXPIRED' }), 'TEST'))
-      .rejects.toThrow(expect.objectContaining({ code: ErrorCode.CRYPTO_KEY_EXPIRED }));
+    await expect(service.resolveKey(makeRow({ state: 'EXPIRED' }), 'TEST')).rejects.toThrow(
+      expect.objectContaining({ code: ErrorCode.CRYPTO_KEY_EXPIRED }),
+    );
   });
 
   it.each([
-    'DRAFT', 'IMPORTED', 'VALIDATED', 'ROTATING',
-    'SUSPENDED', 'COMPROMISED', 'REVOKED', 'RETIRED', 'DESTROYED',
+    'DRAFT',
+    'IMPORTED',
+    'VALIDATED',
+    'ROTATING',
+    'SUSPENDED',
+    'COMPROMISED',
+    'REVOKED',
+    'RETIRED',
+    'DESTROYED',
   ])('rejects %s state with CRYPTO_KEY_INVALID_STATE', async (state) => {
-    await expect(service.resolveKey(makeRow({ state }), 'TEST'))
-      .rejects.toThrow(expect.objectContaining({ code: ErrorCode.CRYPTO_KEY_INVALID_STATE }));
+    await expect(service.resolveKey(makeRow({ state }), 'TEST')).rejects.toThrow(
+      expect.objectContaining({ code: ErrorCode.CRYPTO_KEY_INVALID_STATE }),
+    );
   });
 
   it('rejects environment mismatch with POLICY_ENVIRONMENT_MISMATCH', async () => {
-    await expect(service.resolveKey(makeRow({ environment: 'PRODUCTION' }), 'TEST'))
-      .rejects.toThrow(expect.objectContaining({ code: ErrorCode.POLICY_ENVIRONMENT_MISMATCH }));
+    await expect(
+      service.resolveKey(makeRow({ environment: 'PRODUCTION' }), 'TEST'),
+    ).rejects.toThrow(expect.objectContaining({ code: ErrorCode.POLICY_ENVIRONMENT_MISMATCH }));
   });
 
   it('rejects expired key (past expiresAt) with CRYPTO_KEY_EXPIRED', async () => {
     const row = makeRow({ expiresAt: new Date(Date.now() - 1000) });
-    await expect(service.resolveKey(row, 'TEST'))
-      .rejects.toThrow(expect.objectContaining({ code: ErrorCode.CRYPTO_KEY_EXPIRED }));
+    await expect(service.resolveKey(row, 'TEST')).rejects.toThrow(
+      expect.objectContaining({ code: ErrorCode.CRYPTO_KEY_EXPIRED }),
+    );
   });
 
   it('rejects fingerprint mismatch with KEY_FINGERPRINT_MISMATCH', async () => {
     provider = makeProvider(makeMaterial({ fingerprint: 'DIFFERENT_FP' }));
     service = new KeyRetrievalService(provider);
-    await expect(service.resolveKey(makeRow(), 'TEST'))
-      .rejects.toThrow(expect.objectContaining({ code: ErrorCode.KEY_FINGERPRINT_MISMATCH }));
+    await expect(service.resolveKey(makeRow(), 'TEST')).rejects.toThrow(
+      expect.objectContaining({ code: ErrorCode.KEY_FINGERPRINT_MISMATCH }),
+    );
   });
 
   it('rejects algorithm mismatch with KEY_FINGERPRINT_MISMATCH', async () => {
     provider = makeProvider(makeMaterial({ algorithm: 'ecdh' }));
     service = new KeyRetrievalService(provider);
-    await expect(service.resolveKey(makeRow(), 'TEST'))
-      .rejects.toThrow(expect.objectContaining({ code: ErrorCode.KEY_FINGERPRINT_MISMATCH }));
+    await expect(service.resolveKey(makeRow(), 'TEST')).rejects.toThrow(
+      expect.objectContaining({ code: ErrorCode.KEY_FINGERPRINT_MISMATCH }),
+    );
   });
 
   it('throws KEY_BACKEND_UNAVAILABLE when provider fails', async () => {
     provider = { loadKeyMaterial: vi.fn().mockRejectedValue(new Error('connection refused')) };
     service = new KeyRetrievalService(provider);
-    await expect(service.resolveKey(makeRow(), 'TEST'))
-      .rejects.toThrow(expect.objectContaining({ code: ErrorCode.KEY_BACKEND_UNAVAILABLE }));
+    await expect(service.resolveKey(makeRow(), 'TEST')).rejects.toThrow(
+      expect.objectContaining({ code: ErrorCode.KEY_BACKEND_UNAVAILABLE }),
+    );
   });
 
   it('passes through SepError from provider', async () => {
     const { SepError: SE } = await import('@sep/common');
-    provider = { loadKeyMaterial: vi.fn().mockRejectedValue(new SE(ErrorCode.CRYPTO_KEY_NOT_FOUND)) };
+    provider = {
+      loadKeyMaterial: vi.fn().mockRejectedValue(new SE(ErrorCode.CRYPTO_KEY_NOT_FOUND)),
+    };
     service = new KeyRetrievalService(provider);
-    await expect(service.resolveKey(makeRow(), 'TEST'))
-      .rejects.toThrow(expect.objectContaining({ code: ErrorCode.CRYPTO_KEY_NOT_FOUND }));
+    await expect(service.resolveKey(makeRow(), 'TEST')).rejects.toThrow(
+      expect.objectContaining({ code: ErrorCode.CRYPTO_KEY_NOT_FOUND }),
+    );
   });
 
   it('accepts key with null expiresAt (no expiry)', async () => {

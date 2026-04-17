@@ -1,6 +1,9 @@
 import {
-  type ExceptionFilter, Catch, type ArgumentsHost,
-  HttpException, HttpStatus,
+  type ExceptionFilter,
+  Catch,
+  type ArgumentsHost,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { isSepError, SepError, ErrorCode } from '@sep/common';
@@ -17,7 +20,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const reply = ctx.getResponse<FastifyReply>();
     const request = ctx.getRequest<FastifyRequest>();
-    const correlationId = (request.headers['x-correlation-id'] as string | undefined) ?? randomUUID();
+    const correlationId =
+      (request.headers['x-correlation-id'] as string | undefined) ?? randomUUID();
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let code = 'INTERNAL_ERROR';
@@ -50,7 +54,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
     } else if (normalised instanceof HttpException) {
       status = normalised.getStatus();
       const resp = normalised.getResponse();
-      message = typeof resp === 'string' ? resp : ((resp as Record<string, unknown>)['message'] as string | undefined) ?? message;
+      message =
+        typeof resp === 'string'
+          ? resp
+          : (((resp as Record<string, unknown>)['message'] as string | undefined) ?? message);
       logger.warn({ status, message, correlationId }, 'HttpException');
     } else {
       logger.error({ correlationId, err: normalised }, 'Unhandled exception');
@@ -62,12 +69,32 @@ export class HttpExceptionFilter implements ExceptionFilter {
   }
 
   private sepErrorToHttpStatus(code: string): number {
-    if (code.startsWith('RBAC_') || code === 'TENANT_BOUNDARY_VIOLATION' || code === 'APPROVAL_SELF_APPROVAL_FORBIDDEN') {return 403;}
-    if (code.includes('NOT_FOUND') || code === 'SUBMISSION_NOT_FOUND') {return 404;}
-    if (code === 'VALIDATION_DUPLICATE') {return 409;}
-    if (code === 'AUTH_TOKEN_INVALID' || code === 'AUTH_TOKEN_EXPIRED' || code === 'AUTH_API_KEY_INVALID') {return 401;}
-    if (code === 'APPROVAL_REQUIRED') {return 202;}
-    if (code.startsWith('VALIDATION_') || code.startsWith('POLICY_')) {return 422;}
+    if (
+      code.startsWith('RBAC_') ||
+      code === 'TENANT_BOUNDARY_VIOLATION' ||
+      code === 'APPROVAL_SELF_APPROVAL_FORBIDDEN'
+    ) {
+      return 403;
+    }
+    if (code.includes('NOT_FOUND') || code === 'SUBMISSION_NOT_FOUND') {
+      return 404;
+    }
+    if (code === 'VALIDATION_DUPLICATE') {
+      return 409;
+    }
+    if (
+      code === 'AUTH_TOKEN_INVALID' ||
+      code === 'AUTH_TOKEN_EXPIRED' ||
+      code === 'AUTH_API_KEY_INVALID'
+    ) {
+      return 401;
+    }
+    if (code === 'APPROVAL_REQUIRED') {
+      return 202;
+    }
+    if (code.startsWith('VALIDATION_') || code.startsWith('POLICY_')) {
+      return 422;
+    }
     return 500;
   }
 }

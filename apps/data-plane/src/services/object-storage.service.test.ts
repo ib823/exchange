@@ -22,8 +22,9 @@ describe('InMemoryObjectStorageService', () => {
   });
 
   it('throws STORAGE_OBJECT_NOT_FOUND for missing objects', async () => {
-    await expect(storage.getObject('bucket', 'nonexistent'))
-      .rejects.toThrow(expect.objectContaining({ code: ErrorCode.STORAGE_OBJECT_NOT_FOUND }));
+    await expect(storage.getObject('bucket', 'nonexistent')).rejects.toThrow(
+      expect.objectContaining({ code: ErrorCode.STORAGE_OBJECT_NOT_FOUND }),
+    );
   });
 
   it('returns first N bytes via getObjectHead', async () => {
@@ -34,8 +35,9 @@ describe('InMemoryObjectStorageService', () => {
   });
 
   it('getObjectHead throws for missing objects', async () => {
-    await expect(storage.getObjectHead('bucket', 'nope', 4))
-      .rejects.toThrow(expect.objectContaining({ code: ErrorCode.STORAGE_OBJECT_NOT_FOUND }));
+    await expect(storage.getObjectHead('bucket', 'nope', 4)).rejects.toThrow(
+      expect.objectContaining({ code: ErrorCode.STORAGE_OBJECT_NOT_FOUND }),
+    );
   });
 
   it('overwrites existing objects', async () => {

@@ -46,7 +46,13 @@ export class CryptoService implements ICryptoService {
     const start = Date.now();
     const operationId = randomUUID();
 
-    enforcePolicy(policy, recipientKey, recipientKey.algorithm, 'ENCRYPT', recipientKey.environment);
+    enforcePolicy(
+      policy,
+      recipientKey,
+      recipientKey.algorithm,
+      'ENCRYPT',
+      recipientKey.environment,
+    );
 
     try {
       const publicKey = await this.readPublicKey(recipientKey.backendRef);
@@ -59,7 +65,14 @@ export class CryptoService implements ICryptoService {
 
       const output = String(encrypted);
       const encryptedPayloadRef = `encrypted/${recipientKey.keyReferenceId}/${operationId}`;
-      const meta = this.buildMeta(operationId, 'ENCRYPT', recipientKey, start, payloadRef.length, output.length);
+      const meta = this.buildMeta(
+        operationId,
+        'ENCRYPT',
+        recipientKey,
+        start,
+        payloadRef.length,
+        output.length,
+      );
 
       logger.info(
         { operationId, keyReferenceId: recipientKey.keyReferenceId, operation: 'ENCRYPT' },
@@ -68,8 +81,13 @@ export class CryptoService implements ICryptoService {
 
       return { encryptedPayloadRef, meta };
     } catch (err) {
-      if (err instanceof SepError) {throw err;}
-      logger.error({ operationId, keyReferenceId: recipientKey.keyReferenceId }, 'Encryption failed');
+      if (err instanceof SepError) {
+        throw err;
+      }
+      logger.error(
+        { operationId, keyReferenceId: recipientKey.keyReferenceId },
+        'Encryption failed',
+      );
       throw new SepError(ErrorCode.CRYPTO_ENCRYPTION_FAILED, {
         keyReferenceId: recipientKey.keyReferenceId,
         operation: 'ENCRYPT',
@@ -96,7 +114,14 @@ export class CryptoService implements ICryptoService {
 
       const output = String(data);
       const decryptedPayloadRef = `decrypted/${privateKeyRef.keyReferenceId}/${operationId}`;
-      const meta = this.buildMeta(operationId, 'DECRYPT', privateKeyRef, start, encryptedPayloadRef.length, output.length);
+      const meta = this.buildMeta(
+        operationId,
+        'DECRYPT',
+        privateKeyRef,
+        start,
+        encryptedPayloadRef.length,
+        output.length,
+      );
 
       logger.info(
         { operationId, keyReferenceId: privateKeyRef.keyReferenceId, operation: 'DECRYPT' },
@@ -105,8 +130,13 @@ export class CryptoService implements ICryptoService {
 
       return { decryptedPayloadRef, verificationResult: 'SKIPPED', meta };
     } catch (err) {
-      if (err instanceof SepError) {throw err;}
-      logger.error({ operationId, keyReferenceId: privateKeyRef.keyReferenceId }, 'Decryption failed');
+      if (err instanceof SepError) {
+        throw err;
+      }
+      logger.error(
+        { operationId, keyReferenceId: privateKeyRef.keyReferenceId },
+        'Decryption failed',
+      );
       throw new SepError(ErrorCode.CRYPTO_DECRYPTION_FAILED, {
         keyReferenceId: privateKeyRef.keyReferenceId,
         operation: 'DECRYPT',
@@ -123,7 +153,13 @@ export class CryptoService implements ICryptoService {
     const start = Date.now();
     const operationId = randomUUID();
 
-    enforcePolicy(policy, signingKeyRef, signingKeyRef.algorithm, 'SIGN', signingKeyRef.environment);
+    enforcePolicy(
+      policy,
+      signingKeyRef,
+      signingKeyRef.algorithm,
+      'SIGN',
+      signingKeyRef.environment,
+    );
 
     try {
       const privateKey = await this.readPrivateKey(signingKeyRef.backendRef);
@@ -139,7 +175,14 @@ export class CryptoService implements ICryptoService {
         const sigStr = String(signature);
         const signedPayloadRef = payloadRef; // original payload unchanged for detached
         const detachedSignatureRef = `signatures/${signingKeyRef.keyReferenceId}/${operationId}`;
-        const meta = this.buildMeta(operationId, 'SIGN', signingKeyRef, start, payloadRef.length, sigStr.length);
+        const meta = this.buildMeta(
+          operationId,
+          'SIGN',
+          signingKeyRef,
+          start,
+          payloadRef.length,
+          sigStr.length,
+        );
 
         return { signedPayloadRef, detachedSignatureRef, meta };
       }
@@ -151,16 +194,30 @@ export class CryptoService implements ICryptoService {
 
       const output = String(signed);
       const signedPayloadRef = `signed/${signingKeyRef.keyReferenceId}/${operationId}`;
-      const meta = this.buildMeta(operationId, 'SIGN', signingKeyRef, start, payloadRef.length, output.length);
+      const meta = this.buildMeta(
+        operationId,
+        'SIGN',
+        signingKeyRef,
+        start,
+        payloadRef.length,
+        output.length,
+      );
 
       logger.info(
-        { operationId, keyReferenceId: signingKeyRef.keyReferenceId, operation: 'SIGN', detached: options.detached },
+        {
+          operationId,
+          keyReferenceId: signingKeyRef.keyReferenceId,
+          operation: 'SIGN',
+          detached: options.detached,
+        },
         'Signing completed',
       );
 
       return { signedPayloadRef, meta };
     } catch (err) {
-      if (err instanceof SepError) {throw err;}
+      if (err instanceof SepError) {
+        throw err;
+      }
       logger.error({ operationId, keyReferenceId: signingKeyRef.keyReferenceId }, 'Signing failed');
       throw new SepError(ErrorCode.CRYPTO_SIGNING_FAILED, {
         keyReferenceId: signingKeyRef.keyReferenceId,
@@ -200,7 +257,14 @@ export class CryptoService implements ICryptoService {
           }
         }
 
-        const meta = this.buildMeta(operationId, 'VERIFY', senderPublicKeyRef, start, payloadRef.length, 0);
+        const meta = this.buildMeta(
+          operationId,
+          'VERIFY',
+          senderPublicKeyRef,
+          start,
+          payloadRef.length,
+          0,
+        );
         return {
           verified: sigVerified,
           signerKeyFingerprint: publicKey.getFingerprint(),
@@ -227,10 +291,22 @@ export class CryptoService implements ICryptoService {
         }
       }
 
-      const meta = this.buildMeta(operationId, 'VERIFY', senderPublicKeyRef, start, payloadRef.length, 0);
+      const meta = this.buildMeta(
+        operationId,
+        'VERIFY',
+        senderPublicKeyRef,
+        start,
+        payloadRef.length,
+        0,
+      );
 
       logger.info(
-        { operationId, keyReferenceId: senderPublicKeyRef.keyReferenceId, operation: 'VERIFY', verified: isVerified },
+        {
+          operationId,
+          keyReferenceId: senderPublicKeyRef.keyReferenceId,
+          operation: 'VERIFY',
+          verified: isVerified,
+        },
         'Verification completed',
       );
 
@@ -241,9 +317,21 @@ export class CryptoService implements ICryptoService {
         meta,
       };
     } catch (err) {
-      if (err instanceof SepError) {throw err;}
-      const meta = this.buildMeta(operationId, 'VERIFY', senderPublicKeyRef, start, payloadRef.length, 0);
-      logger.warn({ operationId, keyReferenceId: senderPublicKeyRef.keyReferenceId }, 'Verification error — returning verified:false');
+      if (err instanceof SepError) {
+        throw err;
+      }
+      const meta = this.buildMeta(
+        operationId,
+        'VERIFY',
+        senderPublicKeyRef,
+        start,
+        payloadRef.length,
+        0,
+      );
+      logger.warn(
+        { operationId, keyReferenceId: senderPublicKeyRef.keyReferenceId },
+        'Verification error — returning verified:false',
+      );
       return { verified: false, meta };
     }
   }
@@ -257,8 +345,20 @@ export class CryptoService implements ICryptoService {
     policy: CryptoAlgorithmPolicy,
   ): Promise<SignEncryptResult> {
     // Sign FIRST, then encrypt — EFAIL mitigation, ordering is non-negotiable
-    enforcePolicy(policy, signingKeyRef, signingKeyRef.algorithm, 'SIGN', signingKeyRef.environment);
-    enforcePolicy(policy, recipientKey, recipientKey.algorithm, 'ENCRYPT', recipientKey.environment);
+    enforcePolicy(
+      policy,
+      signingKeyRef,
+      signingKeyRef.algorithm,
+      'SIGN',
+      signingKeyRef.environment,
+    );
+    enforcePolicy(
+      policy,
+      recipientKey,
+      recipientKey.algorithm,
+      'ENCRYPT',
+      recipientKey.environment,
+    );
 
     const start = Date.now();
     const operationId = randomUUID();
@@ -278,17 +378,30 @@ export class CryptoService implements ICryptoService {
       const output = String(encrypted);
       const securedPayloadRef = `secured/${operationId}`;
 
-      const signMeta = this.buildMeta(operationId + '-sign', 'SIGN', signingKeyRef, start, payloadRef.length, output.length);
-      const encryptMeta = this.buildMeta(operationId + '-encrypt', 'ENCRYPT', recipientKey, start, payloadRef.length, output.length);
-
-      logger.info(
-        { operationId, operation: 'SIGN_ENCRYPT' },
-        'Sign-and-encrypt completed',
+      const signMeta = this.buildMeta(
+        operationId + '-sign',
+        'SIGN',
+        signingKeyRef,
+        start,
+        payloadRef.length,
+        output.length,
       );
+      const encryptMeta = this.buildMeta(
+        operationId + '-encrypt',
+        'ENCRYPT',
+        recipientKey,
+        start,
+        payloadRef.length,
+        output.length,
+      );
+
+      logger.info({ operationId, operation: 'SIGN_ENCRYPT' }, 'Sign-and-encrypt completed');
 
       return { securedPayloadRef, signMeta, encryptMeta };
     } catch (err) {
-      if (err instanceof SepError) {throw err;}
+      if (err instanceof SepError) {
+        throw err;
+      }
       logger.error({ operationId }, 'Sign-and-encrypt failed');
       throw new SepError(ErrorCode.CRYPTO_ENCRYPTION_FAILED, {
         keyReferenceId: recipientKey.keyReferenceId,
@@ -310,7 +423,11 @@ export class CryptoService implements ICryptoService {
       const privateKey = await this.readPrivateKey(privateKeyRef.backendRef);
       const message = await openpgp.readMessage({ armoredMessage: securedPayloadRef });
 
-      const decryptParams: { message: typeof message; decryptionKeys: typeof privateKey; verificationKeys?: openpgp.Key[] } = {
+      const decryptParams: {
+        message: typeof message;
+        decryptionKeys: typeof privateKey;
+        verificationKeys?: openpgp.Key[];
+      } = {
         message,
         decryptionKeys: privateKey,
       };
@@ -319,7 +436,9 @@ export class CryptoService implements ICryptoService {
         decryptParams.verificationKeys = [await this.readPublicKey(senderPublicKeyRef.backendRef)];
       }
 
-      const { data, signatures } = await openpgp.decrypt(decryptParams as Parameters<typeof openpgp.decrypt>[0]);
+      const { data, signatures } = await openpgp.decrypt(
+        decryptParams as Parameters<typeof openpgp.decrypt>[0],
+      );
 
       let verificationResult: 'PASSED' | 'FAILED' | 'SKIPPED' = 'SKIPPED';
       if (senderPublicKeyRef !== null && signatures.length > 0) {
@@ -334,7 +453,14 @@ export class CryptoService implements ICryptoService {
 
       const output = String(data);
       const decryptedPayloadRef = `decrypted/${privateKeyRef.keyReferenceId}/${operationId}`;
-      const decryptMeta = this.buildMeta(operationId + '-decrypt', 'DECRYPT', privateKeyRef, start, securedPayloadRef.length, output.length);
+      const decryptMeta = this.buildMeta(
+        operationId + '-decrypt',
+        'DECRYPT',
+        privateKeyRef,
+        start,
+        securedPayloadRef.length,
+        output.length,
+      );
 
       logger.info(
         { operationId, operation: 'VERIFY_DECRYPT', verificationResult },
@@ -343,11 +469,20 @@ export class CryptoService implements ICryptoService {
 
       const result: VerifyDecryptResult = { decryptedPayloadRef, verificationResult, decryptMeta };
       if (senderPublicKeyRef !== null) {
-        result.signMeta = this.buildMeta(operationId + '-verify', 'VERIFY', senderPublicKeyRef, start, output.length, 0);
+        result.signMeta = this.buildMeta(
+          operationId + '-verify',
+          'VERIFY',
+          senderPublicKeyRef,
+          start,
+          output.length,
+          0,
+        );
       }
       return result;
     } catch (err) {
-      if (err instanceof SepError) {throw err;}
+      if (err instanceof SepError) {
+        throw err;
+      }
       logger.error({ operationId }, 'Verify-and-decrypt failed');
       throw new SepError(ErrorCode.CRYPTO_DECRYPTION_FAILED, {
         keyReferenceId: privateKeyRef.keyReferenceId,

@@ -32,7 +32,8 @@ describe('ConnectorFactory', () => {
   });
 
   it('throws TRANSPORT_UNSUPPORTED_PROTOCOL for AS2', () => {
-    expect(() => getConnector('AS2'))
-      .toThrow(expect.objectContaining({ code: ErrorCode.TRANSPORT_UNSUPPORTED_PROTOCOL }));
+    expect(() => getConnector('AS2')).toThrow(
+      expect.objectContaining({ code: ErrorCode.TRANSPORT_UNSUPPORTED_PROTOCOL }),
+    );
   });
 });

@@ -76,7 +76,7 @@ export class DatabaseService {
     if (tenantId.length === 0) {
       throw new Error(
         'DatabaseService.forTenant() requires a non-empty tenantId. ' +
-        'This is a programming error — tenant context must always be provided.',
+          'This is a programming error — tenant context must always be provided.',
       );
     }
 

@@ -1,11 +1,19 @@
 # BODY 1 — Claude Code CLI Execution Prompt
+
 # Paste this file path to Claude Code on first session open:
+
 # claude --prompt BODY1_EXECUTION.md
+
 #
+
 # Or open claude and say: "Read BODY1_EXECUTION.md and execute it completely."
+
 #
+
 # This file is the authoritative execution plan for Body 1.
+
 # Every step is mechanically verifiable. Do not skip verification steps.
+
 # Do not proceed past a failing step without resolving it.
 
 ---
@@ -33,6 +41,7 @@ git --version         # must be available
 ```
 
 Install pnpm via corepack:
+
 ```bash
 corepack enable
 corepack prepare pnpm@9.0.0 --activate
@@ -63,6 +72,7 @@ pnpm install --frozen-lockfile
 ```
 
 If `--frozen-lockfile` fails because `pnpm-lock.yaml` does not exist yet, run:
+
 ```bash
 pnpm install
 git add pnpm-lock.yaml
@@ -70,6 +80,7 @@ git commit -m "chore: add lockfile"
 ```
 
 Verify workspace resolution:
+
 ```bash
 pnpm ls --depth 0
 # Must show all 9 packages: @sep/common, @sep/schemas, @sep/crypto,
@@ -95,6 +106,7 @@ docker compose up -d
 ```
 
 Wait for health:
+
 ```bash
 sleep 8
 docker compose ps
@@ -102,6 +114,7 @@ docker compose ps
 ```
 
 Verify each service:
+
 ```bash
 docker exec sep-postgres pg_isready -U sep -d sep_dev
 # Output: sep_dev:5432 - accepting connections
@@ -128,6 +141,7 @@ pnpm --filter @sep/db exec prisma migrate status
 ```
 
 Verify tables exist:
+
 ```bash
 docker exec sep-postgres psql -U sep -d sep_dev -c "\dt"
 # Must list: tenants, users, role_assignments, partner_profiles,
@@ -138,6 +152,7 @@ docker exec sep-postgres psql -U sep -d sep_dev -c "\dt"
 ```
 
 Apply audit RLS policy:
+
 ```bash
 docker exec sep-postgres psql -U sep -d sep_dev \
   -f /docker-entrypoint-initdb.d/rls_audit.sql 2>/dev/null || \
@@ -160,6 +175,7 @@ pnpm --filter @sep/db exec prisma db seed
 ```
 
 Verify seed:
+
 ```bash
 docker exec sep-postgres psql -U sep -d sep_dev \
   -c "SELECT id, name, service_tier FROM tenants;"
@@ -180,6 +196,7 @@ pnpm build
 ```
 
 If any package fails:
+
 1. Run `pnpm --filter @sep/<failing-package> build` to isolate
 2. Fix the error
 3. Re-run full build
@@ -218,6 +235,7 @@ pnpm test:unit
 ```
 
 Key test suites that must pass:
+
 - `packages/common` — SepError construction, ErrorCode completeness, config validation
 - `packages/schemas` — Zod schema parse/reject for every entity
 - `packages/crypto` — Interface contract, policy validation, fail-closed behaviour
@@ -229,6 +247,7 @@ Key test suites that must pass:
 ## PHASE 11: SECURITY GATE
 
 Run the secret scanner:
+
 ```bash
 grep -rn \
   --include="*.ts" --include="*.js" --include="*.json" --include="*.yaml" \
@@ -242,6 +261,7 @@ grep -rn \
 ```
 
 Verify no `process.env` direct access in business logic:
+
 ```bash
 grep -rn "process\.env\." \
   apps/ packages/ \
@@ -254,6 +274,7 @@ grep -rn "process\.env\." \
 ```
 
 Verify audit events are append-only:
+
 ```bash
 docker exec sep-postgres psql -U sep -d sep_dev \
   -c "SELECT * FROM pg_policies WHERE tablename = 'audit_events';"
@@ -304,6 +325,7 @@ git commit -m "feat: M0 complete — repository bootstrap
 ```
 
 Update PLANS.md:
+
 - Set M0 status to COMPLETE
 - Record actual completion date
 - Note any open decisions discovered during execution
@@ -334,6 +356,7 @@ Before marking M0 complete, verify every item:
 ## IF BLOCKED
 
 If you cannot complete a step:
+
 1. Run `pnpm --filter @sep/<package> build 2>&1 | head -50` to see the first errors
 2. Fix only the specific error shown — do not refactor surrounding code
 3. Record the blocker in PLANS.md under M0 with tag [BLOCKED]

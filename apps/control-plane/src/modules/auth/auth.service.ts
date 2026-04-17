@@ -39,9 +39,7 @@ export class AuthService {
     });
 
     if (candidates.length === 0) {
-      throw new UnauthorizedException(
-        new SepError(ErrorCode.AUTH_API_KEY_INVALID).toClientJson(),
-      );
+      throw new UnauthorizedException(new SepError(ErrorCode.AUTH_API_KEY_INVALID).toClientJson());
     }
 
     let apiKey: (typeof candidates)[number] | null = null;
@@ -54,9 +52,7 @@ export class AuthService {
     }
 
     if (apiKey === null) {
-      throw new UnauthorizedException(
-        new SepError(ErrorCode.AUTH_API_KEY_INVALID).toClientJson(),
-      );
+      throw new UnauthorizedException(new SepError(ErrorCode.AUTH_API_KEY_INVALID).toClientJson());
     }
 
     if (apiKey.expiresAt !== null && apiKey.expiresAt < new Date()) {
@@ -72,18 +68,18 @@ export class AuthService {
     });
 
     if (tenant === null || tenant.status !== 'ACTIVE') {
-      throw new UnauthorizedException(
-        new SepError(ErrorCode.TENANT_SUSPENDED).toClientJson(),
-      );
+      throw new UnauthorizedException(new SepError(ErrorCode.TENANT_SUSPENDED).toClientJson());
     }
 
     // Update last used timestamp (non-blocking)
-    void db.apiKey.update({
-      where: { id: apiKey.id },
-      data: { lastUsedAt: new Date() },
-    }).catch((err: unknown) => {
-      logger.warn({ err }, 'Failed to update apiKey.lastUsedAt');
-    });
+    void db.apiKey
+      .update({
+        where: { id: apiKey.id },
+        data: { lastUsedAt: new Date() },
+      })
+      .catch((err: unknown) => {
+        logger.warn({ err }, 'Failed to update apiKey.lastUsedAt');
+      });
 
     return {
       userId: `apikey:${apiKey.name}@${apiKey.tenantId}`,

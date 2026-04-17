@@ -82,25 +82,30 @@ describe('ApprovalsService', () => {
 
     it('throws NotFoundException for cross-tenant access (404, not 403)', async () => {
       mockDb.approval.findUnique.mockResolvedValue(baseApproval);
-      await expect(
-        service.findById('approval-1', crossTenantActor),
-      ).rejects.toThrow('Approval not found');
-      await expect(
-        service.findById('approval-1', crossTenantActor),
-      ).rejects.toThrow(expect.objectContaining({ status: 404 }) as Error);
+      await expect(service.findById('approval-1', crossTenantActor)).rejects.toThrow(
+        'Approval not found',
+      );
+      await expect(service.findById('approval-1', crossTenantActor)).rejects.toThrow(
+        expect.objectContaining({ status: 404 }) as Error,
+      );
     });
 
     it('throws NotFoundException when approval does not exist', async () => {
       mockDb.approval.findUnique.mockResolvedValue(null);
-      await expect(
-        service.findById('approval-missing', actor),
-      ).rejects.toThrow('Approval not found');
+      await expect(service.findById('approval-missing', actor)).rejects.toThrow(
+        'Approval not found',
+      );
     });
   });
 
   describe('approve', () => {
     it('approves a pending approval and records audit event', async () => {
-      const approvedResult = { ...baseApproval, status: 'APPROVED', approverId: 'user-approver', respondedAt: new Date() };
+      const approvedResult = {
+        ...baseApproval,
+        status: 'APPROVED',
+        approverId: 'user-approver',
+        respondedAt: new Date(),
+      };
       mockDb.approval.findUnique.mockResolvedValue(baseApproval);
       mockDb.approval.update.mockResolvedValue(approvedResult);
 
@@ -115,33 +120,38 @@ describe('ApprovalsService', () => {
     it('prevents self-approval (initiatorId === actorId)', async () => {
       mockDb.approval.findUnique.mockResolvedValue(baseApproval);
 
-      await expect(
-        service.approve('approval-1', initiatorActor, undefined),
-      ).rejects.toThrow('Initiator and approver must be different users');
+      await expect(service.approve('approval-1', initiatorActor, undefined)).rejects.toThrow(
+        'Initiator and approver must be different users',
+      );
     });
 
     it('throws error when approval is already in non-PENDING state', async () => {
       const alreadyApproved = { ...baseApproval, status: 'APPROVED' };
       mockDb.approval.findUnique.mockResolvedValue(alreadyApproved);
 
-      await expect(
-        service.approve('approval-1', actor, undefined),
-      ).rejects.toThrow('VALIDATION_SCHEMA_FAILED');
+      await expect(service.approve('approval-1', actor, undefined)).rejects.toThrow(
+        'VALIDATION_SCHEMA_FAILED',
+      );
     });
 
     it('throws error when approval has expired', async () => {
       const expiredApproval = { ...baseApproval, expiresAt: pastDate };
       mockDb.approval.findUnique.mockResolvedValue(expiredApproval);
 
-      await expect(
-        service.approve('approval-1', actor, undefined),
-      ).rejects.toThrow('APPROVAL_EXPIRED');
+      await expect(service.approve('approval-1', actor, undefined)).rejects.toThrow(
+        'APPROVAL_EXPIRED',
+      );
     });
   });
 
   describe('reject', () => {
     it('rejects a pending approval and records audit event', async () => {
-      const rejectedResult = { ...baseApproval, status: 'REJECTED', approverId: 'user-approver', respondedAt: new Date() };
+      const rejectedResult = {
+        ...baseApproval,
+        status: 'REJECTED',
+        approverId: 'user-approver',
+        respondedAt: new Date(),
+      };
       mockDb.approval.findUnique.mockResolvedValue(baseApproval);
       mockDb.approval.update.mockResolvedValue(rejectedResult);
 
@@ -157,18 +167,18 @@ describe('ApprovalsService', () => {
       const alreadyRejected = { ...baseApproval, status: 'REJECTED' };
       mockDb.approval.findUnique.mockResolvedValue(alreadyRejected);
 
-      await expect(
-        service.reject('approval-1', actor, undefined),
-      ).rejects.toThrow('VALIDATION_SCHEMA_FAILED');
+      await expect(service.reject('approval-1', actor, undefined)).rejects.toThrow(
+        'VALIDATION_SCHEMA_FAILED',
+      );
     });
 
     it('throws error when approval has expired', async () => {
       const expiredApproval = { ...baseApproval, expiresAt: pastDate };
       mockDb.approval.findUnique.mockResolvedValue(expiredApproval);
 
-      await expect(
-        service.reject('approval-1', actor, undefined),
-      ).rejects.toThrow('APPROVAL_EXPIRED');
+      await expect(service.reject('approval-1', actor, undefined)).rejects.toThrow(
+        'APPROVAL_EXPIRED',
+      );
     });
   });
 });

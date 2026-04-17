@@ -1,9 +1,23 @@
 import {
-  Controller, Get, Post, Body, Param, Query,
-  DefaultValuePipe, ParseIntPipe, Request, HttpCode, HttpStatus,
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Query,
+  DefaultValuePipe,
+  ParseIntPipe,
+  Request,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import {
-  ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery,
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiParam,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { SubmissionsService } from './submissions.service';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -13,7 +27,17 @@ import { PageSizePipe } from '../../common/pipes/page-size.pipe';
 import type { TokenPayload } from '../auth/auth.service';
 import type { FastifyRequest } from 'fastify';
 
-function parseBody<T>(schema: { safeParse: (v: unknown) => { success: true; data: T } | { success: false; error: { issues: Array<{ path: (string | number)[]; message: string; code: string }> } } }, body: unknown): T {
+function parseBody<T>(
+  schema: {
+    safeParse: (v: unknown) =>
+      | { success: true; data: T }
+      | {
+          success: false;
+          error: { issues: Array<{ path: (string | number)[]; message: string; code: string }> };
+        };
+  },
+  body: unknown,
+): T {
   const result = schema.safeParse(body);
   if (!result.success) {
     // Check if any issue is a payloadSize ceiling violation
@@ -61,7 +85,14 @@ export class SubmissionsController {
   }
 
   @Get()
-  @Roles('PLATFORM_SUPER_ADMIN', 'TENANT_ADMIN', 'SECURITY_ADMIN', 'INTEGRATION_ENGINEER', 'OPERATIONS_ANALYST', 'COMPLIANCE_REVIEWER')
+  @Roles(
+    'PLATFORM_SUPER_ADMIN',
+    'TENANT_ADMIN',
+    'SECURITY_ADMIN',
+    'INTEGRATION_ENGINEER',
+    'OPERATIONS_ANALYST',
+    'COMPLIANCE_REVIEWER',
+  )
   @ApiOperation({ summary: 'List submissions' })
   @ApiQuery({ name: 'status', required: false })
   @ApiQuery({ name: 'partnerProfileId', required: false })
@@ -78,13 +109,22 @@ export class SubmissionsController {
     @Request() req?: FastifyRequest & { user: TokenPayload },
   ): Promise<unknown> {
     if (req === undefined) {
-      throw new SepError(ErrorCode.RBAC_INSUFFICIENT_ROLE, { message: 'Missing authentication context' });
+      throw new SepError(ErrorCode.RBAC_INSUFFICIENT_ROLE, {
+        message: 'Missing authentication context',
+      });
     }
     return this.service.findAll(req.user, page, pageSize, { status, partnerProfileId, from, to });
   }
 
   @Get(':submissionId')
-  @Roles('PLATFORM_SUPER_ADMIN', 'TENANT_ADMIN', 'SECURITY_ADMIN', 'INTEGRATION_ENGINEER', 'OPERATIONS_ANALYST', 'COMPLIANCE_REVIEWER')
+  @Roles(
+    'PLATFORM_SUPER_ADMIN',
+    'TENANT_ADMIN',
+    'SECURITY_ADMIN',
+    'INTEGRATION_ENGINEER',
+    'OPERATIONS_ANALYST',
+    'COMPLIANCE_REVIEWER',
+  )
   @ApiOperation({ summary: 'Get submission by ID' })
   @ApiParam({ name: 'submissionId', type: String })
   @ApiResponse({ status: 200, description: 'Submission detail' })
@@ -98,7 +138,14 @@ export class SubmissionsController {
   }
 
   @Get(':submissionId/timeline')
-  @Roles('PLATFORM_SUPER_ADMIN', 'TENANT_ADMIN', 'SECURITY_ADMIN', 'INTEGRATION_ENGINEER', 'OPERATIONS_ANALYST', 'COMPLIANCE_REVIEWER')
+  @Roles(
+    'PLATFORM_SUPER_ADMIN',
+    'TENANT_ADMIN',
+    'SECURITY_ADMIN',
+    'INTEGRATION_ENGINEER',
+    'OPERATIONS_ANALYST',
+    'COMPLIANCE_REVIEWER',
+  )
   @ApiOperation({ summary: 'Get submission audit timeline' })
   @ApiParam({ name: 'submissionId', type: String })
   @ApiResponse({ status: 200, description: 'Submission timeline' })

@@ -24,15 +24,15 @@ findings closed; out-of-scope findings untouched.
 
 ### Build health
 
-| Gate | Command | Result |
-|---|---|---|
-| Install (frozen lockfile) | `pnpm install --frozen-lockfile` | ✅ exit 0 |
-| Typecheck | `pnpm run typecheck` | ✅ 15/15 tasks |
-| Lint | `pnpm run lint` | ✅ 15/15 tasks, zero warnings |
-| Build | `pnpm run build` | ✅ 9/9 tasks |
-| Unit tests | `pnpm run test:unit` | ✅ 37 files / 367 tests |
-| Prisma migrate deploy | against fresh Postgres 16 | ✅ all migrations applied |
-| Docker compose | `docker compose up -d` | ✅ postgres, redis, minio, vault, grafana, prometheus healthy |
+| Gate                      | Command                          | Result                                                        |
+| ------------------------- | -------------------------------- | ------------------------------------------------------------- |
+| Install (frozen lockfile) | `pnpm install --frozen-lockfile` | ✅ exit 0                                                     |
+| Typecheck                 | `pnpm run typecheck`             | ✅ 15/15 tasks                                                |
+| Lint                      | `pnpm run lint`                  | ✅ 15/15 tasks, zero warnings                                 |
+| Build                     | `pnpm run build`                 | ✅ 9/9 tasks                                                  |
+| Unit tests                | `pnpm run test:unit`             | ✅ 37 files / 367 tests                                       |
+| Prisma migrate deploy     | against fresh Postgres 16        | ✅ all migrations applied                                     |
+| Docker compose            | `docker compose up -d`           | ✅ postgres, redis, minio, vault, grafana, prometheus healthy |
 
 ### Dependency hygiene
 
@@ -58,8 +58,8 @@ findings closed; out-of-scope findings untouched.
 
 ### Developer workflow
 
-- `.dockerignore` at repo root (excludes node_modules, tests, docs, _plan,
-  _audit, compose files, env files).
+- `.dockerignore` at repo root (excludes node_modules, tests, docs, \_plan,
+  \_audit, compose files, env files).
 - `lefthook.yml` present; pre-commit / commit-msg / pre-push hooks installed
   via root `prepare` script. Ran cleanly on every commit in this branch
   except where legitimately surfacing config gaps (addressed in §14 commits).
@@ -104,24 +104,24 @@ findings closed; out-of-scope findings untouched.
 
 ### Fully closed by M3.0 (per plan §2)
 
-| ID | Closure evidence |
-|---|---|
-| R1-001 (CI SHA-pinning) | §8 commit `2da1b55`. All actions SHA-pinned; Dependabot keeps them fresh. |
-| R5-001 (exact-pinning prod deps) | §5 commit `1ef0aa0` + §6 exact-pin sweep in `987f15b`. |
-| R5-002 (working SCA gate) | §8 commit. `pnpm audit --audit-level=high` replaced with OSV Scanner. |
-| R5-006 (single-maintainer passport) | §4 removal + §7C `f58226e`. Guard uses `@nestjs/jwt` directly. |
-| NEW-05 (approvals body cast) | §7A `1308607`. New `ApproveRequestSchema` / `RejectRequestSchema` in `@sep/schemas`. |
-| NEW-09 (openpgp version drift) | §5 exact-pin at 5.11.3 + §11 override reinforces. Single version across workspace. |
-| R3-003 (partner-profiles transition body cast) | §7A. New `TransitionPartnerProfileSchema`. |
+| ID                                             | Closure evidence                                                                     |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------ |
+| R1-001 (CI SHA-pinning)                        | §8 commit `2da1b55`. All actions SHA-pinned; Dependabot keeps them fresh.            |
+| R5-001 (exact-pinning prod deps)               | §5 commit `1ef0aa0` + §6 exact-pin sweep in `987f15b`.                               |
+| R5-002 (working SCA gate)                      | §8 commit. `pnpm audit --audit-level=high` replaced with OSV Scanner.                |
+| R5-006 (single-maintainer passport)            | §4 removal + §7C `f58226e`. Guard uses `@nestjs/jwt` directly.                       |
+| NEW-05 (approvals body cast)                   | §7A `1308607`. New `ApproveRequestSchema` / `RejectRequestSchema` in `@sep/schemas`. |
+| NEW-09 (openpgp version drift)                 | §5 exact-pin at 5.11.3 + §11 override reinforces. Single version across workspace.   |
+| R3-003 (partner-profiles transition body cast) | §7A. New `TransitionPartnerProfileSchema`.                                           |
 
 ### Partially closed
 
-| ID | Closure evidence | Remaining work |
-|---|---|---|
-| R1-004 (env hygiene) | `.dockerignore`, scrubbed `.env.example`, lefthook gates. | Any leftover env/infra credential scrubs discovered later → M3. |
+| ID                      | Closure evidence                                          | Remaining work                                                              |
+| ----------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------- |
+| R1-004 (env hygiene)    | `.dockerignore`, scrubbed `.env.example`, lefthook gates. | Any leftover env/infra credential scrubs discovered later → M3.             |
 | R4-002 (boundary casts) | 6/7 controllers swapped to typed DTOs via `createZodDto`. | Submissions controller and 5 `as unknown as` in data-plane processors → M3. |
-| R5-003 (SBOM) | SBOM generation wired in CI. | Signing + provenance attestation → M6. |
-| NEW-08 (OTEL install) | Full OTEL 0.214 cohort installed + smoke-tested. | Runtime wiring → M3. |
+| R5-003 (SBOM)           | SBOM generation wired in CI.                              | Signing + provenance attestation → M6.                                      |
+| NEW-08 (OTEL install)   | Full OTEL 0.214 cohort installed + smoke-tested.          | Runtime wiring → M3.                                                        |
 
 ### Explicitly refuted (user amendment)
 
@@ -152,7 +152,7 @@ regulatory matrices, incident reporting workflow, SBOM signing, SLOs).
 
 1. **Exact-pin all caret-ranged production deps across workspace (§6 +
    §14).** Plan §5 listed specific packages to upgrade to exact pins. Plan
-   §14 *also* required "no caret ranges on production deps (dev deps
+   §14 _also_ required "no caret ranges on production deps (dev deps
    acceptable)" globally. Satisfying §14 without separately pinning every
    prod dep would have been impossible. Result: 29 additional prod deps
    (NestJS 11.x, Next.js 15.5.15, React 19.2.5, BullMQ 5.73.4, ioredis,
@@ -175,8 +175,8 @@ regulatory matrices, incident reporting workflow, SBOM signing, SLOs).
    - `packages/db`: added explicit `coverage.include`/`exclude` so
      `prisma/seed.ts` (251 lines of one-off bootstrap) stops tanking the
      metric under vitest 3's default scope.
-   All adjustments are conservative; commit `f3bc0b3` documents the
-   "v8 reporter drift" rationale inline.
+     All adjustments are conservative; commit `f3bc0b3` documents the
+     "v8 reporter drift" rationale inline.
 
 4. **New schema test files (§7A).** `approval.schema.test.ts`,
    `incident.schema.test.ts`, `webhook.schema.test.ts` — one per new
@@ -199,14 +199,14 @@ regulatory matrices, incident reporting workflow, SBOM signing, SLOs).
 All six decision points from the pre-execution table were resolved by the
 user before execution. Captured in commit messages and this handoff:
 
-| # | Decision | Reason |
-|---|---|---|
-| 1 | Zod 3.25.76 (not 4.x) | Migration burden (§15 gotcha 3); ADR-0005 re-evaluation trigger set. |
-| 2 | ssh2-sftp-client 9.1.0 (not latest 12.x) | Three-major jump defers to M3.5 when it's actually consumed. |
-| 3 | undici 7.25.0 (not latest 8.x) | undici 8 requires Node ≥22; CI is Node 20. Architecture change is §17-rule-6 out-of-scope. |
-| 4 | fastify 5.8.4 (installed) | Plan said "exact-pin at installed"; no behavior need to bump. |
-| 5 | OTEL sdk-node 0.214.0 install-only | Huge 0.50→0.214 jump, but pre-1.0 and unused until M3 — risk is bounded. |
-| 6 | Drop pnpm.overrides `fastify` entry | Superseded by direct exact-pin; user amendment. |
+| #   | Decision                                 | Reason                                                                                     |
+| --- | ---------------------------------------- | ------------------------------------------------------------------------------------------ |
+| 1   | Zod 3.25.76 (not 4.x)                    | Migration burden (§15 gotcha 3); ADR-0005 re-evaluation trigger set.                       |
+| 2   | ssh2-sftp-client 9.1.0 (not latest 12.x) | Three-major jump defers to M3.5 when it's actually consumed.                               |
+| 3   | undici 7.25.0 (not latest 8.x)           | undici 8 requires Node ≥22; CI is Node 20. Architecture change is §17-rule-6 out-of-scope. |
+| 4   | fastify 5.8.4 (installed)                | Plan said "exact-pin at installed"; no behavior need to bump.                              |
+| 5   | OTEL sdk-node 0.214.0 install-only       | Huge 0.50→0.214 jump, but pre-1.0 and unused until M3 — risk is bounded.                   |
+| 6   | Drop pnpm.overrides `fastify` entry      | Superseded by direct exact-pin; user amendment.                                            |
 
 ### Non-deviations worth noting
 
@@ -223,23 +223,23 @@ user before execution. Captured in commit messages and this handoff:
 
 ## 5. Gotchas actually encountered (vs §15 predictions)
 
-| Plan gotcha | Hit? | Notes |
-|---|---|---|
-| G1 — nestjs-zod + NestJS 11 peer | No | 5.3.0 supports NestJS 11 ✓. Verified via `pnpm view nestjs-zod@5.3.0 peerDependencies`. |
-| G2 — Prisma 5.11 → 5.22 migration state | No | `migrate status` clean before upgrade; `migrate deploy` against fresh DB succeeded. |
-| G3 — Zod 3.23 vs 4.x | No (deferred) | 3.25.76 chosen; 4.x deferred to ADR-0005. |
-| G4 — Vitest 1 → 3 config | **Yes** (coverage reporter drift) | Absorbed in commit `f3bc0b3`. |
-| G5 — argon2 perf in tests | No | Tests mock argon2; not invoked at OWASP params during unit runs. |
-| G6 — lefthook on Windows | N/A | Linux-only contributor. |
-| G7 — helmet + Swagger UI CSP | No | Swagger UI under `/api/docs` loads without CSP tweaks in dev. |
-| G8 — OTEL bundle size | No | `node_modules` grew by ~32MB (acceptable). |
-| G9 — @node-rs/argon2 on Alpine | N/A | No Dockerfile in repo yet (M3.5). |
-| G10 — Version hallucination | No | Every version pin in this branch traced back to a `pnpm view` invocation. Dry-run table documented in pre-flight. |
+| Plan gotcha                             | Hit?                              | Notes                                                                                                             |
+| --------------------------------------- | --------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| G1 — nestjs-zod + NestJS 11 peer        | No                                | 5.3.0 supports NestJS 11 ✓. Verified via `pnpm view nestjs-zod@5.3.0 peerDependencies`.                           |
+| G2 — Prisma 5.11 → 5.22 migration state | No                                | `migrate status` clean before upgrade; `migrate deploy` against fresh DB succeeded.                               |
+| G3 — Zod 3.23 vs 4.x                    | No (deferred)                     | 3.25.76 chosen; 4.x deferred to ADR-0005.                                                                         |
+| G4 — Vitest 1 → 3 config                | **Yes** (coverage reporter drift) | Absorbed in commit `f3bc0b3`.                                                                                     |
+| G5 — argon2 perf in tests               | No                                | Tests mock argon2; not invoked at OWASP params during unit runs.                                                  |
+| G6 — lefthook on Windows                | N/A                               | Linux-only contributor.                                                                                           |
+| G7 — helmet + Swagger UI CSP            | No                                | Swagger UI under `/api/docs` loads without CSP tweaks in dev.                                                     |
+| G8 — OTEL bundle size                   | No                                | `node_modules` grew by ~32MB (acceptable).                                                                        |
+| G9 — @node-rs/argon2 on Alpine          | N/A                               | No Dockerfile in repo yet (M3.5).                                                                                 |
+| G10 — Version hallucination             | No                                | Every version pin in this branch traced back to a `pnpm view` invocation. Dry-run table documented in pre-flight. |
 
 **Additional gotchas not in §15:**
 
 - **nestjs-zod `getZodError()` returns `unknown` in v5.** Needed an `as
-  ZodError` cast in `HttpExceptionFilter`. Documented in §7A commit.
+ZodError` cast in `HttpExceptionFilter`. Documented in §7A commit.
 - **otplib 13 API change.** Namespace API (`authenticator.generate`) was
   removed in v13 in favour of a functional API (`generate`, `verify`,
   `TOTP`). Smoke test updated, documented in smoke-test commit.
