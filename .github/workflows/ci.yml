@@ -264,6 +264,15 @@ jobs:
         # pnpm.overrides (kept separate from scanner waivers).
         run: osv-scanner --config=.osv-scanner.toml --lockfile=pnpm-lock.yaml
       - name: Secret scanning
+        # Skipped on push events: TruffleHog's diff-mode fails when
+        # base + head resolve to the same commit, which is always the
+        # case on push-to-main (base = main = HEAD). PR events retain
+        # full scan coverage — that is the gate that actually blocks
+        # new secrets from landing. osv-scanner above still runs on
+        # push so fresh dependency advisories are caught on main.
+        # Local gitleaks via lefthook pre-commit remains the
+        # developer-side gate.
+        if: github.event_name == 'pull_request'
         uses: trufflesecurity/trufflehog@580628bb9d5455140899afe2cb981ff5640bf399 # main as of remediation date
         with:
           path: ./
