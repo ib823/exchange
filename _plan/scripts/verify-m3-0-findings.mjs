@@ -2,30 +2,38 @@
 /**
  * verify-m3-0-findings.mjs
  *
- * Referenced by _plan/M3_0_FOUNDATION_RESET.md T25.8.
+ * Mechanical verification of M3.0's closure claims against the current
+ * codebase state. Referenced by _plan/M3_0_FOUNDATION_RESET.md §14.
  *
- * Walks the CODEBASE (not the plan) to verify that findings M3.0 claims to
- * close are actually closed. Each finding has a *mechanical* signal that can
- * be grep'd or lock-file-checked. This script is the machine-readable
- * analogue of the §6 exit-criteria checklist.
- *
- * Reconciled against the actual state at post-m3.0-baseline (2026-04-17):
- *   - PLANS.md correctly keeps 330 tests (NEW-TEST-COUNT REFUTED, not remediated)
- *   - ADR-0001 landed as docs/adr/0001-zod-everywhere-validation.md
- *   - 2 plain `throw new Error` survive in bootstrap paths (documented, deferred to M3)
- *   - 5 `as unknown as` survive in data-plane processors + auth service (deferred to M3)
- *   - Hygiene PR #11 added fastify override + OSV waiver config
- *   - Hygiene PR #14 made TruffleHog push-event-safe
+ * Three outcomes per check:
+ *   OK    — closure verified; M3.0 claim matches code
+ *   FAIL  — regression of a previously-verified M3.0 closure
+ *   BLOCK — M3.0 claim-reality mismatch that must close in M3.A0 before
+ *           M3 execution can responsibly start
  *
  * Exit codes:
- *   0 = all M3.0 closures verifiable; residuals within documented bounds
- *   1 = one or more closures broken (details printed)
+ *   0 = all checks OK
+ *   1 = any FAIL or BLOCK
  *   2 = script-level error (bad path, missing lockfile, etc.)
  *
  * Usage (from repo root):
  *   node _plan/scripts/verify-m3-0-findings.mjs
  *
  * Intentionally zero-dependency (no npm install required).
+ *
+ * ─── M3-scope checks (NOT part of M3.0 verification) ────────────────
+ * The following checks were previously included in this script based on
+ * the M3.0 plan's aspirations. The M3.0 handoff note explicitly defers
+ * them to M3:
+ *   - PRIOR-R6-003 (key expiry 90-day tier)   → M3.A3
+ *   - NEW-02 (retry jitter)                    → M3.A7
+ *   - NEW-03 (withTimeout helper)              → M3.A7
+ *   - NEW-08 (OTEL NodeSDK runtime wiring)     → M3.A9
+ * They belong in _plan/scripts/verify-m3-findings.mjs (authored at M3
+ * start), not here. Removed to keep this script's scope honest.
+ *
+ * Documented residual budgets from _plan/M3_0_HANDOFF.md §2 "Regression
+ * posture". Count-based checks respect these as ceilings, not "0-or-fail".
  */
 
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
@@ -34,8 +42,6 @@ import { execSync } from 'node:child_process';
 
 const REPO_ROOT = process.cwd();
 
-// Documented residual budgets from _plan/M3_0_HANDOFF.md §2 "Regression posture".
-// Checks that count instances MUST respect these as ceilings, not "0-or-fail".
 const RESIDUAL_BUDGETS = {
   PLAIN_THROW_NEW_ERROR: 2,   // config loader + db service bootstrap-time
   AS_UNKNOWN_AS: 5,           // 5 processor/auth casts deferred to M3.A10
@@ -55,7 +61,7 @@ function grep(patterns, { includeGlob, excludeDirs = ['node_modules', '.git', 'd
     const out = execSync(cmd, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
     return out.trim().split('\n').filter(Boolean);
   } catch {
-    return []; // grep returns non-zero on no-match
+    return [];
   }
 }
 
@@ -107,7 +113,6 @@ const checks = [
         const content = readFileSync(join(workflowsDir, w), 'utf8');
         const lines = content.split('\n');
         lines.forEach((line, i) => {
-          // Strip trailing comment BEFORE matching `uses:`
           const noComment = line.split('#')[0];
           const m = noComment.match(/uses:\s*(\S+)/);
           if (!m) return;
@@ -124,6 +129,8 @@ const checks = [
   {
     id: 'PRIOR-R1-003',
     description: 'TypeScript project references: composite:true on all package tsconfigs',
+    blocksM3: true,
+    blockReason: 'M3.0 T07 partially executed; composite absent from base and per-package tsconfigs. Must close in M3.A0.',
     check: () => {
       const pkgTsconfigs = [];
       for (const root of ['packages', 'apps']) {
@@ -134,13 +141,20 @@ const checks = [
           if (existsSync(t)) pkgTsconfigs.push(relative(REPO_ROOT, t));
         }
       }
+      const baseHasComposite = (() => {
+        const basePath = join(REPO_ROOT, 'tsconfig.base.json');
+        if (!existsSync(basePath)) return false;
+        return /["']composite["']\s*:\s*true/.test(readFileSync(basePath, 'utf8'));
+      })();
       const missing = pkgTsconfigs.filter((t) => {
         const content = readFileSync(join(REPO_ROOT, t), 'utf8');
-        return !/["']composite["']\s*:\s*true/.test(content);
+        if (/["']composite["']\s*:\s*true/.test(content)) return false;
+        if (baseHasComposite && /extends.*tsconfig\.base\.json/.test(content)) return false;
+        return true;
       });
       return missing.length === 0
         ? { ok: true }
-        : { ok: false, detail: `composite:true missing in:\n  ${missing.join('\n  ')}` };
+        : { ok: false, detail: `composite:true missing (not inherited from base) in:\n  ${missing.join('\n  ')}` };
     },
   },
   {
@@ -208,7 +222,9 @@ const checks = [
   },
   {
     id: 'PRIOR-R4-003',
-    description: 'R4-003: exports `types` condition appears first in conditions block',
+    description: 'R4-003: exports `types` condition first (Node16/NodeNext resolves conditions in order)',
+    blocksM3: true,
+    blockReason: 'M3.0 T21 partially executed; `types` condition appears last in every package exports block. Must close in M3.A0.',
     check: () => {
       const pkgs = readPackageJsonPaths().filter((p) => p.includes('/packages/') || p.includes('/apps/'));
       const bad = [];
@@ -219,11 +235,19 @@ const checks = [
           if (typeof conditions !== 'object' || conditions === null) continue;
           const keys = Object.keys(conditions);
           if (keys.includes('types') && keys[0] !== 'types') {
-            bad.push(`${relative(REPO_ROOT, p)}: exports['${key}'] — types must be first`);
+            bad.push(`${relative(REPO_ROOT, p)}: exports['${key}'] — types is '${keys[keys.indexOf('types')]}' at position ${keys.indexOf('types') + 1}`);
           }
         }
       }
-      return bad.length === 0 ? { ok: true } : { ok: false, detail: bad.join('\n  ') };
+      return bad.length === 0
+        ? { ok: true }
+        : {
+            ok: false,
+            detail:
+              `\`types\` must appear BEFORE import/require in exports conditions, or TypeScript silently ` +
+              `falls back to non-types resolution (effectively ignoring your types entry). ` +
+              `Affects ${bad.length} package(s):\n  ${bad.join('\n  ')}`,
+          };
     },
   },
   {
@@ -257,33 +281,9 @@ const checks = [
         : { ok: false, detail: 'no osv-scanner or audit-ci reference in .github/workflows/' };
     },
   },
-  {
-    id: 'PRIOR-R6-003',
-    description: 'R6-003: 90-day key expiry warning tier configured',
-    check: () => {
-      const configPath = firstExisting([
-        'packages/common/src/config/config.ts',
-        'packages/common/src/config.ts',
-      ]);
-      if (!configPath) return { ok: false, detail: 'config.ts not found in @sep/common' };
-      const content = readFileSync(join(REPO_ROOT, configPath), 'utf8');
-      const signals = [
-        /keyExpiry.*(?:warning|Warning|WARNING).*90/,
-        /keyExpiry.*90.*(?:warning|Warning|WARNING)/,
-        /KEY_EXPIRY_WARNING_DAYS/,
-        /keyExpiryWarningDays/,
-        /(?:^|\s)90\s*,?\s*\/\/.*expir/i,
-      ];
-      const matched = signals.some((re) => re.test(content));
-      return matched
-        ? { ok: true }
-        : {
-            ok: false,
-            detail: `no 90-day warning signal in ${configPath}. ` +
-                    'Expected one of: keyExpiryWarningDays, KEY_EXPIRY_WARNING_DAYS, documented 90-day threshold.',
-          };
-    },
-  },
+  // ─── M3-scope checks removed (see file header) ────────────────────
+  // Formerly here: PRIOR-R6-003, NEW-02, NEW-03, NEW-08. These belong in
+  // _plan/scripts/verify-m3-findings.mjs authored at M3 start.
   {
     id: 'REMOVED-passport',
     description: 'passport stack removed from all manifests',
@@ -323,30 +323,6 @@ const checks = [
         : { ok: false, detail: 'nestjs-zod not installed' },
   },
   {
-    id: 'NEW-02',
-    description: 'NEW-02: retry jitter via Math.random() in delivery processor',
-    check: () => {
-      const hits = grep(['Math\\.random\\(\\)'], { includeGlob: '*.ts' });
-      const inProcessor = hits.some((h) => /delivery\.processor\.ts/.test(h) && !/\.test\.ts/.test(h));
-      return inProcessor
-        ? { ok: true }
-        : { ok: false, detail: 'no Math.random() in delivery.processor.ts (jitter missing)' };
-    },
-  },
-  {
-    id: 'NEW-03',
-    description: 'NEW-03: withTimeout helper exists and applied to crypto processor',
-    check: () => {
-      const helper = grep(['export (?:async )?function withTimeout|export const withTimeout'], { includeGlob: '*.ts' })
-        .some((h) => /packages\/common\/src/.test(h));
-      const applied = grep(['withTimeout\\('], { includeGlob: '*.ts' })
-        .some((h) => /crypto\.processor\.ts/.test(h) && !/\.test\.ts/.test(h));
-      if (!helper) return { ok: false, detail: 'withTimeout helper not found in @sep/common/src' };
-      if (!applied) return { ok: false, detail: 'withTimeout not applied in crypto.processor.ts' };
-      return { ok: true };
-    },
-  },
-  {
     id: 'NEW-05',
     description: 'NEW-05: no `body as { notes...}` cast in approvals controller',
     check: () => {
@@ -365,17 +341,6 @@ const checks = [
       return hits.length > 0
         ? { ok: true }
         : { ok: false, detail: 'VersioningType.URI not found (expected in apps/control-plane/src/main.ts)' };
-    },
-  },
-  {
-    id: 'NEW-08',
-    description: 'NEW-08: OTEL SDK available (NodeSDK in @sep/observability)',
-    check: () => {
-      const helper = grep(['NodeSDK'], { includeGlob: '*.ts' })
-        .some((h) => /packages\/observability\/src/.test(h) && !/\.test\.ts/.test(h));
-      return helper
-        ? { ok: true, detail: 'OTEL NodeSDK available; main.ts wiring deferred to M3.A9' }
-        : { ok: false, detail: 'NodeSDK not found in packages/observability/src/' };
     },
   },
   {
@@ -517,8 +482,9 @@ const checks = [
 ];
 
 // ─── Run ────────────────────────────────────────────────────────────
-let failures = 0;
 let passed = 0;
+let failed = 0;
+let blocked = 0;
 let passedWithDetail = 0;
 
 console.log('\nM3.0 Findings Verification (reconciled for post-m3.0-baseline)');
@@ -531,27 +497,43 @@ for (const c of checks) {
   } catch (err) {
     result = { ok: false, detail: `check threw: ${err.message}` };
   }
-  const icon = result.ok ? 'OK  ' : 'FAIL';
-  console.log(`${icon}  ${c.id.padEnd(32)} ${c.description}`);
-  if (result.detail) {
-    const prefix = result.ok ? '      ' : '      !  ';
-    console.log(`${prefix}${result.detail}`);
-  }
+  let status;
   if (result.ok) {
+    status = 'OK   ';
     passed++;
     if (result.detail) passedWithDetail++;
+  } else if (c.blocksM3) {
+    status = 'BLOCK';
+    blocked++;
   } else {
-    failures++;
+    status = 'FAIL ';
+    failed++;
+  }
+  console.log(`${status}  ${c.id.padEnd(32)} ${c.description}`);
+  if (!result.ok && c.blocksM3) {
+    console.log(`       > M3.A0 blocker: ${c.blockReason}`);
+  }
+  if (result.detail) {
+    const prefix = result.ok ? '       ' : '       !  ';
+    console.log(`${prefix}${result.detail}`);
   }
 }
 
 console.log('='.repeat(70));
-console.log(`\n${passed} passed (${passedWithDetail} with notes), ${failures} failed, ${checks.length} total\n`);
+console.log(
+  `\n${passed} passed (${passedWithDetail} with notes), ${failed} failed, ` +
+  `${blocked} blocked (M3.A0 scope), ${checks.length} total\n`
+);
 
-if (failures > 0) {
-  console.error('M3.0 closure claims have broken. Resolve the failures above and re-run.');
-  console.error('If a failure is a legitimate new deferral, update this script or _plan/M3_0_HANDOFF.md.\n');
+if (failed > 0) {
+  console.error('REGRESSION: M3.0 closure claims have broken. Resolve the FAILs above and re-run.\n');
   process.exit(1);
 }
-console.log('All M3.0 closures mechanically verified. Safe to proceed with M3 planning/execution.\n');
+if (blocked > 0) {
+  console.error('M3 NOT READY: BLOCK items are M3.0 claim-reality mismatches that M3.A0 must close.');
+  console.error('These are NOT regressions — they are scope work that M3.0 plan specified but execution left incomplete.');
+  console.error('Close them in M3.A0 before the substantive M3 task groups begin.\n');
+  process.exit(1);
+}
+console.log('All M3.0 closures mechanically verified. Safe to proceed with M3 execution.\n');
 process.exit(0);
