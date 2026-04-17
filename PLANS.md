@@ -13,7 +13,8 @@ Version: 2.1 | Last updated: 2026-04-13 | POST-M2 REMEDIATION COMPLETE, M2 FORMA
 | M1 Domain + control plane | 🟢 COMPLETE | Yes | 2026-04-12. All exit criteria met except Pact contracts (deferred to M2+). |
 | Pre-M2 remediation (all waves) | 🟢 COMPLETE | Yes | 4 waves, 28 defects fixed, 2026-04-12 to 2026-04-13. See summary below. |
 | M2 Data plane + transport | 🟢 COMPLETE | Yes | 2026-04-13. All 7 steps implemented. 309 tests across 8 packages. |
-| Post-M2 remediation | 🟢 COMPLETE | Yes | 4 gate blockers + 2 coupled defects. 330 tests across 30 files. 2026-04-13. |
+| Post-M2 remediation | 🟢 COMPLETE | Yes | 4 gate blockers + 2 coupled defects. 330 tests across 30 files. 2026-04-13. (The "289" figure in the 2026-04-16 hostile audit — NEW-TEST-COUNT — was a grep artefact that missed `it.each` parametrised rows; runner reports 330. See Documentation corrections, below.) |
+| M3.0 Foundation reset | 🟢 COMPLETE | Yes | 2026-04-17. Dependency surgery (§4–6), code swaps (§7A–D nestjs-zod / argon2id / custom JwtAuthGuard), CI hardening (§8 SHA-pin + OSV + SBOM), pre-commit gates (§9 lefthook), env hygiene (§10), pnpm.overrides (§11). Build/lint/typecheck/test all green. 349 tests across 33 files (+19 from new schema smoke tests). Details: `_plan/M3_0_FOUNDATION_RESET.md` and `_plan/M3_0_HANDOFF.md`. |
 | M3 Security + trust | 🔴 NOT STARTED | No | All prerequisites met. Clear to start. |
 | M4 Operator console | 🔴 NOT STARTED | No | Can start parallel to M3 |
 | M5 Partner packs | 🔴 NOT STARTED | No | Blocked by M2 + M3 |
@@ -449,3 +450,46 @@ Findings formally accepted as not blocking M2. Each must be re-evaluated at the 
 | Operator UX | TBD | M4 |
 | SRE/DevOps | TBD | M0 CI, M6 |
 | Documentation and assurance | TBD | All docs, gate reviews |
+
+---
+
+## DOCUMENTATION CORRECTIONS
+
+Records where earlier documentation or audit artefacts were subsequently
+re-verified and found to be inaccurate. Corrections here are authoritative
+over the original claim.
+
+### 2026-04-17 — NEW-TEST-COUNT (REFUTED)
+
+**Original claim (hostile audit, 2026-04-16, _audit/FORENSIC_REPORT.md §4.3
+and _audit/findings.json as NEW-TEST-COUNT):** PLANS.md claims 330 unit
+tests but the actual count is 289 — a 41-test overstatement.
+
+**Status:** REFUTED (not remediated).
+
+**Evidence:** The forensic audit derived its "289" figure by grepping
+`^  \(it\|test\)(` across `*.test.ts` files. That regex counts the
+literal `it(` or `test(` callsite, but misses Vitest's parametrised
+`it.each([...])` rows — those expand at runtime into multiple tests from
+a single callsite. Running `pnpm run test:unit` (the authoritative
+counter) under vitest 3.2.4 on branch `m3.0/foundation-reset` returns:
+
+```
+Test Files  33 passed (33)
+     Tests  349 passed (349)
+```
+
+Of the 349, **330 existed pre-M3.0** and **19 were added by M3.0** as
+new schema smoke tests (approval, incident, webhook). The prior "330"
+figure was correct at the time it was recorded (2026-04-13).
+
+**Methodology fix:** Test-count claims in PLANS.md are taken from the
+runner summary, not from grep. Future audits should run the suite
+rather than grep for callsite patterns — `it.each`, `describe.each`,
+and similar produce callsite-to-test ratios > 1.
+
+**Action taken in M3.0 §12:** the 330 line on row 16 above was left
+intact and annotated with the refutation; no rewrite to 289.
+
+Ref: _plan/M3_0_FOUNDATION_RESET.md §12 (amended); user amendment
+2026-04-17.
