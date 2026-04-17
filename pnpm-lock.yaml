@@ -5,12 +5,12 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  undici: '>=5.28.4'
+  openpgp: 5.11.3
+  undici: 7.25.0
   tar: '>=7.5.11'
   picomatch: '>=4.0.4'
   lodash: '>=4.18.0'
   '@fastify/middie': '>=9.2.0'
-  fastify: '>=5.7.2'
 
 importers:
 
@@ -116,7 +116,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/schemas
       fastify:
-        specifier: '>=5.7.2'
+        specifier: 5.8.4
         version: 5.8.4
       nestjs-zod:
         specifier: 5.3.0
@@ -249,8 +249,8 @@ importers:
         specifier: 9.1.0
         version: 9.1.0
       undici:
-        specifier: '>=5.28.4'
-        version: 8.1.0
+        specifier: 7.25.0
+        version: 7.25.0
       zod:
         specifier: 3.25.76
         version: 3.25.76
@@ -5110,9 +5110,6 @@ packages:
     resolution: {integrity: sha512-Xb78V8GZouoZFrq8cCwx7+G3WYOcJG0xb3YUbweSyE4z2EIrQCZMr3Ye/dHn4mESs6YxUMeQeUZm5IXg+iLHog==}
     engines: {node: '>=22'}
 
-  light-my-request@6.3.0:
-    resolution: {integrity: sha512-bWTAPJmeWQH5suJNYwG0f5cs0p6ho9e6f1Ppoxv5qMosY+s9Ir2+ZLvvHcgA7VTDop4zl/NCHhOVVqU+kd++Ow==}
-
   light-my-request@6.6.0:
     resolution: {integrity: sha512-CHYbu8RtboSIoVsHZ6Ye4cj4Aw/yg2oAFimlF7mNvfDV192LR7nDiKtSIfCuLT7KokPSTn/9kfVLm5OGN0A28A==}
 
@@ -6649,9 +6646,9 @@ packages:
   undici-types@6.21.0:
     resolution: {integrity: sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==}
 
-  undici@8.1.0:
-    resolution: {integrity: sha512-E9MkTS4xXLnRPYqxH2e6Hr2/49e7WFDKczKcCaFH4VaZs2iNvHMqeIkyUAD9vM8kujy9TjVrRlQ5KkdEJxB2pw==}
-    engines: {node: '>=22.19.0'}
+  undici@7.25.0:
+    resolution: {integrity: sha512-xXnp4kTyor2Zq+J1FfPI6Eq3ew5h6Vl0F/8d9XU5zZQf1tX9s2Su1/3PiMmUANFULpmksxkClamIZcaUqryHsQ==}
+    engines: {node: '>=20.18.1'}
 
   unique-filename@4.0.0:
     resolution: {integrity: sha512-XSnEewXmQ+veP7xX2dS5Q4yZAvO40cBN2MWkJ7D/6sW4Dg6wYBNwM1Vrnz1FhH5AdeLIlUXRI9e28z1YZi71NQ==}
@@ -11414,7 +11411,7 @@ snapshots:
       avvio: 9.2.0
       fast-json-stringify: 6.3.0
       find-my-way: 9.5.0
-      light-my-request: 6.3.0
+      light-my-request: 6.6.0
       pino: 9.14.0
       process-warning: 5.0.0
       rfdc: 1.4.1
@@ -12135,12 +12132,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
     optional: true
-
-  light-my-request@6.3.0:
-    dependencies:
-      cookie: 1.1.1
-      process-warning: 4.0.1
-      set-cookie-parser: 2.7.2
 
   light-my-request@6.6.0:
     dependencies:
@@ -13718,7 +13709,7 @@ snapshots:
       ssh-remote-port-forward: 1.0.4
       tar-fs: 3.1.2
       tmp: 0.2.5
-      undici: 8.1.0
+      undici: 7.25.0
     transitivePeerDependencies:
       - bare-abort-controller
       - bare-buffer
@@ -13952,7 +13943,7 @@ snapshots:
 
   undici-types@6.21.0: {}
 
-  undici@8.1.0: {}
+  undici@7.25.0: {}
 
   unique-filename@4.0.0:
     dependencies:
