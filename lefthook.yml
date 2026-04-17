@@ -1,0 +1,33 @@
+# Pre-commit gates — keep fast so commits don't stall.
+# Installed via the root `prepare` script after `pnpm install`.
+# Emergency bypass: `git commit --no-verify` (should be rare).
+# Added in M3.0 §9.
+
+pre-commit:
+  parallel: true
+  commands:
+    lint-staged:
+      glob: "*.{ts,tsx}"
+      run: pnpm exec eslint {staged_files}
+
+    gitleaks:
+      # gitleaks binary is optional — skip gracefully when absent locally.
+      # CI enforces secret scanning via trufflehog (see .github/workflows/ci.yml).
+      run: |
+        if command -v gitleaks >/dev/null 2>&1; then
+          gitleaks protect --staged --verbose --redact
+        else
+          echo "lefthook: gitleaks binary not installed locally — skipping (CI enforces)"
+        fi
+
+commit-msg:
+  commands:
+    lint-commit-message:
+      run: |
+        head -1 {1} | grep -qE '^(feat|fix|docs|test|chore|refactor|ci|build|perf)(\(.+\))?!?: .+'
+      fail_text: "Commit message must follow conventional-commits prefix (feat|fix|docs|test|chore|refactor|ci|build|perf)"
+
+pre-push:
+  commands:
+    test-unit:
+      run: pnpm run test:unit
