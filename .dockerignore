@@ -1,0 +1,50 @@
+# Keep build context small and free of host state / secrets / test-only code.
+# Added in M3.0 §10.1 (partial R1-004 closure).
+
+# Dev toolchain and state
+node_modules
+**/node_modules
+.turbo
+.cache
+.pnpm-store
+
+# Build outputs (produced inside the image, not copied in)
+dist
+build
+coverage
+**/dist
+**/build
+**/coverage
+**/test-results
+
+# Host metadata
+.git
+.github
+.vscode
+.idea
+*.log
+
+# Secrets / env files — never leak these into an image
+.env
+.env.*
+!.env.example
+
+# Tests — runtime images don't need test code
+**/*.test.ts
+**/*.spec.ts
+**/tests/
+tests/
+
+# Documentation and planning artefacts
+_audit/
+_plan/
+audit/
+docs/
+adr/
+*.md
+!README.md
+
+# Docker / compose files themselves
+docker-compose*.yml
+.dockerignore
+Dockerfile*
