@@ -1,0 +1,16 @@
+version: 2
+# Keep SHA-pinned GitHub Actions up to date. Dependabot respects SHA pinning
+# and updates the trailing tag comment on each PR.
+# Added in M3.0 (§8.1) alongside SHA pinning of all actions.
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    target-branch: "main"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
