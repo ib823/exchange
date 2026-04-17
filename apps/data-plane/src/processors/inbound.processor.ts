@@ -56,14 +56,19 @@ export class InboundProcessor extends WorkerHost {
     const profile = await db.partnerProfile.findFirst({
       where: { id: partnerProfileId, tenantId },
       select: {
-        id: true, messageSecurityMode: true, environment: true,
-        config: true, transportProtocol: true,
+        id: true,
+        messageSecurityMode: true,
+        environment: true,
+        config: true,
+        transportProtocol: true,
       },
     });
 
     if (!profile) {
       throw new SepError(ErrorCode.RBAC_RESOURCE_NOT_FOUND, {
-        tenantId, profileId: partnerProfileId, correlationId,
+        tenantId,
+        profileId: partnerProfileId,
+        correlationId,
       });
     }
 
@@ -73,10 +78,16 @@ export class InboundProcessor extends WorkerHost {
 
     let verificationResult: 'PASSED' | 'FAILED' | 'SKIPPED' = 'SKIPPED';
 
-    if (profile.messageSecurityMode === 'VERIFY_DECRYPT' || profile.messageSecurityMode === 'VERIFY' || profile.messageSecurityMode === 'DECRYPT') {
+    if (
+      profile.messageSecurityMode === 'VERIFY_DECRYPT' ||
+      profile.messageSecurityMode === 'VERIFY' ||
+      profile.messageSecurityMode === 'DECRYPT'
+    ) {
       if (keyReferenceId === undefined || keyReferenceId === '') {
         throw new SepError(ErrorCode.CRYPTO_MISSING_RECIPIENT_KEY, {
-          correlationId, tenantId, profileId: partnerProfileId,
+          correlationId,
+          tenantId,
+          profileId: partnerProfileId,
         });
       }
 
@@ -87,7 +98,9 @@ export class InboundProcessor extends WorkerHost {
 
       if (!keyRow) {
         throw new SepError(ErrorCode.CRYPTO_KEY_NOT_FOUND, {
-          keyReferenceId, tenantId, correlationId,
+          keyReferenceId,
+          tenantId,
+          correlationId,
         });
       }
 
@@ -119,7 +132,9 @@ export class InboundProcessor extends WorkerHost {
         const rawBytes = await this.objectStorage.getObject(bucket, storageKey);
         payloadContent = rawBytes.toString('utf-8');
       } catch (err) {
-        if (err instanceof SepError) { throw err; }
+        if (err instanceof SepError) {
+          throw err;
+        }
         throw new SepError(ErrorCode.STORAGE_DOWNLOAD_FAILED, {
           correlationId,
           message: `Failed to read inbound payload from storage: ${rawPayloadRef}`,
@@ -129,13 +144,16 @@ export class InboundProcessor extends WorkerHost {
       // Apply verify/decrypt based on security mode
       if (profile.messageSecurityMode === 'VERIFY_DECRYPT') {
         const result = await this.cryptoService.verifyAndDecrypt(
-          payloadContent, resolvedKey.keyRef, resolvedKey.keyRef, {},
+          payloadContent,
+          resolvedKey.keyRef,
+          resolvedKey.keyRef,
+          {},
         );
         verificationResult = result.verificationResult;
       } else if (profile.messageSecurityMode === 'VERIFY') {
-        const result = await this.cryptoService.verify(
-          payloadContent, resolvedKey.keyRef, { detached: false },
-        );
+        const result = await this.cryptoService.verify(payloadContent, resolvedKey.keyRef, {
+          detached: false,
+        });
         verificationResult = result.verified ? 'PASSED' : 'FAILED';
       } else {
         // profile.messageSecurityMode === 'DECRYPT'
@@ -200,7 +218,9 @@ export class InboundProcessor extends WorkerHost {
       });
 
       throw new SepError(ErrorCode.INBOUND_VERIFICATION_FAILED, {
-        correlationId, tenantId, profileId: partnerProfileId,
+        correlationId,
+        tenantId,
+        profileId: partnerProfileId,
         message: 'Signature verification failed — payload quarantined',
       });
     }
@@ -210,7 +230,12 @@ export class InboundProcessor extends WorkerHost {
     // Accepting unverified content as acknowledged is a security gap for regulated exchanges.
     if (verificationResult === 'SKIPPED' && profile.messageSecurityMode !== 'NONE') {
       logger.warn(
-        { correlationId, tenantId, partnerProfileId, messageSecurityMode: profile.messageSecurityMode },
+        {
+          correlationId,
+          tenantId,
+          partnerProfileId,
+          messageSecurityMode: profile.messageSecurityMode,
+        },
         'Inbound verification SKIPPED (decrypt-only) — quarantining, not acknowledging',
       );
 
@@ -262,7 +287,9 @@ export class InboundProcessor extends WorkerHost {
       });
 
       throw new SepError(ErrorCode.INBOUND_VERIFICATION_SKIPPED, {
-        correlationId, tenantId, profileId: partnerProfileId,
+        correlationId,
+        tenantId,
+        profileId: partnerProfileId,
         message: 'Decrypt-only inbound — verification not performed, payload quarantined',
       });
     }
@@ -388,11 +415,15 @@ export class InboundProcessor extends WorkerHost {
     if (ref.startsWith('s3://')) {
       const path = ref.substring(5);
       const slashIdx = path.indexOf('/');
-      if (slashIdx < 0) { return { bucket: path, key: '' }; }
+      if (slashIdx < 0) {
+        return { bucket: path, key: '' };
+      }
       return { bucket: path.substring(0, slashIdx), key: path.substring(slashIdx + 1) };
     }
     const slashIdx = ref.indexOf('/');
-    if (slashIdx < 0) { return { bucket: ref, key: '' }; }
+    if (slashIdx < 0) {
+      return { bucket: ref, key: '' };
+    }
     return { bucket: ref.substring(0, slashIdx), key: ref.substring(slashIdx + 1) };
   }
 }

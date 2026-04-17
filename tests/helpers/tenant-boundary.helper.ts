@@ -43,14 +43,16 @@ export async function assertTenantBoundaryEnforced(
   if (attackerResponse.status !== 403) {
     throw new Error(
       `TENANT BOUNDARY VIOLATION: ${tc.method} ${tc.url} ` +
-      `returned ${attackerResponse.status} for attacker tenant ${tc.attackerTenantId}. ` +
-      `Expected 403.`,
+        `returned ${attackerResponse.status} for attacker tenant ${tc.attackerTenantId}. ` +
+        `Expected 403.`,
     );
   }
 
   const body = attackerResponse.body as { error?: { code?: string } };
-  if (body.error?.code !== 'TENANT_BOUNDARY_VIOLATION' &&
-      body.error?.code !== 'RBAC_INSUFFICIENT_ROLE') {
+  if (
+    body.error?.code !== 'TENANT_BOUNDARY_VIOLATION' &&
+    body.error?.code !== 'RBAC_INSUFFICIENT_ROLE'
+  ) {
     throw new Error(
       `Expected TENANT_BOUNDARY_VIOLATION error code, got: ${body.error?.code ?? 'none'}`,
     );

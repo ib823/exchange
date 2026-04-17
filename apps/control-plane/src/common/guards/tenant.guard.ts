@@ -1,6 +1,9 @@
 import {
-  Injectable, type CanActivate, type ExecutionContext,
-  ForbiddenException, NotFoundException,
+  Injectable,
+  type CanActivate,
+  type ExecutionContext,
+  ForbiddenException,
+  NotFoundException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { SepError, ErrorCode } from '@sep/common';

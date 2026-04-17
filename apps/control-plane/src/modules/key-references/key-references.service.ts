@@ -85,7 +85,8 @@ export class KeyReferencesService {
         algorithm: dto.algorithm,
         environment: dto.environment,
         expiresAt: dto.expiresAt !== undefined ? new Date(dto.expiresAt) : null,
-        metadata: dto.metadata !== undefined ? (dto.metadata as Prisma.InputJsonValue) : Prisma.JsonNull,
+        metadata:
+          dto.metadata !== undefined ? (dto.metadata as Prisma.InputJsonValue) : Prisma.JsonNull,
       },
       select: KEY_REF_SELECT,
     });

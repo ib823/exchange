@@ -55,7 +55,10 @@ const mockDb = {
   inboundReceipt: { create: mockInboundCreate },
   incident: { create: mockIncidentCreate },
   webhook: { findMany: mockWebhookFindMany },
-  webhookDeliveryAttempt: { findFirst: mockWebhookAttemptFindFirst, create: mockWebhookAttemptCreate },
+  webhookDeliveryAttempt: {
+    findFirst: mockWebhookAttemptFindFirst,
+    create: mockWebhookAttemptCreate,
+  },
   auditEvent: { findFirst: vi.fn().mockResolvedValue(null), create: mockAuditCreate },
 };
 
@@ -96,7 +99,9 @@ describe('InboundProcessor', () => {
     });
 
     mockSubmissionFindFirst.mockResolvedValue({
-      id: 'sub-001', tenantId: 'tenant-001', correlationId: 'corr-001',
+      id: 'sub-001',
+      tenantId: 'tenant-001',
+      correlationId: 'corr-001',
     });
 
     mockInboundCreate.mockResolvedValue({ id: 'receipt-001' });
@@ -167,7 +172,11 @@ describe('InboundProcessor', () => {
 
   it('dispatches webhook when registered for SUBMISSION_ACK_RECEIVED', async () => {
     mockWebhookFindMany.mockResolvedValue([
-      { id: 'wh-001', url: 'https://callback.example.com/hook', events: ['SUBMISSION_ACK_RECEIVED'] },
+      {
+        id: 'wh-001',
+        url: 'https://callback.example.com/hook',
+        events: ['SUBMISSION_ACK_RECEIVED'],
+      },
     ]);
     mockWebhookAttemptFindFirst.mockResolvedValue(null);
     mockWebhookAttemptCreate.mockResolvedValue({ id: 'wha-001' });
@@ -187,7 +196,11 @@ describe('InboundProcessor', () => {
 
   it('skips duplicate webhook dispatch (idempotency)', async () => {
     mockWebhookFindMany.mockResolvedValue([
-      { id: 'wh-001', url: 'https://callback.example.com/hook', events: ['SUBMISSION_ACK_RECEIVED'] },
+      {
+        id: 'wh-001',
+        url: 'https://callback.example.com/hook',
+        events: ['SUBMISSION_ACK_RECEIVED'],
+      },
     ]);
     mockWebhookAttemptFindFirst.mockResolvedValue({ id: 'existing' });
 
@@ -221,11 +234,21 @@ describe('InboundProcessor', () => {
     });
 
     mockKeyFindFirst.mockResolvedValue({
-      id: 'key-001', tenantId: 'tenant-001', partnerProfileId: 'profile-001',
-      name: 'verify-key', usage: ['VERIFY'], backendType: 'PLATFORM_VAULT',
-      backendRef: 'vault-path', fingerprint: 'fp123', algorithm: 'rsa',
-      version: 1, state: 'ACTIVE', environment: 'TEST',
-      activatedAt: new Date(), expiresAt: null, revokedAt: null,
+      id: 'key-001',
+      tenantId: 'tenant-001',
+      partnerProfileId: 'profile-001',
+      name: 'verify-key',
+      usage: ['VERIFY'],
+      backendType: 'PLATFORM_VAULT',
+      backendRef: 'vault-path',
+      fingerprint: 'fp123',
+      algorithm: 'rsa',
+      version: 1,
+      state: 'ACTIVE',
+      environment: 'TEST',
+      activatedAt: new Date(),
+      expiresAt: null,
+      revokedAt: null,
     });
 
     // The InboundProcessor constructs its own CryptoService/KeyRetrieval
@@ -244,11 +267,21 @@ describe('InboundProcessor', () => {
     });
 
     mockKeyFindFirst.mockResolvedValue({
-      id: 'key-001', tenantId: 'tenant-001', partnerProfileId: 'profile-001',
-      name: 'decrypt-key', usage: ['DECRYPT'], backendType: 'PLATFORM_VAULT',
-      backendRef: 'vault-path', fingerprint: 'fp123', algorithm: 'rsa',
-      version: 1, state: 'ACTIVE', environment: 'TEST',
-      activatedAt: new Date(), expiresAt: null, revokedAt: null,
+      id: 'key-001',
+      tenantId: 'tenant-001',
+      partnerProfileId: 'profile-001',
+      name: 'decrypt-key',
+      usage: ['DECRYPT'],
+      backendType: 'PLATFORM_VAULT',
+      backendRef: 'vault-path',
+      fingerprint: 'fp123',
+      algorithm: 'rsa',
+      version: 1,
+      state: 'ACTIVE',
+      environment: 'TEST',
+      activatedAt: new Date(),
+      expiresAt: null,
+      revokedAt: null,
     });
 
     // The processor constructs its own crypto/key services internally.

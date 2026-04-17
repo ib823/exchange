@@ -1,6 +1,17 @@
-import { PrismaClient, Role, ServiceTier, Environment, TransportProtocol,
-  MessageSecurityMode, PartnerType, PartnerProfileStatus, KeyBackendType,
-  KeyUsage, KeyState, UserStatus } from '@prisma/client';
+import {
+  PrismaClient,
+  Role,
+  ServiceTier,
+  Environment,
+  TransportProtocol,
+  MessageSecurityMode,
+  PartnerType,
+  PartnerProfileStatus,
+  KeyBackendType,
+  KeyUsage,
+  KeyState,
+  UserStatus,
+} from '@prisma/client';
 import { createHash } from 'crypto';
 
 const prisma = new PrismaClient();
@@ -83,7 +94,13 @@ async function main(): Promise<void> {
   console.log('  ✓ Retention policy');
 
   // ── Users — one per role ─────────────────────────────────────────────────
-  const userDefs: Array<{ id: string; email: string; displayName: string; role: Role; tenantId: string }> = [
+  const userDefs: Array<{
+    id: string;
+    email: string;
+    displayName: string;
+    role: Role;
+    tenantId: string;
+  }> = [
     {
       id: IDS.users.platformAdmin,
       email: 'platform-admin@sep.local',

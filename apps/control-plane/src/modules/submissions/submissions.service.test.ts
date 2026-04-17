@@ -25,7 +25,9 @@ const mockDatabaseService = {
 
 const mockAudit = {
   record: vi.fn().mockResolvedValue(undefined),
-  search: vi.fn().mockResolvedValue({ data: [], meta: { page: 1, pageSize: 100, total: 0, totalPages: 0 } }),
+  search: vi
+    .fn()
+    .mockResolvedValue({ data: [], meta: { page: 1, pageSize: 100, total: 0, totalPages: 0 } }),
 };
 
 const actor = {
@@ -120,19 +122,17 @@ describe('SubmissionsService', () => {
 
     it('throws NotFoundException for cross-tenant access (404, not 403)', async () => {
       mockDb.submission.findUnique.mockResolvedValue(baseSubmission);
-      await expect(
-        service.findById('sub-1', crossTenantActor),
-      ).rejects.toThrow('Submission not found');
-      await expect(
-        service.findById('sub-1', crossTenantActor),
-      ).rejects.toThrow(expect.objectContaining({ status: 404 }) as Error);
+      await expect(service.findById('sub-1', crossTenantActor)).rejects.toThrow(
+        'Submission not found',
+      );
+      await expect(service.findById('sub-1', crossTenantActor)).rejects.toThrow(
+        expect.objectContaining({ status: 404 }) as Error,
+      );
     });
 
     it('throws NotFoundException when submission does not exist', async () => {
       mockDb.submission.findUnique.mockResolvedValue(null);
-      await expect(
-        service.findById('sub-missing', actor),
-      ).rejects.toThrow('Submission not found');
+      await expect(service.findById('sub-missing', actor)).rejects.toThrow('Submission not found');
     });
   });
 
@@ -155,18 +155,14 @@ describe('SubmissionsService', () => {
       const completedSub = { ...baseSubmission, status: 'COMPLETED' };
       mockDb.submission.findUnique.mockResolvedValue(completedSub);
 
-      await expect(
-        service.cancel('sub-1', actor),
-      ).rejects.toThrow('SUBMISSION_TERMINAL_STATE');
+      await expect(service.cancel('sub-1', actor)).rejects.toThrow('SUBMISSION_TERMINAL_STATE');
     });
 
     it('throws error when cancelling a terminal-state submission (FAILED_FINAL)', async () => {
       const failedSub = { ...baseSubmission, status: 'FAILED_FINAL' };
       mockDb.submission.findUnique.mockResolvedValue(failedSub);
 
-      await expect(
-        service.cancel('sub-1', actor),
-      ).rejects.toThrow('SUBMISSION_TERMINAL_STATE');
+      await expect(service.cancel('sub-1', actor)).rejects.toThrow('SUBMISSION_TERMINAL_STATE');
     });
   });
 });

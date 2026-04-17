@@ -1,7 +1,9 @@
 import { Controller, Get } from '@nestjs/common';
 import {
-  HealthCheck, HealthCheckService,
-  type HealthCheckResult, type HealthIndicatorResult,
+  HealthCheck,
+  HealthCheckService,
+  type HealthCheckResult,
+  type HealthIndicatorResult,
 } from '@nestjs/terminus';
 import { ApiTags } from '@nestjs/swagger';
 import { Public } from '../../common/guards/jwt-auth.guard';
@@ -25,8 +27,6 @@ export class HealthController {
   @Get('ready')
   @HealthCheck()
   readiness(): Promise<HealthCheckResult> {
-    return this.health.check([
-      (): Promise<HealthIndicatorResult> => this.db.isHealthy('database'),
-    ]);
+    return this.health.check([(): Promise<HealthIndicatorResult> => this.db.isHealthy('database')]);
   }
 }

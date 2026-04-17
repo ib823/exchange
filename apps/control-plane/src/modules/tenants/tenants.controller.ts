@@ -1,10 +1,16 @@
 import {
-  Controller, Get, Post, Patch, Body, Param, Query,
-  DefaultValuePipe, ParseIntPipe, Request,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Body,
+  Param,
+  Query,
+  DefaultValuePipe,
+  ParseIntPipe,
+  Request,
 } from '@nestjs/common';
-import {
-  ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam,
-} from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { createZodDto } from 'nestjs-zod';
 import { CreateTenantSchema, UpdateTenantSchema } from '@sep/schemas';
 import { TenantsService } from './tenants.service';

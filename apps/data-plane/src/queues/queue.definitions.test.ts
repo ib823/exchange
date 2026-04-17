@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { QUEUES, DLQ_SUFFIX, dlqName, DEFAULT_JOB_OPTIONS, type QueueName } from './queue.definitions';
+import {
+  QUEUES,
+  DLQ_SUFFIX,
+  dlqName,
+  DEFAULT_JOB_OPTIONS,
+  type QueueName,
+} from './queue.definitions';
 
 describe('queue.definitions', () => {
   it('defines all 9 required queues', () => {

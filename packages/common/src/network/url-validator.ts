@@ -17,44 +17,68 @@ import { ErrorCode } from '../errors/ErrorCode';
 
 /** CIDR-style ranges that are never valid outbound destinations */
 const BLOCKED_IPV4_PREFIXES = [
-  '0.',         // Current network (RFC 1122)
-  '10.',        // Private (RFC 1918)
-  '127.',       // Loopback (RFC 1122)
-  '169.254.',   // Link-local / cloud metadata (RFC 3927)
-  '172.16.', '172.17.', '172.18.', '172.19.',
-  '172.20.', '172.21.', '172.22.', '172.23.',
-  '172.24.', '172.25.', '172.26.', '172.27.',
-  '172.28.', '172.29.', '172.30.', '172.31.',  // Private (RFC 1918)
-  '192.168.',   // Private (RFC 1918)
-  '192.0.0.',   // IETF Protocol Assignments (RFC 6890)
-  '192.0.2.',   // Documentation (RFC 5737)
+  '0.', // Current network (RFC 1122)
+  '10.', // Private (RFC 1918)
+  '127.', // Loopback (RFC 1122)
+  '169.254.', // Link-local / cloud metadata (RFC 3927)
+  '172.16.',
+  '172.17.',
+  '172.18.',
+  '172.19.',
+  '172.20.',
+  '172.21.',
+  '172.22.',
+  '172.23.',
+  '172.24.',
+  '172.25.',
+  '172.26.',
+  '172.27.',
+  '172.28.',
+  '172.29.',
+  '172.30.',
+  '172.31.', // Private (RFC 1918)
+  '192.168.', // Private (RFC 1918)
+  '192.0.0.', // IETF Protocol Assignments (RFC 6890)
+  '192.0.2.', // Documentation (RFC 5737)
   '198.51.100.', // Documentation (RFC 5737)
   '203.0.113.', // Documentation (RFC 5737)
-  '224.',       // Multicast (RFC 5771)
-  '240.',       // Reserved (RFC 1112)
-  '255.',       // Broadcast
+  '224.', // Multicast (RFC 5771)
+  '240.', // Reserved (RFC 1112)
+  '255.', // Broadcast
 ];
 
 const BLOCKED_IPV6_PREFIXES = [
-  '::1',        // Loopback
-  'fe80:',      // Link-local
-  'fc00:',      // Unique local address
-  'fd00:',      // Unique local address
-  'fd00:ec2:',  // AWS metadata (IPv6)
+  '::1', // Loopback
+  'fe80:', // Link-local
+  'fc00:', // Unique local address
+  'fd00:', // Unique local address
+  'fd00:ec2:', // AWS metadata (IPv6)
   '::ffff:127.', // IPv4-mapped loopback
-  '::ffff:10.',  // IPv4-mapped private
+  '::ffff:10.', // IPv4-mapped private
   '::ffff:169.254.', // IPv4-mapped link-local
-  '::ffff:172.16.', '::ffff:172.17.', '::ffff:172.18.', '::ffff:172.19.',
-  '::ffff:172.20.', '::ffff:172.21.', '::ffff:172.22.', '::ffff:172.23.',
-  '::ffff:172.24.', '::ffff:172.25.', '::ffff:172.26.', '::ffff:172.27.',
-  '::ffff:172.28.', '::ffff:172.29.', '::ffff:172.30.', '::ffff:172.31.',
+  '::ffff:172.16.',
+  '::ffff:172.17.',
+  '::ffff:172.18.',
+  '::ffff:172.19.',
+  '::ffff:172.20.',
+  '::ffff:172.21.',
+  '::ffff:172.22.',
+  '::ffff:172.23.',
+  '::ffff:172.24.',
+  '::ffff:172.25.',
+  '::ffff:172.26.',
+  '::ffff:172.27.',
+  '::ffff:172.28.',
+  '::ffff:172.29.',
+  '::ffff:172.30.',
+  '::ffff:172.31.',
   '::ffff:192.168.',
 ];
 
 /** Exact hostnames that are never valid outbound destinations */
 const BLOCKED_HOSTNAMES = new Set([
   'localhost',
-  'metadata.google.internal',      // GCP metadata
+  'metadata.google.internal', // GCP metadata
   'metadata.internal',
   'kubernetes.default',
   'kubernetes.default.svc',
@@ -63,9 +87,9 @@ const BLOCKED_HOSTNAMES = new Set([
 
 /** Exact IPs that are cloud metadata endpoints */
 const BLOCKED_EXACT_IPS = new Set([
-  '169.254.169.254',   // AWS / GCP / Azure metadata
-  '169.254.170.2',     // AWS ECS task metadata
-  'fd00:ec2::254',     // AWS metadata (IPv6)
+  '169.254.169.254', // AWS / GCP / Azure metadata
+  '169.254.170.2', // AWS ECS task metadata
+  'fd00:ec2::254', // AWS metadata (IPv6)
 ]);
 
 export interface UrlValidationResult {
@@ -94,9 +118,10 @@ export function validateOutboundUrl(rawUrl: string): UrlValidationResult {
 
   const rawHostname = parsed.hostname.toLowerCase();
   // Strip brackets from IPv6 for consistent comparison
-  const hostname = rawHostname.startsWith('[') && rawHostname.endsWith(']')
-    ? rawHostname.slice(1, -1)
-    : rawHostname;
+  const hostname =
+    rawHostname.startsWith('[') && rawHostname.endsWith(']')
+      ? rawHostname.slice(1, -1)
+      : rawHostname;
 
   // Block exact hostnames
   if (BLOCKED_HOSTNAMES.has(hostname)) {

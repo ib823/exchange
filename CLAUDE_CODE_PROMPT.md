@@ -15,6 +15,7 @@ git --version
 ```
 
 Install pnpm:
+
 ```bash
 corepack enable && corepack prepare pnpm@9.0.0 --activate
 pnpm --version        # must be >= 9
@@ -54,6 +55,7 @@ cp .env.example .env
 ```
 
 Open `.env` and set these minimum values for local dev (all others keep defaults):
+
 - `DATABASE_URL=postgresql://sep:sep@localhost:5432/sep_dev`
 - `REDIS_URL=redis://localhost:6379`
 - `STORAGE_ENDPOINT=http://localhost:9000`
@@ -77,31 +79,64 @@ The zip contains scaffolding and foundational packages. These source files are
 not yet present and must be created now, in this exact order.
 
 ### 3.1 packages/schemas/src/shared.schema.ts
+
 ```typescript
 import { z } from 'zod';
 
 export const EnvironmentSchema = z.enum(['TEST', 'CERTIFICATION', 'PRODUCTION']);
 export const RoleSchema = z.enum([
-  'PLATFORM_SUPER_ADMIN','TENANT_ADMIN','SECURITY_ADMIN',
-  'INTEGRATION_ENGINEER','OPERATIONS_ANALYST','COMPLIANCE_REVIEWER',
+  'PLATFORM_SUPER_ADMIN',
+  'TENANT_ADMIN',
+  'SECURITY_ADMIN',
+  'INTEGRATION_ENGINEER',
+  'OPERATIONS_ANALYST',
+  'COMPLIANCE_REVIEWER',
 ]);
-export const PartnerTypeSchema = z.enum(['BANK','REGULATOR','ENTERPRISE','ERP_SOURCE']);
-export const TransportProtocolSchema = z.enum(['SFTP','HTTPS','AS2']);
+export const PartnerTypeSchema = z.enum(['BANK', 'REGULATOR', 'ENTERPRISE', 'ERP_SOURCE']);
+export const TransportProtocolSchema = z.enum(['SFTP', 'HTTPS', 'AS2']);
 export const MessageSecurityModeSchema = z.enum([
-  'NONE','ENCRYPT','SIGN','SIGN_ENCRYPT','VERIFY','DECRYPT','VERIFY_DECRYPT',
+  'NONE',
+  'ENCRYPT',
+  'SIGN',
+  'SIGN_ENCRYPT',
+  'VERIFY',
+  'DECRYPT',
+  'VERIFY_DECRYPT',
 ]);
 export const SubmissionStatusSchema = z.enum([
-  'RECEIVED','VALIDATED','QUEUED','PROCESSING','SECURED','SENT',
-  'ACK_PENDING','ACK_RECEIVED','COMPLETED','FAILED_RETRYABLE','FAILED_FINAL','CANCELLED',
+  'RECEIVED',
+  'VALIDATED',
+  'QUEUED',
+  'PROCESSING',
+  'SECURED',
+  'SENT',
+  'ACK_PENDING',
+  'ACK_RECEIVED',
+  'COMPLETED',
+  'FAILED_RETRYABLE',
+  'FAILED_FINAL',
+  'CANCELLED',
 ]);
 export const KeyStateSchema = z.enum([
-  'DRAFT','IMPORTED','VALIDATED','ACTIVE','ROTATING','EXPIRED','REVOKED','RETIRED',
+  'DRAFT',
+  'IMPORTED',
+  'VALIDATED',
+  'ACTIVE',
+  'ROTATING',
+  'EXPIRED',
+  'REVOKED',
+  'RETIRED',
 ]);
 export const PartnerProfileStatusSchema = z.enum([
-  'DRAFT','TEST_READY','TEST_APPROVED','PROD_PENDING_APPROVAL',
-  'PROD_ACTIVE','SUSPENDED','RETIRED',
+  'DRAFT',
+  'TEST_READY',
+  'TEST_APPROVED',
+  'PROD_PENDING_APPROVAL',
+  'PROD_ACTIVE',
+  'SUSPENDED',
+  'RETIRED',
 ]);
-export const ServiceTierSchema = z.enum(['STANDARD','DEDICATED','PRIVATE']);
+export const ServiceTierSchema = z.enum(['STANDARD', 'DEDICATED', 'PRIVATE']);
 
 export const PaginationSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -115,6 +150,7 @@ export const TenantIdParamSchema = z.object({ tenantId: CuidSchema });
 ```
 
 ### 3.2 packages/schemas/src/tenant.schema.ts
+
 ```typescript
 import { z } from 'zod';
 import { CuidSchema, ServiceTierSchema } from './shared.schema';
@@ -146,11 +182,16 @@ export type TenantResponse = z.infer<typeof TenantResponseSchema>;
 ```
 
 ### 3.3 packages/schemas/src/partner-profile.schema.ts
+
 ```typescript
 import { z } from 'zod';
 import {
-  CuidSchema, EnvironmentSchema, PartnerTypeSchema,
-  TransportProtocolSchema, MessageSecurityModeSchema, PartnerProfileStatusSchema,
+  CuidSchema,
+  EnvironmentSchema,
+  PartnerTypeSchema,
+  TransportProtocolSchema,
+  MessageSecurityModeSchema,
+  PartnerProfileStatusSchema,
 } from './shared.schema';
 
 export const SftpConfigSchema = z.object({
@@ -165,7 +206,7 @@ export const SftpConfigSchema = z.object({
 
 export const HttpsConfigSchema = z.object({
   baseUrl: z.string().url(),
-  authType: z.enum(['bearer','apiKey','mtls','none']),
+  authType: z.enum(['bearer', 'apiKey', 'mtls', 'none']),
   credentialRef: z.string().optional(),
   certRef: z.string().optional(),
   keyRef: z.string().optional(),
@@ -196,9 +237,10 @@ export const CreatePartnerProfileSchema = z.object({
   expiryDate: z.string().datetime().optional(),
 });
 
-export const UpdatePartnerProfileSchema = CreatePartnerProfileSchema
-  .omit({ tenantId: true, environment: true })
-  .partial();
+export const UpdatePartnerProfileSchema = CreatePartnerProfileSchema.omit({
+  tenantId: true,
+  environment: true,
+}).partial();
 
 export const PartnerProfileResponseSchema = z.object({
   id: CuidSchema,
@@ -220,6 +262,7 @@ export type PartnerProfileResponse = z.infer<typeof PartnerProfileResponseSchema
 ```
 
 ### 3.4 packages/schemas/src/submission.schema.ts
+
 ```typescript
 import { z } from 'zod';
 import { CuidSchema, IdempotencyKeySchema, SubmissionStatusSchema } from './shared.schema';
@@ -262,13 +305,17 @@ export type TimelineEvent = z.infer<typeof TimelineEventSchema>;
 ```
 
 ### 3.5 packages/schemas/src/key-reference.schema.ts
+
 ```typescript
 import { z } from 'zod';
 import { CuidSchema, EnvironmentSchema, KeyStateSchema } from './shared.schema';
 
-export const KeyUsageSchema = z.enum(['ENCRYPT','DECRYPT','SIGN','VERIFY','WRAP','UNWRAP']);
+export const KeyUsageSchema = z.enum(['ENCRYPT', 'DECRYPT', 'SIGN', 'VERIFY', 'WRAP', 'UNWRAP']);
 export const KeyBackendTypeSchema = z.enum([
-  'PLATFORM_VAULT','TENANT_VAULT','EXTERNAL_KMS','SOFTWARE_LOCAL',
+  'PLATFORM_VAULT',
+  'TENANT_VAULT',
+  'EXTERNAL_KMS',
+  'SOFTWARE_LOCAL',
 ]);
 
 export const CreateKeyReferenceSchema = z.object({
@@ -306,6 +353,7 @@ export type KeyReferenceResponse = z.infer<typeof KeyReferenceResponseSchema>;
 ```
 
 ### 3.6 packages/schemas/src/audit.schema.ts
+
 ```typescript
 import { z } from 'zod';
 import { CuidSchema, RoleSchema } from './shared.schema';
@@ -313,13 +361,13 @@ import { CuidSchema, RoleSchema } from './shared.schema';
 export const AuditEventResponseSchema = z.object({
   id: CuidSchema,
   tenantId: CuidSchema,
-  actorType: z.enum(['USER','SYSTEM','SERVICE','SCHEDULER']),
+  actorType: z.enum(['USER', 'SYSTEM', 'SERVICE', 'SCHEDULER']),
   actorId: z.string(),
   actorRole: RoleSchema.nullable(),
   objectType: z.string(),
   objectId: z.string(),
   action: z.string(),
-  result: z.enum(['SUCCESS','FAILURE']),
+  result: z.enum(['SUCCESS', 'FAILURE']),
   correlationId: z.string().nullable(),
   eventTime: z.date().or(z.string()),
   immutableHash: z.string(),
@@ -343,6 +391,7 @@ export type AuditSearchDto = z.infer<typeof AuditSearchSchema>;
 ```
 
 ### 3.7 packages/schemas/src/index.ts
+
 ```typescript
 export * from './shared.schema';
 export * from './tenant.schema';
@@ -353,6 +402,7 @@ export * from './audit.schema';
 ```
 
 ### 3.8 packages/partner-profiles/src/profile.validator.ts
+
 ```typescript
 import { SepError, ErrorCode } from '@sep/common';
 import { CreatePartnerProfileSchema, type CreatePartnerProfileDto } from '@sep/schemas';
@@ -385,11 +435,13 @@ export function validatePartnerProfile(raw: unknown): CreatePartnerProfileDto {
 ```
 
 ### 3.9 packages/partner-profiles/src/index.ts
+
 ```typescript
 export * from './profile.validator';
 ```
 
 ### 3.10 apps/control-plane/src/common/decorators/roles.decorator.ts
+
 ```typescript
 import { SetMetadata } from '@nestjs/common';
 import type { Role } from '@sep/common';
@@ -403,8 +455,14 @@ export const SkipTenantCheck = (): ReturnType<typeof SetMetadata> =>
 ```
 
 ### 3.11 apps/control-plane/src/common/guards/roles.guard.ts
+
 ```typescript
-import { Injectable, type CanActivate, type ExecutionContext, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  type CanActivate,
+  type ExecutionContext,
+  ForbiddenException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from '../decorators/roles.decorator';
 import { SepError, ErrorCode } from '@sep/common';
@@ -438,10 +496,15 @@ export class RolesGuard implements CanActivate {
 ```
 
 ### 3.12 apps/control-plane/src/common/filters/http-exception.filter.ts
+
 ```typescript
 import {
-  type ExceptionFilter, Catch, type ArgumentsHost,
-  HttpException, HttpStatus, Logger,
+  type ExceptionFilter,
+  Catch,
+  type ArgumentsHost,
+  HttpException,
+  HttpStatus,
+  Logger,
 } from '@nestjs/common';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { isSepError } from '@sep/common';
@@ -455,7 +518,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const reply = ctx.getResponse<FastifyReply>();
     const request = ctx.getRequest<FastifyRequest>();
-    const correlationId = (request.headers['x-correlation-id'] as string | undefined) ?? randomUUID();
+    const correlationId =
+      (request.headers['x-correlation-id'] as string | undefined) ?? randomUUID();
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let code = 'INTERNAL_ERROR';
@@ -475,7 +539,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
     } else if (exception instanceof HttpException) {
       status = exception.getStatus();
       const resp = exception.getResponse();
-      message = typeof resp === 'string' ? resp : (resp as Record<string, unknown>)['message'] as string ?? message;
+      message =
+        typeof resp === 'string'
+          ? resp
+          : (((resp as Record<string, unknown>)['message'] as string) ?? message);
       this.logger.warn({ status, message, correlationId }, 'HttpException');
     } else {
       this.logger.error({ correlationId, err: exception }, 'Unhandled exception');
@@ -487,10 +554,20 @@ export class HttpExceptionFilter implements ExceptionFilter {
   }
 
   private sepErrorToHttpStatus(code: string): number {
-    if (code.startsWith('RBAC_') || code === 'TENANT_BOUNDARY_VIOLATION' || code === 'APPROVAL_SELF_APPROVAL_FORBIDDEN') return 403;
+    if (
+      code.startsWith('RBAC_') ||
+      code === 'TENANT_BOUNDARY_VIOLATION' ||
+      code === 'APPROVAL_SELF_APPROVAL_FORBIDDEN'
+    )
+      return 403;
     if (code.includes('NOT_FOUND') || code === 'SUBMISSION_NOT_FOUND') return 404;
     if (code === 'VALIDATION_DUPLICATE') return 409;
-    if (code === 'AUTH_TOKEN_INVALID' || code === 'AUTH_TOKEN_EXPIRED' || code === 'AUTH_API_KEY_INVALID') return 401;
+    if (
+      code === 'AUTH_TOKEN_INVALID' ||
+      code === 'AUTH_TOKEN_EXPIRED' ||
+      code === 'AUTH_API_KEY_INVALID'
+    )
+      return 401;
     if (code === 'APPROVAL_REQUIRED') return 202;
     if (code.startsWith('VALIDATION_') || code.startsWith('POLICY_')) return 422;
     return 500;
@@ -499,8 +576,14 @@ export class HttpExceptionFilter implements ExceptionFilter {
 ```
 
 ### 3.13 apps/control-plane/src/common/interceptors/logging.interceptor.ts
+
 ```typescript
-import { Injectable, type NestInterceptor, type ExecutionContext, type CallHandler } from '@nestjs/common';
+import {
+  Injectable,
+  type NestInterceptor,
+  type ExecutionContext,
+  type CallHandler,
+} from '@nestjs/common';
 import type { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { createLogger } from '@sep/observability';
@@ -526,7 +609,13 @@ export class LoggingInterceptor implements NestInterceptor {
         },
         error: (err: unknown) => {
           logger.warn(
-            { method: req.method, url: req.url, correlationId, durationMs: Date.now() - startMs, err },
+            {
+              method: req.method,
+              url: req.url,
+              correlationId,
+              durationMs: Date.now() - startMs,
+              err,
+            },
             'Request failed',
           );
         },
@@ -537,6 +626,7 @@ export class LoggingInterceptor implements NestInterceptor {
 ```
 
 ### 3.14 apps/control-plane/src/modules/health/health.controller.ts
+
 ```typescript
 import { Controller, Get } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
@@ -557,6 +647,7 @@ export class HealthController {
 ```
 
 ### 3.15 apps/control-plane/src/modules/health/health.module.ts
+
 ```typescript
 import { Module } from '@nestjs/common';
 import { HealthController } from './health.controller';
@@ -566,6 +657,7 @@ export class HealthModule {}
 ```
 
 ### 3.16 apps/control-plane/src/app.module.ts
+
 ```typescript
 import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_INTERCEPTOR, APP_GUARD } from '@nestjs/core';
@@ -579,10 +671,12 @@ const cfg = getConfig();
 
 @Module({
   imports: [
-    ThrottlerModule.forRoot([{
-      ttl: cfg.rateLimit.ttlMs,
-      limit: cfg.rateLimit.maxPerWindow,
-    }]),
+    ThrottlerModule.forRoot([
+      {
+        ttl: cfg.rateLimit.ttlMs,
+        limit: cfg.rateLimit.maxPerWindow,
+      },
+    ]),
     HealthModule,
     // M1 modules added here as implemented:
     // TenantsModule, PartnerProfilesModule, SubmissionsModule,
@@ -599,6 +693,7 @@ export class AppModule {}
 ```
 
 ### 3.17 apps/data-plane/src/queues/queue.definitions.ts
+
 ```typescript
 // Queue names — single source of truth. Import from here, never hardcode strings.
 export const QUEUES = {
@@ -624,11 +719,12 @@ export const DEFAULT_JOB_OPTIONS = {
   attempts: 3,
   backoff: { type: 'exponential' as const, delay: 5000 },
   removeOnComplete: { count: 100 },
-  removeOnFail: false,   // Keep failed jobs for inspection
+  removeOnFail: false, // Keep failed jobs for inspection
 };
 ```
 
 ### 3.18 apps/data-plane/src/processors/intake.processor.ts
+
 ```typescript
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import type { Job } from 'bullmq';
@@ -642,7 +738,10 @@ const logger = createLogger({ service: 'data-plane', module: 'intake' });
 export class IntakeProcessor extends WorkerHost {
   async process(job: Job<SubmissionJob>): Promise<void> {
     const { correlationId, tenantId, submissionId } = job.data;
-    logger.info({ correlationId, tenantId, submissionId, attempt: job.attemptsMade }, 'Processing intake job');
+    logger.info(
+      { correlationId, tenantId, submissionId, attempt: job.attemptsMade },
+      'Processing intake job',
+    );
 
     // TODO M2: implement full intake pipeline
     // 1. Load partner profile
@@ -658,6 +757,7 @@ export class IntakeProcessor extends WorkerHost {
 ```
 
 ### 3.19 apps/data-plane/src/processors/crypto.processor.ts
+
 ```typescript
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import type { Job } from 'bullmq';
@@ -679,6 +779,7 @@ export class CryptoProcessor extends WorkerHost {
 ```
 
 ### 3.20 apps/data-plane/src/processors/delivery.processor.ts
+
 ```typescript
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import type { Job } from 'bullmq';
@@ -700,6 +801,7 @@ export class DeliveryProcessor extends WorkerHost {
 ```
 
 ### 3.21 apps/data-plane/src/app.module.ts
+
 ```typescript
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
@@ -726,6 +828,7 @@ export class AppModule {}
 ```
 
 ### 3.22 apps/data-plane/src/main.ts
+
 ```typescript
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
@@ -747,6 +850,7 @@ void bootstrap();
 ```
 
 ### 3.23 apps/operator-console/src/app/layout.tsx
+
 ```tsx
 import type { Metadata } from 'next';
 
@@ -765,6 +869,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }):
 ```
 
 ### 3.24 apps/operator-console/src/app/page.tsx
+
 ```tsx
 export default function HomePage(): JSX.Element {
   return (
@@ -777,6 +882,7 @@ export default function HomePage(): JSX.Element {
 ```
 
 ### 3.25 apps/operator-console/next.config.ts
+
 ```typescript
 import type { NextConfig } from 'next';
 
@@ -790,6 +896,7 @@ export default config;
 ```
 
 ### 3.26 tests/helpers/tenant-boundary.helper.ts
+
 ```typescript
 /**
  * Tenant boundary test helper.
@@ -836,14 +943,16 @@ export async function assertTenantBoundaryEnforced(
   if (attackerResponse.status !== 403) {
     throw new Error(
       `TENANT BOUNDARY VIOLATION: ${tc.method} ${tc.url} ` +
-      `returned ${attackerResponse.status} for attacker tenant ${tc.attackerTenantId}. ` +
-      `Expected 403.`,
+        `returned ${attackerResponse.status} for attacker tenant ${tc.attackerTenantId}. ` +
+        `Expected 403.`,
     );
   }
 
   const body = attackerResponse.body as { error?: { code?: string } };
-  if (body.error?.code !== 'TENANT_BOUNDARY_VIOLATION' &&
-      body.error?.code !== 'RBAC_INSUFFICIENT_ROLE') {
+  if (
+    body.error?.code !== 'TENANT_BOUNDARY_VIOLATION' &&
+    body.error?.code !== 'RBAC_INSUFFICIENT_ROLE'
+  ) {
     throw new Error(
       `Expected TENANT_BOUNDARY_VIOLATION error code, got: ${body.error?.code ?? 'none'}`,
     );
@@ -852,6 +961,7 @@ export async function assertTenantBoundaryEnforced(
 ```
 
 ### 3.27 tests/helpers/auth.helper.ts
+
 ```typescript
 import { sign } from 'jsonwebtoken';
 
@@ -917,6 +1027,7 @@ export const TEST_TOKENS = Object.fromEntries(
 ```
 
 ### 3.28 infra/postgres/rls_audit.sql
+
 ```sql
 -- Append-only enforcement for audit_events table.
 -- Run once after prisma migrate creates the table.
@@ -958,6 +1069,7 @@ pnpm install
 ```
 
 Verify workspace resolves all 9 packages:
+
 ```bash
 pnpm ls --depth 0 2>&1 | grep @sep
 # Must list: @sep/common, @sep/schemas, @sep/crypto, @sep/observability,
@@ -998,12 +1110,14 @@ pnpm --filter @sep/db exec prisma migrate dev --name init
 ```
 
 Verify all 17 tables exist:
+
 ```bash
 docker exec sep-postgres psql -U sep -d sep_dev -c "\dt" | grep -c "public"
 # Must output 17 or more
 ```
 
 Apply audit RLS:
+
 ```bash
 docker exec -i sep-postgres psql -U sep -d sep_dev < infra/postgres/rls_audit.sql
 # Must output: NOTICE:  audit_events RLS verified OK
@@ -1019,6 +1133,7 @@ pnpm --filter @sep/db exec prisma db seed
 ```
 
 Run seed a second time and verify counts are identical (idempotency check):
+
 ```bash
 pnpm --filter @sep/db exec prisma db seed
 ```
@@ -1034,6 +1149,7 @@ pnpm build
 ```
 
 If any package fails, isolate and fix:
+
 ```bash
 pnpm --filter @sep/<failing-package> build 2>&1 | head -60
 ```

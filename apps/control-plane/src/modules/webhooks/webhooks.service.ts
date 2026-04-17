@@ -85,7 +85,11 @@ export class WebhooksService {
     return webhook;
   }
 
-  async findAll(actor: TokenPayload, page: number, pageSize: number): Promise<{
+  async findAll(
+    actor: TokenPayload,
+    page: number,
+    pageSize: number,
+  ): Promise<{
     data: WebhookRow[];
     meta: { page: number; pageSize: number; total: number; totalPages: number };
   }> {

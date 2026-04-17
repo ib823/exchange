@@ -11,44 +11,68 @@ import { describe, it, expect } from 'vitest';
 const TIMEOUT = 30_000;
 
 describe('M3.0 install smoke — @sep/control-plane', () => {
-  it('imports nestjs-zod entry points (§7A)', async () => {
-    const mod = await import('nestjs-zod');
-    expect(typeof mod.createZodDto).toBe('function');
-    expect(typeof mod.ZodValidationPipe).toBe('function');
-    expect(typeof mod.cleanupOpenApiDoc).toBe('function');
-  }, TIMEOUT);
+  it(
+    'imports nestjs-zod entry points (§7A)',
+    async () => {
+      const mod = await import('nestjs-zod');
+      expect(typeof mod.createZodDto).toBe('function');
+      expect(typeof mod.ZodValidationPipe).toBe('function');
+      expect(typeof mod.cleanupOpenApiDoc).toBe('function');
+    },
+    TIMEOUT,
+  );
 
-  it('imports @node-rs/argon2 with expected surface (§7B, ADR-0002)', async () => {
-    const mod = await import('@node-rs/argon2');
-    expect(typeof mod.hash).toBe('function');
-    expect(typeof mod.verify).toBe('function');
-    // Algorithm is a `const enum`; under isolatedModules / preserveConstEnums=false
-    // it can only be accessed via property/index expressions, so assert a member
-    // value rather than the namespace object itself.
-    expect(mod.Algorithm.Argon2id).toBe(2);
-  }, TIMEOUT);
+  it(
+    'imports @node-rs/argon2 with expected surface (§7B, ADR-0002)',
+    async () => {
+      const mod = await import('@node-rs/argon2');
+      expect(typeof mod.hash).toBe('function');
+      expect(typeof mod.verify).toBe('function');
+      // Algorithm is a `const enum`; under isolatedModules / preserveConstEnums=false
+      // it can only be accessed via property/index expressions, so assert a member
+      // value rather than the namespace object itself.
+      expect(mod.Algorithm.Argon2id).toBe(2);
+    },
+    TIMEOUT,
+  );
 
-  it('imports @nestjs/throttler (install-only, wired M3)', async () => {
-    const mod = await import('@nestjs/throttler');
-    expect(typeof mod.ThrottlerModule).toBe('function');
-    expect(typeof mod.ThrottlerGuard).toBe('function');
-  }, TIMEOUT);
+  it(
+    'imports @nestjs/throttler (install-only, wired M3)',
+    async () => {
+      const mod = await import('@nestjs/throttler');
+      expect(typeof mod.ThrottlerModule).toBe('function');
+      expect(typeof mod.ThrottlerGuard).toBe('function');
+    },
+    TIMEOUT,
+  );
 
-  it('imports @fastify/rate-limit (install-only, wired M3)', async () => {
-    const mod = await import('@fastify/rate-limit');
-    expect(mod.default).toBeDefined();
-  }, TIMEOUT);
+  it(
+    'imports @fastify/rate-limit (install-only, wired M3)',
+    async () => {
+      const mod = await import('@fastify/rate-limit');
+      expect(mod.default).toBeDefined();
+    },
+    TIMEOUT,
+  );
 
-  it('imports otplib (install-only, wired M3 for MFA)', async () => {
-    // otplib v13 exports functional TOTP/HOTP API (no more `authenticator` namespace).
-    const mod = await import('otplib');
-    expect(typeof mod.generate).toBe('function');
-    expect(typeof mod.verify).toBe('function');
-    expect(mod.TOTP).toBeDefined();
-  }, TIMEOUT);
+  it(
+    'imports otplib (install-only, wired M3 for MFA)',
+    async () => {
+      // otplib v13 exports functional TOTP/HOTP API (no more `authenticator` namespace).
+      const mod = await import('otplib');
+      expect(typeof mod.generate).toBe('function');
+      expect(typeof mod.verify).toBe('function');
+      expect(mod.TOTP).toBeDefined();
+    },
+    TIMEOUT,
+  );
 
-  it('imports qrcode (install-only, wired M3 for MFA enrolment)', async () => {
-    const mod = await import('qrcode');
-    expect(typeof mod.toDataURL).toBe('function');
-  }, TIMEOUT);
+  it(
+    'imports qrcode (install-only, wired M3 for MFA enrolment)',
+    async () => {
+      const mod = await import('qrcode');
+      expect(typeof mod.toDataURL).toBe('function');
+    },
+    TIMEOUT,
+  );
 });

@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
-  PaginationSchema, CuidSchema, EnvironmentSchema, RoleSchema,
+  PaginationSchema,
+  CuidSchema,
+  EnvironmentSchema,
+  RoleSchema,
   KeyStateSchema,
 } from './shared.schema';
 
@@ -61,8 +64,14 @@ describe('EnvironmentSchema', () => {
 
 describe('RoleSchema', () => {
   it('accepts all 6 defined roles', () => {
-    const roles = ['PLATFORM_SUPER_ADMIN', 'TENANT_ADMIN', 'SECURITY_ADMIN',
-      'INTEGRATION_ENGINEER', 'OPERATIONS_ANALYST', 'COMPLIANCE_REVIEWER'];
+    const roles = [
+      'PLATFORM_SUPER_ADMIN',
+      'TENANT_ADMIN',
+      'SECURITY_ADMIN',
+      'INTEGRATION_ENGINEER',
+      'OPERATIONS_ANALYST',
+      'COMPLIANCE_REVIEWER',
+    ];
     for (const role of roles) {
       expect(RoleSchema.safeParse(role).success).toBe(true);
     }
@@ -71,7 +80,16 @@ describe('RoleSchema', () => {
 
 describe('KeyStateSchema', () => {
   it('accepts all defined key states', () => {
-    const states = ['DRAFT', 'IMPORTED', 'VALIDATED', 'ACTIVE', 'ROTATING', 'EXPIRED', 'REVOKED', 'RETIRED'];
+    const states = [
+      'DRAFT',
+      'IMPORTED',
+      'VALIDATED',
+      'ACTIVE',
+      'ROTATING',
+      'EXPIRED',
+      'REVOKED',
+      'RETIRED',
+    ];
     for (const state of states) {
       expect(KeyStateSchema.safeParse(state).success).toBe(true);
     }

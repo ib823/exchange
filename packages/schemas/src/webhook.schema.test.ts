@@ -23,10 +23,14 @@ describe('CreateWebhookSchema', () => {
   });
 
   it('rejects a secretRef longer than 500 chars', () => {
-    expect(CreateWebhookSchema.safeParse({ ...validBase, secretRef: 'x'.repeat(501) }).success).toBe(false);
+    expect(
+      CreateWebhookSchema.safeParse({ ...validBase, secretRef: 'x'.repeat(501) }).success,
+    ).toBe(false);
   });
 
   it('rejects a non-CUID tenantId', () => {
-    expect(CreateWebhookSchema.safeParse({ ...validBase, tenantId: 'not-a-cuid' }).success).toBe(false);
+    expect(CreateWebhookSchema.safeParse({ ...validBase, tenantId: 'not-a-cuid' }).success).toBe(
+      false,
+    );
   });
 });

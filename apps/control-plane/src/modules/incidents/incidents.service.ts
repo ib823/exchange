@@ -171,7 +171,11 @@ export class IncidentsService {
       }
 
       // Resolution required before RESOLVED
-      if (input.state === 'RESOLVED' && (input.resolution === undefined || input.resolution.length === 0) && (existing.resolution === null || existing.resolution.length === 0)) {
+      if (
+        input.state === 'RESOLVED' &&
+        (input.resolution === undefined || input.resolution.length === 0) &&
+        (existing.resolution === null || existing.resolution.length === 0)
+      ) {
         throw new SepError(ErrorCode.VALIDATION_SCHEMA_FAILED, {
           message: 'Resolution is required before transitioning to RESOLVED',
           currentState: existing.state,
@@ -181,12 +185,24 @@ export class IncidentsService {
     }
 
     const data: Record<string, unknown> = {};
-    if (input.severity !== undefined) { data.severity = input.severity as IncidentSeverity; }
-    if (input.title !== undefined) { data.title = input.title; }
-    if (input.description !== undefined) { data.description = input.description; }
-    if (input.assignedTo !== undefined) { data.assignedTo = input.assignedTo; }
-    if (input.state !== undefined) { data.state = input.state as IncidentState; }
-    if (input.resolution !== undefined) { data.resolution = input.resolution; }
+    if (input.severity !== undefined) {
+      data.severity = input.severity as IncidentSeverity;
+    }
+    if (input.title !== undefined) {
+      data.title = input.title;
+    }
+    if (input.description !== undefined) {
+      data.description = input.description;
+    }
+    if (input.assignedTo !== undefined) {
+      data.assignedTo = input.assignedTo;
+    }
+    if (input.state !== undefined) {
+      data.state = input.state as IncidentState;
+    }
+    if (input.resolution !== undefined) {
+      data.resolution = input.resolution;
+    }
     if (input.state === 'RESOLVED') {
       data.resolvedAt = new Date();
       data.resolvedBy = actor.userId;

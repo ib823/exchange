@@ -10,7 +10,12 @@
 import { SepError, ErrorCode } from '@sep/common';
 import { createLogger } from '@sep/observability';
 import { validateDeliveryEndpoint } from '../services/endpoint-validator';
-import type { ITransportConnector, ConnectorConfig, DeliveryContext, DeliveryResult } from './connector.interface';
+import type {
+  ITransportConnector,
+  ConnectorConfig,
+  DeliveryContext,
+  DeliveryResult,
+} from './connector.interface';
 
 const logger = createLogger({ service: 'data-plane', module: 'sftp-connector' });
 

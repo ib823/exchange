@@ -25,7 +25,9 @@ describe('CreateIncidentSchema', () => {
   });
 
   it('rejects an unknown severity', () => {
-    expect(CreateIncidentSchema.safeParse({ ...validCreate, severity: 'CRITICAL' }).success).toBe(false);
+    expect(CreateIncidentSchema.safeParse({ ...validCreate, severity: 'CRITICAL' }).success).toBe(
+      false,
+    );
   });
 
   it('rejects title shorter than 1 character', () => {
@@ -33,7 +35,9 @@ describe('CreateIncidentSchema', () => {
   });
 
   it('rejects non-CUID tenantId', () => {
-    expect(CreateIncidentSchema.safeParse({ ...validCreate, tenantId: 'not-a-cuid' }).success).toBe(false);
+    expect(CreateIncidentSchema.safeParse({ ...validCreate, tenantId: 'not-a-cuid' }).success).toBe(
+      false,
+    );
   });
 });
 
@@ -41,7 +45,9 @@ describe('UpdateIncidentSchema', () => {
   it('accepts partial updates (all fields optional)', () => {
     expect(UpdateIncidentSchema.safeParse({}).success).toBe(true);
     expect(UpdateIncidentSchema.safeParse({ state: 'TRIAGED' }).success).toBe(true);
-    expect(UpdateIncidentSchema.safeParse({ severity: 'P3', resolution: 'fixed' }).success).toBe(true);
+    expect(UpdateIncidentSchema.safeParse({ severity: 'P3', resolution: 'fixed' }).success).toBe(
+      true,
+    );
   });
 
   it('rejects an invalid state transition value', () => {

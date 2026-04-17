@@ -41,14 +41,26 @@ export interface CryptoAlgorithmPolicy {
  * These are checked before the allowlist: a forbidden algorithm is rejected
  * regardless of what appears in the allowed set.
  */
-export const FORBIDDEN_ALGORITHMS: string[] = [
-  'dsa', 'elgamal',
-];
+export const FORBIDDEN_ALGORITHMS: string[] = ['dsa', 'elgamal'];
 export const FORBIDDEN_CIPHERS: string[] = [
-  'des', '3des', 'tripledes', 'des-ede3', 'idea', 'rc4', 'rc2', 'blowfish', 'cast5',
+  'des',
+  '3des',
+  'tripledes',
+  'des-ede3',
+  'idea',
+  'rc4',
+  'rc2',
+  'blowfish',
+  'cast5',
 ];
 export const FORBIDDEN_HASHES: string[] = [
-  'sha1', 'sha-1', 'md5', 'md4', 'md2', 'ripemd160', 'ripemd-160',
+  'sha1',
+  'sha-1',
+  'md5',
+  'md4',
+  'md2',
+  'ripemd160',
+  'ripemd-160',
 ];
 
 export const DEFAULT_ALGORITHM_POLICY: CryptoAlgorithmPolicy = {
@@ -72,7 +84,18 @@ export interface KeyRef {
   /** Algorithm hint — used to select correct openpgp options */
   algorithm: string;
   /** Key lifecycle state — must be ACTIVE for any crypto operation */
-  state: 'DRAFT' | 'IMPORTED' | 'VALIDATED' | 'ACTIVE' | 'ROTATING' | 'EXPIRED' | 'REVOKED' | 'RETIRED' | 'SUSPENDED' | 'COMPROMISED' | 'DESTROYED';
+  state:
+    | 'DRAFT'
+    | 'IMPORTED'
+    | 'VALIDATED'
+    | 'ACTIVE'
+    | 'ROTATING'
+    | 'EXPIRED'
+    | 'REVOKED'
+    | 'RETIRED'
+    | 'SUSPENDED'
+    | 'COMPROMISED'
+    | 'DESTROYED';
   /** Operations this key is authorised for */
   allowedUsages: Array<'ENCRYPT' | 'DECRYPT' | 'SIGN' | 'VERIFY'>;
   /** Revocation timestamp — if set, key must not be used */
@@ -87,7 +110,7 @@ export interface KeyRef {
 export interface EncryptOptions {
   outputFormat: 'armored' | 'binary';
   compressionAlgorithm: string;
-  passwords?: never;         // Symmetric password encryption is not supported
+  passwords?: never; // Symmetric password encryption is not supported
 }
 
 export interface SignOptions {

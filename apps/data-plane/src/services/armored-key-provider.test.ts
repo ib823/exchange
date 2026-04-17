@@ -47,13 +47,15 @@ describe('ArmoredKeyMaterialProvider', () => {
   });
 
   it('throws KEY_BACKEND_UNAVAILABLE for non-PGP content', async () => {
-    await expect(provider.loadKeyMaterial('vault://secret/keys/test-key'))
-      .rejects.toThrow(expect.objectContaining({ code: 'KEY_BACKEND_UNAVAILABLE' }));
+    await expect(provider.loadKeyMaterial('vault://secret/keys/test-key')).rejects.toThrow(
+      expect.objectContaining({ code: 'KEY_BACKEND_UNAVAILABLE' }),
+    );
   });
 
   it('throws KEY_BACKEND_UNAVAILABLE for empty string', async () => {
-    await expect(provider.loadKeyMaterial(''))
-      .rejects.toThrow(expect.objectContaining({ code: 'KEY_BACKEND_UNAVAILABLE' }));
+    await expect(provider.loadKeyMaterial('')).rejects.toThrow(
+      expect.objectContaining({ code: 'KEY_BACKEND_UNAVAILABLE' }),
+    );
   });
 
   it('fingerprint matches openpgp.js extraction exactly', async () => {

@@ -16,9 +16,7 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Invalid or expired API key' })
   async token(@Headers('x-api-key') apiKey: string | undefined): Promise<AuthTokens> {
     if (apiKey === undefined || apiKey.trim() === '') {
-      throw new UnauthorizedException(
-        new SepError(ErrorCode.AUTH_API_KEY_INVALID).toClientJson(),
-      );
+      throw new UnauthorizedException(new SepError(ErrorCode.AUTH_API_KEY_INVALID).toClientJson());
     }
     const payload = await this.authService.validateApiKey(apiKey);
     return this.authService.issueToken(payload);

@@ -29,20 +29,19 @@ describe('validatePartnerProfile', () => {
   });
 
   it('rejects profile with missing required fields', () => {
-    expect(() => validatePartnerProfile({ name: 'Incomplete' }))
-      .toThrow('VALIDATION_SCHEMA_FAILED');
+    expect(() => validatePartnerProfile({ name: 'Incomplete' })).toThrow(
+      'VALIDATION_SCHEMA_FAILED',
+    );
   });
 
   it('rejects SFTP profile without sftp config', () => {
     const noSftpConfig = { ...validProfile, config: {} };
-    expect(() => validatePartnerProfile(noSftpConfig))
-      .toThrow('VALIDATION_SCHEMA_FAILED');
+    expect(() => validatePartnerProfile(noSftpConfig)).toThrow('VALIDATION_SCHEMA_FAILED');
   });
 
   it('rejects HTTPS profile without https config', () => {
     const httpsNoConfig = { ...validProfile, transportProtocol: 'HTTPS', config: {} };
-    expect(() => validatePartnerProfile(httpsNoConfig))
-      .toThrow('VALIDATION_SCHEMA_FAILED');
+    expect(() => validatePartnerProfile(httpsNoConfig)).toThrow('VALIDATION_SCHEMA_FAILED');
   });
 
   it('accepts HTTPS profile with https config', () => {

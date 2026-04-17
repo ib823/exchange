@@ -124,7 +124,11 @@ export class PartnerProfilesService {
     };
   }
 
-  async update(id: string, dto: UpdatePartnerProfileDto, actor: TokenPayload): Promise<PartnerProfileRow> {
+  async update(
+    id: string,
+    dto: UpdatePartnerProfileDto,
+    actor: TokenPayload,
+  ): Promise<PartnerProfileRow> {
     const existing = await this.assertTenantOwnership(id, actor.tenantId);
 
     if (existing.status !== 'DRAFT') {
@@ -142,7 +146,9 @@ export class PartnerProfilesService {
         ...(dto.name !== undefined && { name: dto.name }),
         ...(dto.partnerType !== undefined && { partnerType: dto.partnerType }),
         ...(dto.transportProtocol !== undefined && { transportProtocol: dto.transportProtocol }),
-        ...(dto.messageSecurityMode !== undefined && { messageSecurityMode: dto.messageSecurityMode }),
+        ...(dto.messageSecurityMode !== undefined && {
+          messageSecurityMode: dto.messageSecurityMode,
+        }),
         ...(dto.config !== undefined && { config: dto.config as Prisma.InputJsonValue }),
         ...(dto.notes !== undefined && { notes: dto.notes ?? null }),
         ...(dto.effectiveDate !== undefined && { effectiveDate: new Date(dto.effectiveDate) }),
@@ -163,7 +169,11 @@ export class PartnerProfilesService {
     return updated;
   }
 
-  async transition(id: string, targetStatus: string, actor: TokenPayload): Promise<PartnerProfileRow> {
+  async transition(
+    id: string,
+    targetStatus: string,
+    actor: TokenPayload,
+  ): Promise<PartnerProfileRow> {
     const existing = await this.assertTenantOwnership(id, actor.tenantId);
     const currentStatus = existing.status;
 

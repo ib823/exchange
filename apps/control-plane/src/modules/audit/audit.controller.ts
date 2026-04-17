@@ -36,13 +36,27 @@ export class AuditController {
       page: dto.page,
       pageSize: dto.pageSize,
     };
-    if (dto.objectType !== undefined) { searchParams.objectType = dto.objectType; }
-    if (dto.objectId !== undefined) { searchParams.objectId = dto.objectId; }
-    if (dto.action !== undefined) { searchParams.action = dto.action; }
-    if (dto.actorId !== undefined) { searchParams.actorId = dto.actorId; }
-    if (dto.correlationId !== undefined) { searchParams.correlationId = dto.correlationId; }
-    if (dto.from !== undefined) { searchParams.from = new Date(dto.from); }
-    if (dto.to !== undefined) { searchParams.to = new Date(dto.to); }
+    if (dto.objectType !== undefined) {
+      searchParams.objectType = dto.objectType;
+    }
+    if (dto.objectId !== undefined) {
+      searchParams.objectId = dto.objectId;
+    }
+    if (dto.action !== undefined) {
+      searchParams.action = dto.action;
+    }
+    if (dto.actorId !== undefined) {
+      searchParams.actorId = dto.actorId;
+    }
+    if (dto.correlationId !== undefined) {
+      searchParams.correlationId = dto.correlationId;
+    }
+    if (dto.from !== undefined) {
+      searchParams.from = new Date(dto.from);
+    }
+    if (dto.to !== undefined) {
+      searchParams.to = new Date(dto.to);
+    }
     return this.auditService.search(searchParams);
   }
 }

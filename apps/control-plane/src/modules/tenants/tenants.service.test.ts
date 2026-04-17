@@ -49,11 +49,25 @@ describe('TenantsService', () => {
 
   describe('create', () => {
     it('creates a tenant and records audit event', async () => {
-      const created = { id: 'tenant-new', name: 'ACME', legalEntityName: 'ACME Sdn Bhd', serviceTier: 'STANDARD', defaultRegion: 'ap-southeast-1', status: 'ACTIVE', createdAt: new Date(), updatedAt: new Date() };
+      const created = {
+        id: 'tenant-new',
+        name: 'ACME',
+        legalEntityName: 'ACME Sdn Bhd',
+        serviceTier: 'STANDARD',
+        defaultRegion: 'ap-southeast-1',
+        status: 'ACTIVE',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
       mockDb.tenant.create.mockResolvedValue(created);
 
       const result = await service.create(
-        { name: 'ACME', legalEntityName: 'ACME Sdn Bhd', serviceTier: 'STANDARD', defaultRegion: 'ap-southeast-1' },
+        {
+          name: 'ACME',
+          legalEntityName: 'ACME Sdn Bhd',
+          serviceTier: 'STANDARD',
+          defaultRegion: 'ap-southeast-1',
+        },
         adminActor,
       );
 
@@ -75,24 +89,22 @@ describe('TenantsService', () => {
     it('throws NotFoundException when tenant does not belong to actor', async () => {
       const tenant = { id: 'tenant-2', name: 'OTHER', status: 'ACTIVE' };
       mockDb.tenant.findUnique.mockResolvedValue(tenant);
-      await expect(
-        service.findById('tenant-2', tenantActor),
-      ).rejects.toThrow('Tenant not found');
+      await expect(service.findById('tenant-2', tenantActor)).rejects.toThrow('Tenant not found');
     });
 
     it('returns 404 (not 403) on cross-tenant access to prevent enumeration', async () => {
       const tenant = { id: 'tenant-2', name: 'OTHER', status: 'ACTIVE' };
       mockDb.tenant.findUnique.mockResolvedValue(tenant);
-      await expect(
-        service.findById('tenant-2', tenantActor),
-      ).rejects.toThrow(expect.objectContaining({ status: 404 }) as Error);
+      await expect(service.findById('tenant-2', tenantActor)).rejects.toThrow(
+        expect.objectContaining({ status: 404 }) as Error,
+      );
     });
 
     it('throws NotFoundException when tenant does not exist', async () => {
       mockDb.tenant.findUnique.mockResolvedValue(null);
-      await expect(
-        service.findById('tenant-missing', adminActor),
-      ).rejects.toThrow('Tenant not found');
+      await expect(service.findById('tenant-missing', adminActor)).rejects.toThrow(
+        'Tenant not found',
+      );
     });
 
     it('allows PLATFORM_SUPER_ADMIN to view any tenant', async () => {
@@ -122,9 +134,7 @@ describe('TenantsService', () => {
       const tenant = { id: 'tenant-2', status: 'ACTIVE' };
       mockDb.tenant.findUnique.mockResolvedValue(tenant);
 
-      await expect(
-        service.suspend('tenant-2', tenantActor),
-      ).rejects.toThrow('Tenant not found');
+      await expect(service.suspend('tenant-2', tenantActor)).rejects.toThrow('Tenant not found');
     });
 
     it('allows PLATFORM_SUPER_ADMIN to suspend any tenant', async () => {
@@ -140,7 +150,12 @@ describe('TenantsService', () => {
 
   describe('update', () => {
     it('updates tenant and records audit event', async () => {
-      const existing = { id: 'tenant-1', name: 'OLD', legalEntityName: 'OLD Sdn Bhd', status: 'ACTIVE' };
+      const existing = {
+        id: 'tenant-1',
+        name: 'OLD',
+        legalEntityName: 'OLD Sdn Bhd',
+        status: 'ACTIVE',
+      };
       const updated = { ...existing, name: 'NEW' };
       mockDb.tenant.findUnique.mockResolvedValue(existing);
       mockDb.tenant.update.mockResolvedValue(updated);

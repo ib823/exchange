@@ -5,10 +5,14 @@ import { describe, it, expect } from 'vitest';
 const TIMEOUT = 30_000;
 
 describe('M3.0 install smoke — @sep/crypto', () => {
-  it('imports @aws-sdk/client-kms (install-only, wired M3 via KeyCustodyAbstraction)', async () => {
-    const mod = await import('@aws-sdk/client-kms');
-    expect(typeof mod.KMSClient).toBe('function');
-    expect(typeof mod.SignCommand).toBe('function');
-    expect(typeof mod.VerifyCommand).toBe('function');
-  }, TIMEOUT);
+  it(
+    'imports @aws-sdk/client-kms (install-only, wired M3 via KeyCustodyAbstraction)',
+    async () => {
+      const mod = await import('@aws-sdk/client-kms');
+      expect(typeof mod.KMSClient).toBe('function');
+      expect(typeof mod.SignCommand).toBe('function');
+      expect(typeof mod.VerifyCommand).toBe('function');
+    },
+    TIMEOUT,
+  );
 });

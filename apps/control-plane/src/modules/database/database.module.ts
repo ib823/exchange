@@ -3,7 +3,9 @@ import { DatabaseService } from '@sep/db';
 
 @Global()
 @Module({
-  providers: [{ provide: DatabaseService, useFactory: (): DatabaseService => new DatabaseService() }],
+  providers: [
+    { provide: DatabaseService, useFactory: (): DatabaseService => new DatabaseService() },
+  ],
   exports: [DatabaseService],
 })
 export class DatabaseModule {}

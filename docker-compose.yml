@@ -16,12 +16,12 @@ services:
       POSTGRES_USER: sep
       POSTGRES_PASSWORD: sep
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U sep -d sep_dev"]
+      test: ['CMD-SHELL', 'pg_isready -U sep -d sep_dev']
       interval: 5s
       timeout: 5s
       retries: 10
@@ -37,11 +37,11 @@ services:
     container_name: sep-redis
     command: redis-server --appendonly yes --appendfsync everysec
     ports:
-      - "6379:6379"
+      - '6379:6379'
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
       timeout: 3s
       retries: 10
@@ -59,12 +59,12 @@ services:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
     ports:
-      - "9000:9000"    # API
-      - "9001:9001"    # Console UI
+      - '9000:9000' # API
+      - '9001:9001' # Console UI
     volumes:
       - minio_data:/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -103,11 +103,11 @@ services:
       VAULT_DEV_ROOT_TOKEN_ID: dev-root-token
       VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
     ports:
-      - "8200:8200"
+      - '8200:8200'
     cap_add:
       - IPC_LOCK
     healthcheck:
-      test: ["CMD", "vault", "status"]
+      test: ['CMD', 'vault', 'status']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -125,7 +125,7 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--web.enable-lifecycle'
     ports:
-      - "9090:9090"
+      - '9090:9090'
     volumes:
       - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
@@ -140,9 +140,9 @@ services:
     container_name: sep-grafana
     environment:
       GF_SECURITY_ADMIN_PASSWORD: admin
-      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_USERS_ALLOW_SIGN_UP: 'false'
     ports:
-      - "3100:3000"
+      - '3100:3000'
     volumes:
       - grafana_data:/var/lib/grafana
       - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro

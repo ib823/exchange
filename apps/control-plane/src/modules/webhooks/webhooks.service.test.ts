@@ -90,19 +90,15 @@ describe('WebhooksService', () => {
 
     it('throws NotFoundException for cross-tenant access (404, not 403)', async () => {
       mockDb.webhook.findUnique.mockResolvedValue(baseWebhook);
-      await expect(
-        service.findById('wh-1', crossTenantActor),
-      ).rejects.toThrow('Webhook not found');
-      await expect(
-        service.findById('wh-1', crossTenantActor),
-      ).rejects.toThrow(expect.objectContaining({ status: 404 }) as Error);
+      await expect(service.findById('wh-1', crossTenantActor)).rejects.toThrow('Webhook not found');
+      await expect(service.findById('wh-1', crossTenantActor)).rejects.toThrow(
+        expect.objectContaining({ status: 404 }) as Error,
+      );
     });
 
     it('throws NotFoundException when webhook does not exist', async () => {
       mockDb.webhook.findUnique.mockResolvedValue(null);
-      await expect(
-        service.findById('wh-missing', actor),
-      ).rejects.toThrow('Webhook not found');
+      await expect(service.findById('wh-missing', actor)).rejects.toThrow('Webhook not found');
     });
   });
 
@@ -128,7 +124,12 @@ describe('WebhooksService', () => {
     it('rejects webhook URL resolving to 127.0.0.1', async () => {
       await expect(
         service.create(
-          { tenantId: 'tenant-1', url: 'https://127.0.0.1/hook', events: ['SUBMISSION_COMPLETED'], secretRef: 'vault://s' },
+          {
+            tenantId: 'tenant-1',
+            url: 'https://127.0.0.1/hook',
+            events: ['SUBMISSION_COMPLETED'],
+            secretRef: 'vault://s',
+          },
           actor,
         ),
       ).rejects.toThrow('VALIDATION_SCHEMA_FAILED');
@@ -137,7 +138,12 @@ describe('WebhooksService', () => {
     it('rejects webhook URL resolving to 169.254.169.254 (cloud metadata)', async () => {
       await expect(
         service.create(
-          { tenantId: 'tenant-1', url: 'http://169.254.169.254/latest/meta-data/', events: ['SUBMISSION_COMPLETED'], secretRef: 'vault://s' },
+          {
+            tenantId: 'tenant-1',
+            url: 'http://169.254.169.254/latest/meta-data/',
+            events: ['SUBMISSION_COMPLETED'],
+            secretRef: 'vault://s',
+          },
           actor,
         ),
       ).rejects.toThrow('VALIDATION_SCHEMA_FAILED');
@@ -146,7 +152,12 @@ describe('WebhooksService', () => {
     it('rejects webhook URL resolving to 10.0.0.1 (private range)', async () => {
       await expect(
         service.create(
-          { tenantId: 'tenant-1', url: 'https://10.0.0.1/internal', events: ['SUBMISSION_COMPLETED'], secretRef: 'vault://s' },
+          {
+            tenantId: 'tenant-1',
+            url: 'https://10.0.0.1/internal',
+            events: ['SUBMISSION_COMPLETED'],
+            secretRef: 'vault://s',
+          },
           actor,
         ),
       ).rejects.toThrow('VALIDATION_SCHEMA_FAILED');
@@ -155,7 +166,12 @@ describe('WebhooksService', () => {
     it('rejects webhook URL to localhost', async () => {
       await expect(
         service.create(
-          { tenantId: 'tenant-1', url: 'https://localhost/hook', events: ['SUBMISSION_COMPLETED'], secretRef: 'vault://s' },
+          {
+            tenantId: 'tenant-1',
+            url: 'https://localhost/hook',
+            events: ['SUBMISSION_COMPLETED'],
+            secretRef: 'vault://s',
+          },
           actor,
         ),
       ).rejects.toThrow('VALIDATION_SCHEMA_FAILED');
@@ -164,7 +180,12 @@ describe('WebhooksService', () => {
     it('accepts a valid public webhook URL', async () => {
       mockDb.webhook.create.mockResolvedValue(baseWebhook);
       const result = await service.create(
-        { tenantId: 'tenant-1', url: 'https://hooks.example.com/events', events: ['SUBMISSION_COMPLETED'], secretRef: 'vault://s' },
+        {
+          tenantId: 'tenant-1',
+          url: 'https://hooks.example.com/events',
+          events: ['SUBMISSION_COMPLETED'],
+          secretRef: 'vault://s',
+        },
         actor,
       );
       expect(result).toEqual(baseWebhook);

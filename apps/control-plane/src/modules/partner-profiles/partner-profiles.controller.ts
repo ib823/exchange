@@ -1,9 +1,23 @@
 import {
-  Controller, Get, Post, Patch, Body, Param, Query,
-  DefaultValuePipe, ParseIntPipe, Request, HttpCode,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Body,
+  Param,
+  Query,
+  DefaultValuePipe,
+  ParseIntPipe,
+  Request,
+  HttpCode,
 } from '@nestjs/common';
 import {
-  ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery,
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiParam,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { createZodDto } from 'nestjs-zod';
 import {
@@ -42,7 +56,14 @@ export class PartnerProfilesController {
   }
 
   @Get()
-  @Roles('PLATFORM_SUPER_ADMIN', 'TENANT_ADMIN', 'SECURITY_ADMIN', 'INTEGRATION_ENGINEER', 'OPERATIONS_ANALYST', 'COMPLIANCE_REVIEWER')
+  @Roles(
+    'PLATFORM_SUPER_ADMIN',
+    'TENANT_ADMIN',
+    'SECURITY_ADMIN',
+    'INTEGRATION_ENGINEER',
+    'OPERATIONS_ANALYST',
+    'COMPLIANCE_REVIEWER',
+  )
   @ApiOperation({ summary: 'List partner profiles' })
   @ApiQuery({ name: 'status', required: false })
   @ApiQuery({ name: 'environment', required: false })
@@ -55,13 +76,22 @@ export class PartnerProfilesController {
     @Request() req?: FastifyRequest & { user: TokenPayload },
   ): Promise<unknown> {
     if (req === undefined) {
-      throw new SepError(ErrorCode.RBAC_INSUFFICIENT_ROLE, { message: 'Missing authentication context' });
+      throw new SepError(ErrorCode.RBAC_INSUFFICIENT_ROLE, {
+        message: 'Missing authentication context',
+      });
     }
     return this.service.findAll(req.user, page, pageSize, { status, environment });
   }
 
   @Get(':profileId')
-  @Roles('PLATFORM_SUPER_ADMIN', 'TENANT_ADMIN', 'SECURITY_ADMIN', 'INTEGRATION_ENGINEER', 'OPERATIONS_ANALYST', 'COMPLIANCE_REVIEWER')
+  @Roles(
+    'PLATFORM_SUPER_ADMIN',
+    'TENANT_ADMIN',
+    'SECURITY_ADMIN',
+    'INTEGRATION_ENGINEER',
+    'OPERATIONS_ANALYST',
+    'COMPLIANCE_REVIEWER',
+  )
   @ApiOperation({ summary: 'Get partner profile by ID' })
   @ApiParam({ name: 'profileId', type: String })
   @ApiResponse({ status: 200, description: 'Partner profile detail' })

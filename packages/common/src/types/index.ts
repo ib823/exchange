@@ -11,12 +11,24 @@ export type PartnerProfileId = Brand<string, 'PartnerProfileId'>;
 export type IncidentId = Brand<string, 'IncidentId'>;
 export type ApprovalId = Brand<string, 'ApprovalId'>;
 
-export function asTenantId(s: string): TenantId { return s as TenantId; }
-export function asUserId(s: string): UserId { return s as UserId; }
-export function asSubmissionId(s: string): SubmissionId { return s as SubmissionId; }
-export function asCorrelationId(s: string): CorrelationId { return s as CorrelationId; }
-export function asKeyReferenceId(s: string): KeyReferenceId { return s as KeyReferenceId; }
-export function asPartnerProfileId(s: string): PartnerProfileId { return s as PartnerProfileId; }
+export function asTenantId(s: string): TenantId {
+  return s as TenantId;
+}
+export function asUserId(s: string): UserId {
+  return s as UserId;
+}
+export function asSubmissionId(s: string): SubmissionId {
+  return s as SubmissionId;
+}
+export function asCorrelationId(s: string): CorrelationId {
+  return s as CorrelationId;
+}
+export function asKeyReferenceId(s: string): KeyReferenceId {
+  return s as KeyReferenceId;
+}
+export function asPartnerProfileId(s: string): PartnerProfileId {
+  return s as PartnerProfileId;
+}
 
 // ── Pagination ────────────────────────────────────────────────────────────────
 export interface PaginationParams {
@@ -152,11 +164,11 @@ export interface SubmissionJob {
   readonly tenantId: TenantId;
   readonly submissionId: SubmissionId;
   readonly partnerProfileId: PartnerProfileId;
-  readonly payloadRef: string;         // Object storage key — not the content
-  readonly normalizedHash: string;     // SHA-256 of payload
+  readonly payloadRef: string; // Object storage key — not the content
+  readonly normalizedHash: string; // SHA-256 of payload
   readonly attempt: number;
-  readonly enqueuedAt: string;         // ISO 8601
-  readonly actorId: string;            // Originating actor — preserved through retries
+  readonly enqueuedAt: string; // ISO 8601
+  readonly actorId: string; // Originating actor — preserved through retries
   readonly actorRole: string;
   readonly credentialId?: string | undefined;
   readonly sourceSystemId?: string | undefined;
@@ -169,7 +181,7 @@ export interface CryptoJob extends SubmissionJob {
 }
 
 export interface DeliveryJob extends SubmissionJob {
-  readonly securedPayloadRef: string;  // Object storage key of the secured payload
+  readonly securedPayloadRef: string; // Object storage key of the secured payload
   readonly connectorType: 'SFTP' | 'HTTPS' | 'AS2';
 }
 

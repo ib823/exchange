@@ -5,7 +5,7 @@
 **Owner:** Platform engineering
 **Est. duration:** 3–5 engineer-days
 **Prerequisite:** M2 closed (PLANS.md) and hostile audit artefacts committed
-**Next milestone:** M3 — Security & Trust Controls (detailed plan written *after* M3.0 lands)
+**Next milestone:** M3 — Security & Trust Controls (detailed plan written _after_ M3.0 lands)
 
 ---
 
@@ -13,7 +13,7 @@
 
 **Swap dependencies and replace auth/validation primitives so that M3 executes against a current, well-maintained, finding-reducing stack. Nothing more.**
 
-M3.0 is a *reset*, not a *build*. It does not close security findings that require architectural change (RLS, Vault, audit coupling, MFA). It closes the findings that are purely dependency-shaped: CI pinning, SCA gate, version drift, deprecated-class-warnings, single-maintainer risk, missing pre-commit hygiene.
+M3.0 is a _reset_, not a _build_. It does not close security findings that require architectural change (RLS, Vault, audit coupling, MFA). It closes the findings that are purely dependency-shaped: CI pinning, SCA gate, version drift, deprecated-class-warnings, single-maintainer risk, missing pre-commit hygiene.
 
 If during execution a temptation arises to "also fix X while we're here," the answer is **no**. X goes into M3, M3.5, M4, M5, or M6 per the acceptance register. The discipline of a narrow reset is what makes the rest of the plan tractable.
 
@@ -23,22 +23,22 @@ If during execution a temptation arises to "also fix X while we're here," the an
 
 This milestone does **NOT** do any of the following. Each is deferred to its stated milestone:
 
-| Deferred item | Milestone | Finding IDs |
-|---|---|---|
-| Row-level security on tenant-scoped tables | M3 | R2-001, R3-001 |
-| Vault integration / real key custody | M3 | R6-001 |
-| Audit write transactional coupling | M3 | R2-002 |
-| MFA, refresh-token rotation, lockout | M3 | R3-002, R3-004 |
-| 90-day key expiry tier | M3 | R6-003 |
-| Threat scenario test suite (14 scenarios) | M3 | CLAUDE.md §M3.7 |
-| Real SFTP/HTTPS connector wiring | M3.5 | transport STUB findings |
-| Real S3 object storage wiring | M3.5 | storage ABSENT findings |
-| Metrics HTTP endpoint exposure | M4 | R7-001 |
-| Runbooks / DR procedures | M5 | R7-003 |
-| Regulatory evidence matrices (BNM/PDPA/LHDN) | M5 | R8-002, R8-003, R8-004 |
-| Incident reporting workflow (Cyber Security Act 2024) | M4 (needs owner assigned) | R8-001 |
-| SBOM signing + provenance attestation | M6 | R5-003 |
-| SLOs + alert rules | M6 | R7-002 |
+| Deferred item                                         | Milestone                 | Finding IDs             |
+| ----------------------------------------------------- | ------------------------- | ----------------------- |
+| Row-level security on tenant-scoped tables            | M3                        | R2-001, R3-001          |
+| Vault integration / real key custody                  | M3                        | R6-001                  |
+| Audit write transactional coupling                    | M3                        | R2-002                  |
+| MFA, refresh-token rotation, lockout                  | M3                        | R3-002, R3-004          |
+| 90-day key expiry tier                                | M3                        | R6-003                  |
+| Threat scenario test suite (14 scenarios)             | M3                        | CLAUDE.md §M3.7         |
+| Real SFTP/HTTPS connector wiring                      | M3.5                      | transport STUB findings |
+| Real S3 object storage wiring                         | M3.5                      | storage ABSENT findings |
+| Metrics HTTP endpoint exposure                        | M4                        | R7-001                  |
+| Runbooks / DR procedures                              | M5                        | R7-003                  |
+| Regulatory evidence matrices (BNM/PDPA/LHDN)          | M5                        | R8-002, R8-003, R8-004  |
+| Incident reporting workflow (Cyber Security Act 2024) | M4 (needs owner assigned) | R8-001                  |
+| SBOM signing + provenance attestation                 | M6                        | R5-003                  |
+| SLOs + alert rules                                    | M6                        | R7-002                  |
 
 If any M3.0 task appears to require one of the above, **stop and escalate** — it means scope has leaked.
 
@@ -49,6 +49,7 @@ If any M3.0 task appears to require one of the above, **stop and escalate** — 
 Executing this plan closes or partially closes the following findings:
 
 **Fully closed:**
+
 - R1-001 (CI SHA-pinning)
 - R5-001 (exact-pinning production deps)
 - R5-002 (working SCA gate)
@@ -58,12 +59,14 @@ Executing this plan closes or partially closes the following findings:
 - NEW-TEST-COUNT (PLANS.md truth correction)
 
 **Partially closed:**
+
 - R1-004 (adds `.dockerignore` + lefthook; credential scrub deferred to M3 if any survive)
 - R4-002 (nestjs-zod eliminates body casts at controller boundary; processor casts remain for M3)
 - R5-003 (SBOM generation wired; signing + provenance deferred to M6)
 - NEW-08 (OTEL installed; full wiring deferred to M3)
 
 **Setup work for M3:**
+
 - Installs (but does not wire) `@aws-sdk/client-s3`, `@aws-sdk/client-kms`, OTEL cluster, `@nestjs/throttler`, `otplib`, `testcontainers`, `msw`, `clamscan`. Each is unused until M3/M3.5 consumes it.
 
 ---
@@ -94,6 +97,7 @@ git checkout -b m3.0/foundation-reset
 ```
 
 **Baseline expectations to record** (from forensic report §6.1):
+
 - Test count: 289 (actual, per audit grep — not 330 as PLANS.md claims)
 - Test files: 30
 - Packages: 8
@@ -132,19 +136,19 @@ Upgrade pinned-old packages. Pin to **exact** versions (not caret ranges) for pr
 
 **Resolution policy:** At execution time, run `pnpm view <pkg> version` to get the latest stable, then pin that exact version. Do not hallucinate versions from this document — the numbers below are floor-constraints, not targets.
 
-| Package | Current | Target (floor) | Rationale |
-|---|---|---|---|
-| `vitest` | 1.6.1 | `>=3.0.0` | Closes dev-only CVE bundle; 2× faster; blocks advisory closure today |
-| `@vitest/coverage-v8` | 1.6.1 | match vitest | — |
-| `prisma` | 5.11.0 | `>=5.22.0` (stay on 5.x) | Fixes `$transaction` timeout handling needed for R2-002 in M3; 6.x defer to post-Phase-1 |
-| `@prisma/client` | 5.11.0 | match prisma | — |
-| `pino` | 8.19.0 | `>=9.0.0` | Current major; redaction semantics unchanged |
-| `zod` | 3.22.4 | `>=3.23.0` (or 4.x if team is comfortable — see §15 gotcha 3) | Stabilises out-of-preview types; reduces `as unknown as` at boundaries |
-| `typescript` | 5.4.x | `>=5.6.0` | Inference improvements; no breaking changes expected for this codebase |
-| `openpgp` | 5.11.0 / 5.11.3 | align to one exact `5.11.3` | Close NEW-09 drift; do not jump to 6.x in M3.0 |
-| `fastify` | 5.8.4 | exact-pin at installed version | Already current — exact-pin only |
-| `@fastify/helmet` | 13.0.2 | exact-pin | — |
-| `ssh2-sftp-client` | 9.1.0 | exact-pin | Will be consumed in M3.5; pin now |
+| Package               | Current         | Target (floor)                                                | Rationale                                                                                |
+| --------------------- | --------------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `vitest`              | 1.6.1           | `>=3.0.0`                                                     | Closes dev-only CVE bundle; 2× faster; blocks advisory closure today                     |
+| `@vitest/coverage-v8` | 1.6.1           | match vitest                                                  | —                                                                                        |
+| `prisma`              | 5.11.0          | `>=5.22.0` (stay on 5.x)                                      | Fixes `$transaction` timeout handling needed for R2-002 in M3; 6.x defer to post-Phase-1 |
+| `@prisma/client`      | 5.11.0          | match prisma                                                  | —                                                                                        |
+| `pino`                | 8.19.0          | `>=9.0.0`                                                     | Current major; redaction semantics unchanged                                             |
+| `zod`                 | 3.22.4          | `>=3.23.0` (or 4.x if team is comfortable — see §15 gotcha 3) | Stabilises out-of-preview types; reduces `as unknown as` at boundaries                   |
+| `typescript`          | 5.4.x           | `>=5.6.0`                                                     | Inference improvements; no breaking changes expected for this codebase                   |
+| `openpgp`             | 5.11.0 / 5.11.3 | align to one exact `5.11.3`                                   | Close NEW-09 drift; do not jump to 6.x in M3.0                                           |
+| `fastify`             | 5.8.4           | exact-pin at installed version                                | Already current — exact-pin only                                                         |
+| `@fastify/helmet`     | 13.0.2          | exact-pin                                                     | —                                                                                        |
+| `ssh2-sftp-client`    | 9.1.0           | exact-pin                                                     | Will be consumed in M3.5; pin now                                                        |
 
 ```bash
 # Example execution pattern — DO NOT COPY VERSIONS LITERALLY
@@ -163,6 +167,7 @@ pnpm add -E -F @sep/data-plane openpgp@5.11.3
 ```
 
 **Verify upgrades** after each block:
+
 ```bash
 pnpm list --depth=0 -r | grep -E 'vitest|prisma|pino|zod|typescript|openpgp|fastify'
 ```
@@ -234,15 +239,15 @@ pnpm add -E -D -w lefthook
 
 These were considered and **deliberately deferred**. Each has an ADR commitment in §13.
 
-| Not adopted | Reason | Revisit |
-|---|---|---|
-| Effect-TS | Steep learning curve; solo-author codebase can't absorb | M5+ if orchestration complexity demands |
-| Temporal | Operational weight; BullMQ sufficient for M3/M4 patterns | M5 Partner Packs |
-| Drizzle ORM | Switching cost > benefit post-M2 | Future project |
-| Biome | Custom ESLint rules tuned for security; Biome parity not yet there | M6 |
-| `node-vault` | Single-maintainer, stale | Replaced by custom thin Vault client in M3 |
-| Pact | Wrong tool for external partner contracts (consumer-driven model doesn't fit) | Replaced by MSW |
-| Zod 4.x (if not adopted above) | Migration edges; team familiarity with 3.x | Post-Phase 1 |
+| Not adopted                    | Reason                                                                        | Revisit                                    |
+| ------------------------------ | ----------------------------------------------------------------------------- | ------------------------------------------ |
+| Effect-TS                      | Steep learning curve; solo-author codebase can't absorb                       | M5+ if orchestration complexity demands    |
+| Temporal                       | Operational weight; BullMQ sufficient for M3/M4 patterns                      | M5 Partner Packs                           |
+| Drizzle ORM                    | Switching cost > benefit post-M2                                              | Future project                             |
+| Biome                          | Custom ESLint rules tuned for security; Biome parity not yet there            | M6                                         |
+| `node-vault`                   | Single-maintainer, stale                                                      | Replaced by custom thin Vault client in M3 |
+| Pact                           | Wrong tool for external partner contracts (consumer-driven model doesn't fit) | Replaced by MSW                            |
+| Zod 4.x (if not adopted above) | Migration edges; team familiarity with 3.x                                    | Post-Phase 1                               |
 
 ---
 
@@ -255,12 +260,14 @@ The dependency changes in §4–6 break compilation. The following swaps are the
 **Scope:** Every NestJS controller using `@Body(dtoClass)` with a class-validator DTO.
 
 **Inventory command** (run this first to enumerate):
+
 ```bash
 grep -rn "class-validator\|class-transformer\|IsString\|IsEnum\|IsEmail\|IsUUID\|Transform\b" \
   apps/control-plane/src packages/*/src --include='*.ts' | grep -v node_modules
 ```
 
 **Pattern — before:**
+
 ```typescript
 // apps/control-plane/src/modules/submissions/dto/create-submission.dto.ts
 import { IsString, IsEnum, IsUUID } from 'class-validator';
@@ -275,6 +282,7 @@ export class CreateSubmissionDto {
 ```
 
 **Pattern — after:**
+
 ```typescript
 // DELETE the DTO class file. Use existing Zod schema from packages/schemas.
 // apps/control-plane/src/modules/submissions/submissions.controller.ts
@@ -295,19 +303,22 @@ class CreateSubmissionDto extends createZodDto(CreateSubmissionSchema) {}
 **Scope:** Every `bcrypt.hash()` / `bcrypt.compare()` callsite.
 
 **Inventory command:**
+
 ```bash
 grep -rn "bcrypt\.hash\|bcrypt\.compare\|require('bcrypt')\|from 'bcrypt'" \
   apps/ packages/ --include='*.ts' | grep -v node_modules
 ```
 
 **Pattern — before:**
+
 ```typescript
 import bcrypt from 'bcrypt';
 const hash = await bcrypt.hash(plaintext, 12);
-const ok   = await bcrypt.compare(plaintext, hash);
+const ok = await bcrypt.compare(plaintext, hash);
 ```
 
 **Pattern — after:**
+
 ```typescript
 import argon2 from '@node-rs/argon2';
 // OWASP-recommended parameters (April 2026): memoryCost=19456 KiB, timeCost=2, parallelism=1
@@ -321,6 +332,7 @@ const ok = await argon2.verify(hash, plaintext);
 ```
 
 **Migration note:** bcrypt and argon2 hashes are **not cross-compatible**. Because Phase 1 has no production users yet:
+
 - Clear all seeded user/API-key records.
 - Update `packages/db/prisma/seed.ts` to hash with argon2.
 - Re-run `pnpm db:seed` after migration.
@@ -332,12 +344,14 @@ If any environment has real credentials (do not assume), **stop** and design a d
 **Scope:** Remove `PassportModule`, `passport-jwt` strategy, `AuthGuard('jwt')` usages. Replace with a custom guard.
 
 **Inventory command:**
+
 ```bash
 grep -rn "PassportModule\|passport-jwt\|AuthGuard('jwt')\|AuthGuard(\"jwt\")" \
   apps/control-plane/src --include='*.ts' | grep -v node_modules
 ```
 
 **Pattern — after** (single custom guard file):
+
 ```typescript
 // apps/control-plane/src/common/guards/jwt-auth.guard.ts
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
@@ -355,7 +369,8 @@ export class JwtAuthGuard implements CanActivate {
 
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
-      ctx.getHandler(), ctx.getClass(),
+      ctx.getHandler(),
+      ctx.getClass(),
     ]);
     if (isPublic) return true;
 
@@ -376,6 +391,7 @@ export class JwtAuthGuard implements CanActivate {
 ```
 
 **AuthModule change:**
+
 ```typescript
 // Before
 imports: [PassportModule.register({ defaultStrategy: 'jwt' }), JwtModule.register({...})]
@@ -385,13 +401,14 @@ imports: [JwtModule.register({ secret: config.jwt.secret, signOptions: { algorit
 ```
 
 **Guard registration** (APP_GUARD):
+
 ```typescript
 // apps/control-plane/src/app.module.ts
 providers: [
-  { provide: APP_GUARD, useClass: JwtAuthGuard },  // runs first
-  { provide: APP_GUARD, useClass: TenantGuard },   // then tenant scoping
-  { provide: APP_GUARD, useClass: RolesGuard },    // then RBAC
-]
+  { provide: APP_GUARD, useClass: JwtAuthGuard }, // runs first
+  { provide: APP_GUARD, useClass: TenantGuard }, // then tenant scoping
+  { provide: APP_GUARD, useClass: RolesGuard }, // then RBAC
+];
 ```
 
 **Note:** Refresh-token rotation, lockout, and MFA are **M3**, not M3.0. The above is a like-for-like replacement with no auth-lifecycle improvements.
@@ -424,6 +441,7 @@ SwaggerModule.setup('api/docs', app, doc);
 ### 8.1 SHA-pin all GitHub Actions (closes R1-001)
 
 **Inventory:**
+
 ```bash
 grep -rn "uses: " .github/workflows/ | grep -v "# pinned" | awk -F"uses: " '{print $2}' | sort -u
 ```
@@ -431,6 +449,7 @@ grep -rn "uses: " .github/workflows/ | grep -v "# pinned" | awk -F"uses: " '{pri
 Expected output: ~32 lines with `@v*` references (one is already SHA-pinned per forensic report §2.2).
 
 **Resolution:** For each action, look up the current SHA for the released tag:
+
 ```bash
 # Example
 gh api repos/actions/checkout/commits/v4 --jq .sha
@@ -438,13 +457,15 @@ gh api repos/actions/checkout/commits/v4 --jq .sha
 ```
 
 **Replace pattern — before:**
+
 ```yaml
 - uses: actions/checkout@v4
 ```
 
 **After:**
+
 ```yaml
-- uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+- uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
 ```
 
 The trailing comment is **mandatory** so humans can read the pin.
@@ -455,10 +476,10 @@ The trailing comment is **mandatory** so humans can read the pin.
 # .github/dependabot.yml
 version: 2
 updates:
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule: { interval: "weekly" }
-    target-branch: "main"
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule: { interval: 'weekly' }
+    target-branch: 'main'
 ```
 
 Dependabot natively handles SHA pinning with tag comments.
@@ -468,6 +489,7 @@ Dependabot natively handles SHA pinning with tag comments.
 Current CI runs `pnpm audit --audit-level=high` which returns HTTP 410 for the npm registry path pnpm uses. Replace with `osv-scanner` (Google, OSS, actively maintained, handles the full ecosystem).
 
 **Remove from `.github/workflows/ci.yml`:**
+
 ```yaml
 # DELETE this step
 - name: Dependency audit
@@ -475,9 +497,10 @@ Current CI runs `pnpm audit --audit-level=high` which returns HTTP 410 for the n
 ```
 
 **Add:**
+
 ```yaml
 - name: Dependency audit (OSV Scanner)
-  uses: google/osv-scanner-action@<pin-to-SHA>  # see §8.1 for SHA resolution
+  uses: google/osv-scanner-action@<pin-to-SHA> # see §8.1 for SHA resolution
   with:
     scan-args: |-
       --recursive
@@ -488,6 +511,7 @@ Current CI runs `pnpm audit --audit-level=high` which returns HTTP 410 for the n
 ```
 
 **Alternative if OSV-Scanner false-positives:** `audit-ci` (supports --allowlist for acknowledged advisories):
+
 ```bash
 pnpm add -E -D -w audit-ci
 # In CI: npx audit-ci --high --package-manager pnpm
@@ -526,6 +550,7 @@ sbom:
 ### 8.4 Keep unchanged
 
 The following CI items stay as-is — they are correct and changing them is out of scope:
+
 - `trufflesecurity/trufflehog` (already SHA-pinned, working)
 - Build matrix structure
 - Artefact upload/download (integrity verification is M6 scope — R1-002)
@@ -550,13 +575,13 @@ pre-commit:
   parallel: true
   commands:
     typecheck-staged:
-      glob: "*.{ts,tsx}"
+      glob: '*.{ts,tsx}'
       run: pnpm exec tsc --noEmit -p tsconfig.base.json
       # Project-wide typecheck — alternative: use tsc-files for staged-only
       # Pick one at execution; project-wide is safer, staged is faster
 
     lint-staged:
-      glob: "*.{ts,tsx}"
+      glob: '*.{ts,tsx}'
       run: pnpm exec eslint {staged_files}
 
     gitleaks:
@@ -570,7 +595,7 @@ commit-msg:
     lint-commit-message:
       run: |
         head -1 {1} | grep -qE '^(feat|fix|docs|test|chore|refactor|ci|build|perf)(\(.+\))?: .+'
-      fail_text: "Commit message must follow conventional-commits prefix"
+      fail_text: 'Commit message must follow conventional-commits prefix'
 
 pre-push:
   commands:
@@ -580,14 +605,17 @@ pre-push:
 ```
 
 **Document in `CONTRIBUTING.md`** (create if absent):
+
 ```markdown
 ## Pre-commit hooks
+
 This repo uses [lefthook](https://github.com/evilmartians/lefthook) for pre-commit gates.
 After `pnpm install`, hooks are installed automatically via the `prepare` script.
 To skip hooks for a specific commit (emergency only): `git commit --no-verify`.
 ```
 
 **Add to root `package.json`:**
+
 ```json
 {
   "scripts": {
@@ -664,7 +692,7 @@ storage: z.object({
   region: z.string().default('ap-southeast-1'),
   myResidency: z.boolean().default(false), // NEW — pins this tenant to MY-region buckets when true
   // ... existing fields
-})
+});
 ```
 
 **Do not yet wire the enforcement** — that's M3 work once RLS and tenant-scoped config resolution are in place. M3.0 only adds the schema field and documents the intent.
@@ -693,6 +721,7 @@ Close NEW-09 (openpgp drift) and establish single-source-of-truth for cross-pack
 ```
 
 **Regenerate lockfile:**
+
 ```bash
 rm -rf node_modules
 pnpm install
@@ -706,11 +735,13 @@ pnpm list openpgp -r    # should show single version across all packages
 **Edit `PLANS.md`:**
 
 Find line 16:
+
 ```markdown
 | Post-M2 remediation | 🟢 COMPLETE | Yes | 4 gate blockers + 2 coupled defects. 330 tests across 30 files. 2026-04-13. |
 ```
 
 Replace with (substituting actual post-M3.0 test count):
+
 ```markdown
 | Post-M2 remediation | 🟢 COMPLETE | Yes | 4 gate blockers + 2 coupled defects. 289 tests across 30 files (corrected 2026-04-17 in M3.0 audit reconciliation; prior "330" figure was a miscount). 2026-04-13. |
 ```
@@ -718,6 +749,7 @@ Replace with (substituting actual post-M3.0 test count):
 Find line 183 if present (similar claim) — apply same correction.
 
 **Record in commit message:**
+
 ```
 chore(m3.0): correct PLANS.md test count claim (330→289)
 
@@ -731,7 +763,7 @@ to be a miscount at the time of the post-M2 closure log entry.
 
 ## 13. Architectural Decision Records
 
-Create `docs/adr/` if absent and add the following ADRs. ADRs are short (< 1 page each) and record *why we didn't do X* as much as *why we did Y*.
+Create `docs/adr/` if absent and add the following ADRs. ADRs are short (< 1 page each) and record _why we didn't do X_ as much as _why we did Y_.
 
 ### ADR-0001: Zod-everywhere validation strategy
 
@@ -757,7 +789,7 @@ Create `docs/adr/` if absent and add the following ADRs. ADRs are short (< 1 pag
 ### ADR-0004: Reject `node-vault`, adopt custom thin HTTP client in M3
 
 **Status:** Decided (M3.0), implemented (M3)
-**Context:** `node-vault` npm package is effectively single-maintainer; last major release >2 years ago. The Vault HTTP API surface we need is tiny (kv/data/*, transit/sign, transit/verify).
+**Context:** `node-vault` npm package is effectively single-maintainer; last major release >2 years ago. The Vault HTTP API surface we need is tiny (kv/data/\*, transit/sign, transit/verify).
 **Decision:** In M3, build a ~200-line Vault client using `undici` fetch. Pair with `@aws-sdk/client-kms` for AWS-native tenants.
 **Consequences:** Own the Vault client code. Less supply-chain exposure. `KeyCustodyAbstraction` retains its 3-backend shape (Vault, AWS KMS, future Azure KV).
 
@@ -766,12 +798,13 @@ Create `docs/adr/` if absent and add the following ADRs. ADRs are short (< 1 pag
 **Status:** Not adopted in Phase 1
 **Context:** Each was considered and rejected for Phase 1, with specific re-evaluation milestones.
 **Decision:**
+
 - **Effect-TS** — re-evaluate at M5 if orchestration complexity emerges
 - **Temporal** — re-evaluate at M5 when hours-long-ack-poll patterns appear
 - **Drizzle** — permanent rejection; 18 Prisma models + migrations sunk cost too high
 - **Biome** — re-evaluate at M6; custom ESLint security rules currently have no Biome equivalent
 - **Zod 4.x** — re-evaluate after Zod 3.23+ stabilises in production for one milestone
-**Consequences:** This ADR exists so future contributors don't have to re-litigate.
+  **Consequences:** This ADR exists so future contributors don't have to re-litigate.
 
 ---
 
@@ -780,6 +813,7 @@ Create `docs/adr/` if absent and add the following ADRs. ADRs are short (< 1 pag
 M3.0 is **complete** when every item below is checked AND a one-paragraph handoff note is produced (see §15).
 
 ### Build health
+
 - [ ] `pnpm install --frozen-lockfile` exits 0
 - [ ] `pnpm run typecheck` exits 0 across all workspaces
 - [ ] `pnpm run lint` exits 0 (strict ESLint unchanged)
@@ -789,6 +823,7 @@ M3.0 is **complete** when every item below is checked AND a one-paragraph handof
 - [ ] `docker compose up -d` — all services healthy
 
 ### Dependency hygiene
+
 - [ ] `grep -r '"passport"\|"class-transformer"\|"class-validator"\|"bcrypt"' --include=package.json --exclude-dir=node_modules .` returns 0 results
 - [ ] `pnpm list openpgp -r` shows single version `5.11.3` across all workspaces
 - [ ] No caret (`^`) ranges on production deps (dev deps acceptable) — verify via `grep -E '"\^[0-9]' package.json */package.json` (careful, may have false positives; scope-check manually)
@@ -796,28 +831,33 @@ M3.0 is **complete** when every item below is checked AND a one-paragraph handof
 - [ ] `grep -rn "uses: " .github/workflows/` — every line either SHA-pinned or has explicit exemption comment
 
 ### CI gates
+
 - [ ] CI job "Dependency audit (OSV Scanner)" runs and returns non-empty JSON (may still be zero findings — that's fine, just verify the job isn't broken)
 - [ ] CI job "Generate SBOM" produces `sbom.cdx.json` as an artefact
 - [ ] Dependabot config added for `github-actions` ecosystem
 
 ### Developer workflow
+
 - [ ] `.dockerignore` present at repo root
 - [ ] `lefthook.yml` present at repo root; `pnpm exec lefthook run pre-commit` passes on a test commit
 - [ ] `.env.example` contains no resolvable-looking credentials (all placeholders obviously non-usable)
 - [ ] `CONTRIBUTING.md` documents pre-commit workflow
 
 ### Documentation
+
 - [ ] `docs/adr/0001-zod-everywhere.md` through `docs/adr/0005-deferred-stack-decisions.md` created
 - [ ] `PLANS.md` test-count claim corrected
 - [ ] `PLANS.md` updated to record M3.0 completion
 
 ### Code health
+
 - [ ] No `bcrypt.hash` / `bcrypt.compare` callsites remain
 - [ ] No `class-validator` decorators on DTOs
 - [ ] No `PassportModule` or `AuthGuard('jwt')` usages
 - [ ] OpenAPI generation works: `GET /api/docs` serves a spec in dev mode
 
 ### Regression posture
+
 - [ ] No increase in `TODO`/`FIXME`/`HACK`/`XXX` in runtime code (forensic baseline: 0 in apps/+packages/)
 - [ ] No new `as unknown as` casts in runtime code (forensic baseline: 9 instances, mostly in data-plane processors)
 - [ ] No new plain `throw new Error(...)` callsites in runtime code

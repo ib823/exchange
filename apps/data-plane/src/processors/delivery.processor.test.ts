@@ -1,6 +1,12 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/explicit-function-return-type, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-non-null-assertion */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { DeliveryJob, CorrelationId, TenantId, SubmissionId, PartnerProfileId } from '@sep/common';
+import type {
+  DeliveryJob,
+  CorrelationId,
+  TenantId,
+  SubmissionId,
+  PartnerProfileId,
+} from '@sep/common';
 
 vi.mock('@sep/observability', () => ({
   createLogger: () => ({ info: vi.fn(), debug: vi.fn(), warn: vi.fn(), error: vi.fn() }),
@@ -26,7 +32,11 @@ const mockSubmissionUpdate = vi.fn();
 const mockProfileFindFirst = vi.fn();
 const mockAuditCreate = vi.fn();
 const mockDb = {
-  deliveryAttempt: { findFirst: mockDeliveryAttemptFindFirst, create: mockDeliveryAttemptCreate, update: mockDeliveryAttemptUpdate },
+  deliveryAttempt: {
+    findFirst: mockDeliveryAttemptFindFirst,
+    create: mockDeliveryAttemptCreate,
+    update: mockDeliveryAttemptUpdate,
+  },
   submission: { update: mockSubmissionUpdate },
   partnerProfile: { findFirst: mockProfileFindFirst },
   auditEvent: { findFirst: vi.fn().mockResolvedValue(null), create: mockAuditCreate },
