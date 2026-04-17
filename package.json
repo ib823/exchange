@@ -37,14 +37,20 @@
     "scan:secrets": "git secrets --scan"
   },
   "devDependencies": {
+    "@cyclonedx/cyclonedx-npm": "4.2.1",
+    "@testcontainers/postgresql": "11.14.0",
+    "@testcontainers/redis": "11.14.0",
     "@types/node": "^20.0.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
     "@vitest/coverage-v8": "3.2.4",
     "eslint": "^8.57.0",
     "eslint-config-prettier": "^9.1.0",
+    "lefthook": "2.1.6",
+    "msw": "2.13.4",
     "prettier": "^3.2.0",
     "test-exclude": "7",
+    "testcontainers": "11.14.0",
     "turbo": "^2.0.0",
     "typescript": "5.9.3"
   },

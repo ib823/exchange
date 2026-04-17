@@ -14,14 +14,14 @@
   "dependencies": {
     "@sep/common": "workspace:*",
     "@sep/schemas": "workspace:*",
-    "class-variance-authority": "^0.7.0",
-    "clsx": "^2.1.0",
-    "lucide-react": "^0.363.0",
-    "next": "^15.5.15",
-    "next-auth": "^4.24.6",
-    "react": "^19.2.5",
-    "react-dom": "^19.2.5",
-    "tailwind-merge": "^2.2.1",
+    "class-variance-authority": "0.7.1",
+    "clsx": "2.1.1",
+    "lucide-react": "0.363.0",
+    "next": "15.5.15",
+    "next-auth": "4.24.13",
+    "react": "19.2.5",
+    "react-dom": "19.2.5",
+    "tailwind-merge": "2.6.1",
     "zod": "3.25.76"
   },
   "devDependencies": {

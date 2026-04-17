@@ -21,6 +21,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@aws-sdk/client-kms": "3.1031.0",
     "@sep/common": "workspace:*",
     "@sep/observability": "workspace:*",
     "openpgp": "5.11.3"
