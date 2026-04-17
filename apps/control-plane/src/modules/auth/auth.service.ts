@@ -3,7 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { DatabaseService } from '@sep/db';
 import { SepError, ErrorCode, getConfig } from '@sep/common';
 import { createLogger } from '@sep/observability';
-import { compare } from 'bcrypt';
+import { verify as argon2Verify } from '@node-rs/argon2';
 import { randomUUID } from 'crypto';
 
 const logger = createLogger({ service: 'control-plane', module: 'auth' });
@@ -46,7 +46,7 @@ export class AuthService {
 
     let apiKey: (typeof candidates)[number] | null = null;
     for (const candidate of candidates) {
-      const match = await compare(rawKey, candidate.keyHash);
+      const match = await argon2Verify(candidate.keyHash, rawKey);
       if (match) {
         apiKey = candidate;
         break;
