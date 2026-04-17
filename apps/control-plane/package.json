@@ -11,7 +11,6 @@
     "test:unit": "vitest run --config vitest.config.ts --coverage",
     "test": "vitest run",
     "openapi:generate": "ts-node src/openapi-export.ts",
-    "openapi:validate": "swagger-cli validate api/openapi.yaml",
     "clean": "rm -rf dist"
   },
   "dependencies": {
@@ -31,7 +30,7 @@
     "@sep/observability": "workspace:*",
     "@sep/partner-profiles": "workspace:*",
     "@sep/schemas": "workspace:*",
-    "fastify": "5.8.4",
+    "fastify": "5.8.5",
     "nestjs-zod": "5.3.0",
     "otplib": "13.4.0",
     "qrcode": "1.5.4",

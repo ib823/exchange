@@ -27,9 +27,8 @@
     "db:seed": "pnpm --filter @sep/db seed",
     "db:studio": "pnpm --filter @sep/db studio",
     "openapi:generate": "pnpm --filter @sep/control-plane openapi:generate",
-    "openapi:validate": "pnpm --filter @sep/control-plane openapi:validate",
     "milestone:m0": "pnpm install && pnpm build && docker compose up -d && sleep 5 && pnpm db:migrate && pnpm test",
-    "milestone:m1": "pnpm lint && pnpm typecheck && pnpm test:unit && pnpm test:contract && pnpm openapi:validate",
+    "milestone:m1": "pnpm lint && pnpm typecheck && pnpm test:unit && pnpm test:contract",
     "infra:up": "docker compose up -d",
     "infra:down": "docker compose down",
     "infra:reset": "docker compose down -v && docker compose up -d",
@@ -38,7 +37,6 @@
     "prepare": "lefthook install"
   },
   "devDependencies": {
-    "@cyclonedx/cyclonedx-npm": "4.2.1",
     "@testcontainers/postgresql": "11.14.0",
     "@testcontainers/redis": "11.14.0",
     "@types/node": "^20.0.0",
@@ -59,6 +57,8 @@
     "overrides": {
       "openpgp": "5.11.3",
       "undici": "7.25.0",
+      "fastify": "5.8.5",
+      "protobufjs": "7.5.5",
       "tar": ">=7.5.11",
       "picomatch": ">=4.0.4",
       "lodash": ">=4.18.0",

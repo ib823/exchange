@@ -510,3 +510,31 @@ intact and annotated with the refutation; no rewrite to 289.
 
 Ref: \_plan/M3_0_FOUNDATION_RESET.md §12 (amended); user amendment
 2026-04-17.
+
+### 2026-04-17 — M3.0 decision #6 (fastify override) — PARTIALLY SUPERSEDED
+
+**Original claim (M3.0 handoff, `_plan/M3_0_HANDOFF.md` decision #6):**
+The `fastify` entry was dropped from `pnpm.overrides` as redundant
+because fastify is exact-pinned as a direct dep in
+`apps/control-plane`.
+
+**Status:** PARTIALLY SUPERSEDED by hygiene PR #11 (addendum dated
+2026-04-17 appended in-place to decision #6).
+
+**Trigger:** GHSA-247c-9743-5963 (CVSS 7.5) against `fastify < 5.8.5`.
+`@nestjs/platform-fastify@11.1.18` transitively hard-pins `fastify`
+5.8.4, so workspace-level exact-pinning to 5.8.5 did not remove 5.8.4
+from the tree. The override was re-added at exact 5.8.5 to force
+transitive closure.
+
+**Durable policy:** `docs/adr/0006-pnpm-overrides-governance.md`
+codifies the three legitimate uses of `pnpm.overrides` (cross-workspace
+alignment / targeted security-closure forcing / temporary pin-forward)
+so future CVE responses follow a consistent governance pattern.
+
+**Closure trigger for the new override:** issue #12 — remove the
+override when `@nestjs/platform-fastify` ships with a transitively-
+bumped `fastify ≥ 5.8.5`.
+
+Ref: `docs/adr/0006-pnpm-overrides-governance.md`;
+`_plan/M3_0_HANDOFF.md` decision #6 addendum; hygiene PR #11.
