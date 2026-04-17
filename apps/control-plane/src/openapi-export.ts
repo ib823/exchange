@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter } from '@nestjs/platform-fastify';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { cleanupOpenApiDoc } from 'nestjs-zod';
 import { writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { AppModule } from './app.module';
@@ -18,7 +19,8 @@ async function exportSpec(): Promise<void> {
     .addApiKey({ type: 'apiKey', name: 'x-api-key', in: 'header' }, 'ApiKey')
     .build();
 
-  const document = SwaggerModule.createDocument(app, config);
+  const rawDocument = SwaggerModule.createDocument(app, config);
+  const document = cleanupOpenApiDoc(rawDocument);
   const outDir = join(__dirname, '../api');
   mkdirSync(outDir, { recursive: true });
   writeFileSync(join(outDir, 'openapi.yaml'), JSON.stringify(document, null, 2));
