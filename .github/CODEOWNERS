@@ -1,0 +1,23 @@
+# CODEOWNERS — review required for changes to owned paths.
+# Syntax: https://docs.github.com/en/repositories/managing-your-repositories-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for everything.
+*                                @ib823
+
+# Security-critical paths — second reviewer strongly recommended
+# when M3 execution starts (per _plan/M3_EXECUTION_PLAN.md §10).
+# Until a second reviewer is named, self-review with explicit
+# CODEOWNERS re-request serves as the compensating control.
+/packages/crypto/                @ib823
+/packages/db/prisma/             @ib823
+/apps/control-plane/src/modules/auth/   @ib823
+/apps/control-plane/src/common/guards/  @ib823
+/infra/                          @ib823
+/.github/workflows/              @ib823
+
+# Planning + governance artefacts — user-level review
+/_plan/                          @ib823
+/_audit/                         @ib823
+/docs/adr/                       @ib823
+/PLANS.md                        @ib823
+/CLAUDE.md                       @ib823
