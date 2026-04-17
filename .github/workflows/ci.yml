@@ -243,14 +243,21 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
-      - name: Dependency audit (OSV Scanner)
-        uses: google/osv-scanner-action@c51854704019a247608d928f370c98740469d4b5 # v2.3.5
+      - name: Set up Go (for osv-scanner)
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
-          scan-args: |-
-            --recursive
-            --skip-git
-            ./
-          fail-on-vuln: true
+          go-version: '1.22'
+      - name: Install osv-scanner
+        # google/osv-scanner-action at tag v2.3.5 is a reusable workflow, not a
+        # composite action — no action.yml at repo root. Invoking the CLI
+        # directly via `go install` is simpler and keeps the pin readable.
+        # Version-check: `go list -m -versions github.com/google/osv-scanner/v2`
+        run: go install github.com/google/osv-scanner/v2/cmd/osv-scanner@v2.3.5
+      - name: Run osv-scanner
+        # Scan the single pnpm-lock.yaml at repo root — covers every
+        # transitive dep across the workspace. `scan source` subcommand
+        # doesn't accept --skip-git; --lockfile is the targeted scan.
+        run: osv-scanner --lockfile=pnpm-lock.yaml
       - name: Secret scanning
         uses: trufflesecurity/trufflehog@580628bb9d5455140899afe2cb981ff5640bf399 # main as of remediation date
         with:
