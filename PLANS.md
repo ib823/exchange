@@ -14,13 +14,13 @@ Version: 2.1 | Last updated: 2026-04-13 | POST-M2 REMEDIATION COMPLETE, M2 FORMA
 | Pre-M2 remediation (all waves) | 🟢 COMPLETE | Yes | 4 waves, 28 defects fixed, 2026-04-12 to 2026-04-13. See summary below. |
 | M2 Data plane + transport | 🟢 COMPLETE | Yes | 2026-04-13. All 7 steps implemented. 309 tests across 8 packages. |
 | Post-M2 remediation | 🟢 COMPLETE | Yes | 4 gate blockers + 2 coupled defects. 330 tests across 30 files. 2026-04-13. (The "289" figure in the 2026-04-16 hostile audit — NEW-TEST-COUNT — was a grep artefact that missed `it.each` parametrised rows; runner reports 330. See Documentation corrections, below.) |
-| M3.0 Foundation reset | 🟢 COMPLETE | Yes | 2026-04-17. Dependency surgery (§4–6), code swaps (§7A–D nestjs-zod / argon2id / custom JwtAuthGuard), CI hardening (§8 SHA-pin + OSV + SBOM), pre-commit gates (§9 lefthook), env hygiene (§10), pnpm.overrides (§11). Build/lint/typecheck/test all green. 349 tests across 33 files (+19 from new schema smoke tests). Details: `_plan/M3_0_FOUNDATION_RESET.md` and `_plan/M3_0_HANDOFF.md`. |
-| M3 Security + trust | 🔴 NOT STARTED | No | All prerequisites met. Clear to start. |
+| M3.0 Foundation Reset | 🟢 COMPLETE | Yes | 2026-04-17 |
+| M3 Security + trust | 🟡 READY | No | Prerequisites met. Write `_plan/M3_EXECUTION_PLAN.md` before starting execution. |
 | M4 Operator console | 🔴 NOT STARTED | No | Can start parallel to M3 |
 | M5 Partner packs | 🔴 NOT STARTED | No | Blocked by M2 + M3 |
 | M6 Operational hardening | 🔴 NOT STARTED | No | Blocked by M5 |
 
-Status legend: 🔴 NOT STARTED | 🟡 IN PROGRESS | 🟢 COMPLETE | 🔵 BLOCKED
+Status legend: 🔴 NOT STARTED | 🟡 READY / IN PROGRESS | 🟢 COMPLETE | 🔵 BLOCKED
 
 ### Pre-M2 Remediation Summary
 
