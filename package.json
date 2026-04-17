@@ -57,6 +57,7 @@
     "overrides": {
       "openpgp": "5.11.3",
       "undici": "7.25.0",
+      "protobufjs": "7.5.5",
       "tar": ">=7.5.11",
       "picomatch": ">=4.0.4",
       "lodash": ">=4.18.0",
