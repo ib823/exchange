@@ -5,48 +5,17 @@ import {
 import {
   ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery,
 } from '@nestjs/swagger';
+import { createZodDto } from 'nestjs-zod';
+import { CreateIncidentSchema, UpdateIncidentSchema } from '@sep/schemas';
 import { IncidentsService } from './incidents.service';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { SepError, ErrorCode } from '@sep/common';
 import { PageSizePipe } from '../../common/pipes/page-size.pipe';
 import type { TokenPayload } from '../auth/auth.service';
 import type { FastifyRequest } from 'fastify';
-import { z } from 'zod';
 
-const CreateIncidentSchema = z.object({
-  tenantId: z.string().cuid(),
-  severity: z.enum(['P1', 'P2', 'P3', 'P4']),
-  title: z.string().min(1).max(500),
-  description: z.string().max(5000).optional(),
-  sourceType: z.string().min(1).max(100),
-  sourceId: z.string().max(200).optional(),
-  assignedTo: z.string().cuid().optional(),
-});
-
-const UpdateIncidentSchema = z.object({
-  severity: z.enum(['P1', 'P2', 'P3', 'P4']).optional(),
-  title: z.string().min(1).max(500).optional(),
-  description: z.string().max(5000).optional(),
-  assignedTo: z.string().cuid().optional(),
-  state: z.enum(['OPEN', 'TRIAGED', 'IN_PROGRESS', 'WAITING_EXTERNAL', 'RESOLVED', 'CLOSED']).optional(),
-  resolution: z.string().max(5000).optional(),
-});
-
-function parseBody<T>(schema: { safeParse: (v: unknown) => { success: true; data: T } | { success: false; error: { issues: Array<{ path: (string | number)[]; message: string }> } } }, body: unknown): T {
-  const result = schema.safeParse(body);
-  if (!result.success) {
-    throw new SepError(ErrorCode.VALIDATION_SCHEMA_FAILED, {
-      issues: result.error.issues.map((i) => ({
-        path: i.path.join('.'),
-        message: i.message,
-      })),
-    });
-  }
-  return result.data;
-}
-
-type CreateIncidentDto = z.infer<typeof CreateIncidentSchema>;
-type UpdateIncidentDto = z.infer<typeof UpdateIncidentSchema>;
+class CreateIncidentDto extends createZodDto(CreateIncidentSchema) {}
+class UpdateIncidentDto extends createZodDto(UpdateIncidentSchema) {}
 
 @ApiTags('Incidents')
 @ApiBearerAuth()
@@ -60,10 +29,9 @@ export class IncidentsController {
   @ApiResponse({ status: 201, description: 'Incident created' })
   @ApiResponse({ status: 400, description: 'Validation error' })
   async create(
-    @Body() body: unknown,
+    @Body() dto: CreateIncidentDto,
     @Request() req: FastifyRequest & { user: TokenPayload },
   ): Promise<{ data: unknown }> {
-    const dto = parseBody<CreateIncidentDto>(CreateIncidentSchema, body);
     const incident = await this.service.create({
       tenantId: dto.tenantId,
       severity: dto.severity,
@@ -117,10 +85,9 @@ export class IncidentsController {
   @ApiResponse({ status: 400, description: 'Validation error or invalid transition' })
   async update(
     @Param('incidentId') incidentId: string,
-    @Body() body: unknown,
+    @Body() dto: UpdateIncidentDto,
     @Request() req: FastifyRequest & { user: TokenPayload },
   ): Promise<{ data: unknown }> {
-    const dto = parseBody<UpdateIncidentDto>(UpdateIncidentSchema, body);
     const incident = await this.service.update(incidentId, {
       severity: dto.severity,
       title: dto.title,

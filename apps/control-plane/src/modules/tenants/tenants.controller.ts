@@ -5,26 +5,16 @@ import {
 import {
   ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam,
 } from '@nestjs/swagger';
+import { createZodDto } from 'nestjs-zod';
+import { CreateTenantSchema, UpdateTenantSchema } from '@sep/schemas';
 import { TenantsService } from './tenants.service';
 import { Roles, SkipTenantCheck } from '../../common/decorators/roles.decorator';
-import { CreateTenantSchema, UpdateTenantSchema, type CreateTenantDto, type UpdateTenantDto } from '@sep/schemas';
-import { SepError, ErrorCode } from '@sep/common';
 import { PageSizePipe } from '../../common/pipes/page-size.pipe';
 import type { TokenPayload } from '../auth/auth.service';
 import type { FastifyRequest } from 'fastify';
 
-function parseBody<T>(schema: { safeParse: (v: unknown) => { success: true; data: T } | { success: false; error: { issues: Array<{ path: (string | number)[]; message: string }> } } }, body: unknown): T {
-  const result = schema.safeParse(body);
-  if (!result.success) {
-    throw new SepError(ErrorCode.VALIDATION_SCHEMA_FAILED, {
-      issues: result.error.issues.map((i) => ({
-        path: i.path.join('.'),
-        message: i.message,
-      })),
-    });
-  }
-  return result.data;
-}
+class CreateTenantDto extends createZodDto(CreateTenantSchema) {}
+class UpdateTenantDto extends createZodDto(UpdateTenantSchema) {}
 
 @ApiTags('Tenants')
 @ApiBearerAuth()
@@ -39,10 +29,9 @@ export class TenantsController {
   @ApiResponse({ status: 201, description: 'Tenant created' })
   @ApiResponse({ status: 403, description: 'Insufficient role' })
   async create(
-    @Body() body: unknown,
+    @Body() dto: CreateTenantDto,
     @Request() req: FastifyRequest & { user: TokenPayload },
   ): Promise<{ data: unknown }> {
-    const dto = parseBody<CreateTenantDto>(CreateTenantSchema, body);
     const tenant = await this.tenantsService.create(dto, req.user);
     return { data: tenant };
   }
@@ -81,10 +70,9 @@ export class TenantsController {
   @ApiResponse({ status: 200, description: 'Tenant updated' })
   async update(
     @Param('tenantId') tenantId: string,
-    @Body() body: unknown,
+    @Body() dto: UpdateTenantDto,
     @Request() req: FastifyRequest & { user: TokenPayload },
   ): Promise<{ data: unknown }> {
-    const dto = parseBody<UpdateTenantDto>(UpdateTenantSchema, body);
     const tenant = await this.tenantsService.update(tenantId, dto, req.user);
     return { data: tenant };
   }

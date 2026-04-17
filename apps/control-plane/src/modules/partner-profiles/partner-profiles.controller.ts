@@ -5,29 +5,22 @@ import {
 import {
   ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery,
 } from '@nestjs/swagger';
+import { createZodDto } from 'nestjs-zod';
+import {
+  CreatePartnerProfileSchema,
+  UpdatePartnerProfileSchema,
+  TransitionPartnerProfileSchema,
+} from '@sep/schemas';
 import { PartnerProfilesService } from './partner-profiles.service';
 import { Roles } from '../../common/decorators/roles.decorator';
-import {
-  CreatePartnerProfileSchema, UpdatePartnerProfileSchema,
-  type CreatePartnerProfileDto, type UpdatePartnerProfileDto,
-} from '@sep/schemas';
 import { SepError, ErrorCode } from '@sep/common';
 import { PageSizePipe } from '../../common/pipes/page-size.pipe';
 import type { TokenPayload } from '../auth/auth.service';
 import type { FastifyRequest } from 'fastify';
 
-function parseBody<T>(schema: { safeParse: (v: unknown) => { success: true; data: T } | { success: false; error: { issues: Array<{ path: (string | number)[]; message: string }> } } }, body: unknown): T {
-  const result = schema.safeParse(body);
-  if (!result.success) {
-    throw new SepError(ErrorCode.VALIDATION_SCHEMA_FAILED, {
-      issues: result.error.issues.map((i) => ({
-        path: i.path.join('.'),
-        message: i.message,
-      })),
-    });
-  }
-  return result.data;
-}
+class CreatePartnerProfileDto extends createZodDto(CreatePartnerProfileSchema) {}
+class UpdatePartnerProfileDto extends createZodDto(UpdatePartnerProfileSchema) {}
+class TransitionPartnerProfileDto extends createZodDto(TransitionPartnerProfileSchema) {}
 
 @ApiTags('Partner Profiles')
 @ApiBearerAuth()
@@ -41,10 +34,9 @@ export class PartnerProfilesController {
   @ApiResponse({ status: 201, description: 'Partner profile created' })
   @ApiResponse({ status: 400, description: 'Validation error' })
   async create(
-    @Body() body: unknown,
+    @Body() dto: CreatePartnerProfileDto,
     @Request() req: FastifyRequest & { user: TokenPayload },
   ): Promise<{ data: unknown }> {
-    const dto = parseBody<CreatePartnerProfileDto>(CreatePartnerProfileSchema, body);
     const profile = await this.service.create(dto, req.user);
     return { data: profile };
   }
@@ -90,10 +82,9 @@ export class PartnerProfilesController {
   @ApiResponse({ status: 400, description: 'Validation error or not in DRAFT status' })
   async update(
     @Param('profileId') profileId: string,
-    @Body() body: unknown,
+    @Body() dto: UpdatePartnerProfileDto,
     @Request() req: FastifyRequest & { user: TokenPayload },
   ): Promise<{ data: unknown }> {
-    const dto = parseBody<UpdatePartnerProfileDto>(UpdatePartnerProfileSchema, body);
     const profile = await this.service.update(profileId, dto, req.user);
     return { data: profile };
   }
@@ -107,16 +98,10 @@ export class PartnerProfilesController {
   @ApiResponse({ status: 400, description: 'Invalid transition' })
   async transition(
     @Param('profileId') profileId: string,
-    @Body() body: unknown,
+    @Body() dto: TransitionPartnerProfileDto,
     @Request() req: FastifyRequest & { user: TokenPayload },
   ): Promise<{ data: unknown }> {
-    const { targetStatus } = body as { targetStatus: string };
-    if (typeof targetStatus !== 'string' || targetStatus.length === 0) {
-      throw new SepError(ErrorCode.VALIDATION_SCHEMA_FAILED, {
-        issues: [{ path: 'targetStatus', message: 'targetStatus is required' }],
-      });
-    }
-    const profile = await this.service.transition(profileId, targetStatus, req.user);
+    const profile = await this.service.transition(profileId, dto.targetStatus, req.user);
     return { data: profile };
   }
 

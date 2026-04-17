@@ -3,8 +3,10 @@ import {
   HttpException, HttpStatus,
 } from '@nestjs/common';
 import type { FastifyReply, FastifyRequest } from 'fastify';
-import { isSepError } from '@sep/common';
+import { isSepError, SepError, ErrorCode } from '@sep/common';
 import { createLogger } from '@sep/observability';
+import { ZodValidationException } from 'nestjs-zod';
+import type { ZodError } from 'zod';
 import { randomUUID } from 'crypto';
 
 const logger = createLogger({ service: 'control-plane', module: 'exception-filter' });
@@ -23,22 +25,35 @@ export class HttpExceptionFilter implements ExceptionFilter {
     let retryable = false;
     let terminal = false;
 
-    if (isSepError(exception)) {
-      const clientJson = exception.toClientJson();
-      status = this.sepErrorToHttpStatus(exception.code);
+    // Normalise nestjs-zod validation errors into the platform's SepError shape
+    // so clients get the same { code: VALIDATION_SCHEMA_FAILED, ... } contract
+    // that manual parseBody used before §7A.
+    let normalised: unknown = exception;
+    if (exception instanceof ZodValidationException) {
+      const zodError = exception.getZodError() as ZodError;
+      normalised = new SepError(ErrorCode.VALIDATION_SCHEMA_FAILED, {
+        issues: zodError.issues.map((i) => ({
+          path: i.path.join('.'),
+          message: i.message,
+        })),
+      });
+    }
+
+    if (isSepError(normalised)) {
+      const clientJson = normalised.toClientJson();
+      status = this.sepErrorToHttpStatus(normalised.code);
       code = clientJson.code;
       message = clientJson.message;
       retryable = clientJson.retryable;
       terminal = clientJson.terminal;
-      // Log full context internally — never sent to client
-      logger.error({ ...exception.toLogJson(), correlationId }, 'SepError');
-    } else if (exception instanceof HttpException) {
-      status = exception.getStatus();
-      const resp = exception.getResponse();
+      logger.error({ ...normalised.toLogJson(), correlationId }, 'SepError');
+    } else if (normalised instanceof HttpException) {
+      status = normalised.getStatus();
+      const resp = normalised.getResponse();
       message = typeof resp === 'string' ? resp : ((resp as Record<string, unknown>)['message'] as string | undefined) ?? message;
       logger.warn({ status, message, correlationId }, 'HttpException');
     } else {
-      logger.error({ correlationId, err: exception }, 'Unhandled exception');
+      logger.error({ correlationId, err: normalised }, 'Unhandled exception');
     }
 
     void reply.status(status).send({

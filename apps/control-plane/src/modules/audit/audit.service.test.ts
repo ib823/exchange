@@ -107,14 +107,14 @@ describe('AuditService', () => {
 
       await service.record(baseParams);
       const firstHash = // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- test mock inspection
-      (mockDb.auditEvent.create.mock.calls[0][0] as { data: { immutableHash: string } }).data.immutableHash;
+      (mockDb.auditEvent.create.mock.calls[0]![0] as { data: { immutableHash: string } }).data.immutableHash;
 
       mockDb.auditEvent.findFirst.mockResolvedValue({ immutableHash: firstHash });
       mockDb.auditEvent.create.mockResolvedValue({ id: 'evt-2' });
 
       await service.record({ ...baseParams, action: 'SUBMISSION_VALIDATED' as const });
       const secondHash = // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- test mock inspection
-      (mockDb.auditEvent.create.mock.calls[1][0] as { data: { immutableHash: string } }).data.immutableHash;
+      (mockDb.auditEvent.create.mock.calls[1]![0] as { data: { immutableHash: string } }).data.immutableHash;
 
       expect(firstHash).not.toBe(secondHash);
     });
@@ -150,7 +150,7 @@ describe('AuditService', () => {
       await service.record(baseParams);
 
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- test mock inspection
-      const createData = (mockDb.auditEvent.create.mock.calls[0][0] as { data: { eventTime: Date; immutableHash: string } }).data;
+      const createData = (mockDb.auditEvent.create.mock.calls[0]![0] as { data: { eventTime: Date; immutableHash: string } }).data;
       expect(createData.eventTime).toBeInstanceOf(Date);
       // The eventTime field is now explicitly set by the service, not left to @default(now())
       expect(createData.eventTime).toBeDefined();
@@ -257,7 +257,7 @@ describe('AuditService', () => {
       await service.search({ tenantId: 'tenant-1', page: 1, pageSize: 20 });
 
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- test mock inspection
-      const selectArg = (mockDb.auditEvent.findMany.mock.calls[0][0] as { select: Record<string, boolean> }).select;
+      const selectArg = (mockDb.auditEvent.findMany.mock.calls[0]![0] as { select: Record<string, boolean> }).select;
       expect(selectArg).not.toHaveProperty('immutableHash');
       expect(selectArg).not.toHaveProperty('previousHash');
       expect(selectArg).toHaveProperty('id', true);
@@ -308,7 +308,7 @@ describe('AuditService', () => {
       await service.search({ tenantId: 'tenant-1', page: 1, pageSize: 20 });
 
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- test mock inspection
-      const where = (mockDb.auditEvent.findMany.mock.calls[0][0] as { where: { tenantId: string } }).where;
+      const where = (mockDb.auditEvent.findMany.mock.calls[0]![0] as { where: { tenantId: string } }).where;
       expect(where.tenantId).toBe('tenant-1');
     });
   });
