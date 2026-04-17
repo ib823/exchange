@@ -65,6 +65,11 @@ export const PartnerProfileResponseSchema = z.object({
   updatedAt: z.date().or(z.string()),
 });
 
+export const TransitionPartnerProfileSchema = z.object({
+  targetStatus: PartnerProfileStatusSchema,
+});
+
 export type CreatePartnerProfileDto = z.infer<typeof CreatePartnerProfileSchema>;
 export type UpdatePartnerProfileDto = z.infer<typeof UpdatePartnerProfileSchema>;
+export type TransitionPartnerProfileDto = z.infer<typeof TransitionPartnerProfileSchema>;
 export type PartnerProfileResponse = z.infer<typeof PartnerProfileResponseSchema>;

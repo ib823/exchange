@@ -45,6 +45,10 @@ const ConfigSchema = z.object({
     bucketAuditExports: z.string().min(1),
     forcePathStyle: z.enum(['true', 'false']).transform((v) => v === 'true').default('true'),
     maxPayloadSizeBytes: z.coerce.number().int().positive().default(52_428_800),
+    // M3.0 §10.3: schema-only field (no enforcement yet). When true, the
+    // tenant's payload and audit-export buckets MUST be pinned to MY region.
+    // Wiring happens in M3 once RLS and tenant-scoped config resolution land.
+    myResidency: z.enum(['true', 'false']).transform((v) => v === 'true').default('false'),
   }),
 
   vault: z.object({
@@ -162,6 +166,7 @@ function loadConfig(): AppConfig {
       bucketAuditExports: process.env['STORAGE_BUCKET_AUDIT_EXPORTS'],
       forcePathStyle: process.env['STORAGE_FORCE_PATH_STYLE'],
       maxPayloadSizeBytes: process.env['MAX_PAYLOAD_SIZE_BYTES'],
+      myResidency: process.env['STORAGE_MY_RESIDENCY'],
     },
     vault: {
       addr: process.env['VAULT_ADDR'],

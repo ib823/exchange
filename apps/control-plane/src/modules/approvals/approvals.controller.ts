@@ -5,11 +5,16 @@ import {
 import {
   ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam,
 } from '@nestjs/swagger';
+import { createZodDto } from 'nestjs-zod';
+import { ApproveRequestSchema, RejectRequestSchema } from '@sep/schemas';
 import { ApprovalsService } from './approvals.service';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { PageSizePipe } from '../../common/pipes/page-size.pipe';
 import type { TokenPayload } from '../auth/auth.service';
 import type { FastifyRequest } from 'fastify';
+
+class ApproveRequestDto extends createZodDto(ApproveRequestSchema) {}
+class RejectRequestDto extends createZodDto(RejectRequestSchema) {}
 
 @ApiTags('Approvals')
 @ApiBearerAuth()
@@ -52,11 +57,10 @@ export class ApprovalsController {
   @ApiResponse({ status: 400, description: 'Invalid state or self-approval' })
   async approve(
     @Param('approvalId') approvalId: string,
-    @Body() body: unknown,
+    @Body() dto: ApproveRequestDto,
     @Request() req: FastifyRequest & { user: TokenPayload },
   ): Promise<{ data: unknown }> {
-    const { notes } = (body ?? {}) as { notes?: string };
-    const approval = await this.service.approve(approvalId, req.user, notes);
+    const approval = await this.service.approve(approvalId, req.user, dto.notes);
     return { data: approval };
   }
 
@@ -69,11 +73,10 @@ export class ApprovalsController {
   @ApiResponse({ status: 400, description: 'Invalid state' })
   async reject(
     @Param('approvalId') approvalId: string,
-    @Body() body: unknown,
+    @Body() dto: RejectRequestDto,
     @Request() req: FastifyRequest & { user: TokenPayload },
   ): Promise<{ data: unknown }> {
-    const { notes } = (body ?? {}) as { notes?: string };
-    const approval = await this.service.reject(approvalId, req.user, notes);
+    const approval = await this.service.reject(approvalId, req.user, dto.notes);
     return { data: approval };
   }
 }

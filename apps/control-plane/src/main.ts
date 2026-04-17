@@ -1,8 +1,9 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
-import { ValidationPipe, VersioningType } from '@nestjs/common';
+import { VersioningType } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { ZodValidationPipe, cleanupOpenApiDoc } from 'nestjs-zod';
 import { getConfig } from '@sep/common';
 import { createLogger, setLogLevel } from '@sep/observability';
 import { AppModule } from './app.module';
@@ -42,16 +43,8 @@ async function bootstrap(): Promise<void> {
   app.setGlobalPrefix(cfg.controlPlane.apiPrefix);
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
 
-  // ── Global validation pipe ────────────────────────────────────────────────
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,              // Strip unknown properties
-      forbidNonWhitelisted: true,   // Reject requests with unknown properties
-      transform: true,              // Transform to DTO class instances
-      transformOptions: { enableImplicitConversion: false },
-      disableErrorMessages: cfg.app.appEnv === 'production', // Hide validation details in prod
-    }),
-  );
+  // ── Global validation pipe (Zod via nestjs-zod) ───────────────────────────
+  app.useGlobalPipes(new ZodValidationPipe());
 
   // ── Global exception filter ───────────────────────────────────────────────
   app.useGlobalFilters(new HttpExceptionFilter());
@@ -66,7 +59,9 @@ async function bootstrap(): Promise<void> {
       .addApiKey({ type: 'apiKey', name: 'x-api-key', in: 'header' }, 'ApiKey')
       .build();
 
-    const document = SwaggerModule.createDocument(app, swaggerConfig);
+    const rawDocument = SwaggerModule.createDocument(app, swaggerConfig);
+    // nestjs-zod v5: post-process to inline Zod DTO schemas correctly.
+    const document = cleanupOpenApiDoc(rawDocument);
     SwaggerModule.setup(`${cfg.controlPlane.apiPrefix}/docs`, app, document);
 
     logger.info('Swagger UI available at /%s/docs', cfg.controlPlane.apiPrefix);

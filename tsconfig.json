@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.base.json",
+  // Root tsconfig exists so tools run from repo root (eslint via lefthook,
+  // editors, etc.) can resolve project-aware parsing. Kept broad: includes
+  // tests so type-aware eslint rules can check staged test files.
+  // Per-package tsconfig.json files still override for their scope.
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": [
+    "apps/*/src/**/*.ts",
+    "apps/*/src/**/*.tsx",
+    "packages/*/src/**/*.ts"
+  ],
+  "exclude": ["node_modules", "**/dist", "**/node_modules"]
+}

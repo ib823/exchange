@@ -42,8 +42,8 @@ vi.mock('@sep/observability', () => ({
   }),
 }));
 
-vi.mock('bcrypt', () => ({
-  compare: vi.fn((raw: string, hash: string): Promise<boolean> => {
+vi.mock('@node-rs/argon2', () => ({
+  verify: vi.fn((hash: string, raw: string): Promise<boolean> => {
     return Promise.resolve(hash === `hashed:${raw}`);
   }),
 }));
