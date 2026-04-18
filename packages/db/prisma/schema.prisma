@@ -242,6 +242,8 @@ model Tenant {
   apiKeys                 ApiKey[]
   inboundReceipts         InboundReceipt[]
   cryptoOperationRecords  CryptoOperationRecord[]
+  deliveryAttempts        DeliveryAttempt[]
+  webhookDeliveryAttempts WebhookDeliveryAttempt[]
 
   @@index([status])
   @@map("tenants")
@@ -437,6 +439,7 @@ model Submission {
 
 model DeliveryAttempt {
   id                  String          @id @default(cuid())
+  tenantId            String
   submissionId        String
   attemptNo           Int
   startedAt           DateTime        @default(now())
@@ -449,8 +452,10 @@ model DeliveryAttempt {
   durationMs          Int?
   metadata            Json?
 
+  tenant     Tenant     @relation(fields: [tenantId], references: [id])
   submission Submission @relation(fields: [submissionId], references: [id])
 
+  @@index([tenantId])
   @@index([submissionId])
   @@map("delivery_attempts")
 }
@@ -668,6 +673,7 @@ model Webhook {
 
 model WebhookDeliveryAttempt {
   id           String   @id @default(cuid())
+  tenantId     String
   webhookId    String
   submissionId String?
   eventType    String
@@ -678,9 +684,11 @@ model WebhookDeliveryAttempt {
   attemptedAt  DateTime @default(now())
   durationMs   Int?
 
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
   webhook    Webhook     @relation(fields: [webhookId], references: [id])
   submission Submission? @relation(fields: [submissionId], references: [id], onDelete: Restrict)
 
+  @@index([tenantId])
   @@index([webhookId])
   @@index([submissionId])
   @@map("webhook_delivery_attempts")

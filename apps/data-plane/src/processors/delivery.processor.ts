@@ -117,6 +117,7 @@ export class DeliveryProcessor extends WorkerHost {
     // 4. Create DeliveryAttempt record before attempting
     const deliveryAttempt = await db.deliveryAttempt.create({
       data: {
+        tenantId,
         submissionId,
         attemptNo: attempt,
         startedAt: new Date(),

@@ -389,6 +389,7 @@ export class InboundProcessor extends WorkerHost {
         // Create webhook delivery attempt (actual HTTP dispatch delegated to webhook service)
         await db.webhookDeliveryAttempt.create({
           data: {
+            tenantId: webhook.tenantId,
             webhookId: webhook.id,
             submissionId: submission.id,
             eventType: 'SUBMISSION_ACK_RECEIVED',
