@@ -5,6 +5,8 @@
     "rootDir": "src",
     "baseUrl": ".",
     "composite": true,
+    "emitDeclarationOnly": true,
+    "tsBuildInfoFile": "./dist/.tsbuildinfo",
     "paths": {}
   },
   "include": ["src"],

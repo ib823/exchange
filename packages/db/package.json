@@ -15,8 +15,8 @@
     "seed": "ts-node --project tsconfig.json prisma/seed.ts"
   },
   "scripts": {
-    "build": "tsup src/index.ts --format cjs --dts --clean",
-    "dev": "tsup src/index.ts --format cjs --dts --watch",
+    "build": "tsup src/index.ts --format cjs --clean && tsc -b",
+    "dev": "tsup src/index.ts --format cjs --watch",
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit",
     "test:unit": "vitest run --coverage",
