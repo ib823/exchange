@@ -11,10 +11,24 @@
 --
 -- The 72 tenant-scoped policies demanded by plan §5-T04 acceptance are
 -- 18 tables × 4 operations = 72. Those are 68 (this migration) + 4 (T03).
--- The 3 baseline audit_events policies are unrelated to tenant scoping
--- and live alongside the tenant-scoped ones; per plan §2.1 they coexist
--- intentionally, with REVOKE + BEFORE-UPDATE/DELETE triggers as the
--- append-only defence-in-depth.
+--
+-- audit_events — RLS-semantics correction. Postgres combines permissive
+-- policies with OR. Adding tenant_update and tenant_delete policies
+-- alongside the M3.0 baseline deny-all policies would DEFEAT the
+-- deny-all (tenant policy returning true OR deny-all returning false
+-- evaluates to true), opening an append-violation vector that didn't
+-- exist before this migration.
+--
+-- The fix (immediately after the DO $$ block): REVOKE UPDATE, DELETE,
+-- INSERT ON audit_events FROM sep_app. This operates at the grant
+-- layer, not RLS, and is not subject to OR-combination. Writes become
+-- structurally impossible regardless of what any RLS policy says.
+--
+-- The tenant policies remain in place on audit_events for consistency
+-- with the other 17 tables; they cannot fire because sep_app has no
+-- write grants. M3.A2 will restore GRANT INSERT ON audit_events TO
+-- sep_app (AuditService writes via parent transaction) and drop the
+-- redundant M3.0 baseline deny-all RLS policies at that point.
 --
 -- Atomicity: wrapped in a DO $$ block so any failure rolls back the
 -- entire migration. Plan §7 gotcha #4 — partial-state RLS across tables
@@ -27,8 +41,10 @@
 --
 -- Rollback: prefer `ALTER TABLE ... DISABLE ROW LEVEL SECURITY` over
 -- `DROP POLICY` per plan §7.4 — disabling is reversible by re-enabling
--- without reconstructing policy bodies. See the companion rollback
--- sketch at the bottom of this file (commented, not executed).
+-- without reconstructing policy bodies. The audit_events REVOKE is
+-- reversible via `GRANT UPDATE, DELETE, INSERT ON audit_events TO
+-- sep_app`. See the companion rollback sketch at the bottom of this
+-- file (commented, not executed).
 
 DO $$
 DECLARE
@@ -95,6 +111,12 @@ BEGIN
   END LOOP;
 END $$;
 
+-- audit_events write defense-in-depth — see header comment. Structural
+-- append-only enforcement at the grant layer, immune to RLS OR-combination
+-- with the M3.0 baseline deny-all policies. M3.A2 will restore INSERT
+-- for AuditService and drop the now-redundant baseline policies.
+REVOKE UPDATE, DELETE, INSERT ON "audit_events" FROM sep_app;
+
 -- Rollback sketch (not executed — retained for reviewers):
 --
 -- DO $$
@@ -107,3 +129,5 @@ END $$;
 --     EXECUTE format('ALTER TABLE %I DISABLE ROW LEVEL SECURITY', t);
 --   END LOOP;
 -- END $$;
+--
+-- GRANT UPDATE, DELETE, INSERT ON "audit_events" TO sep_app;
