@@ -112,9 +112,7 @@ This wasn't part of the plan's task list — added as a within-scope follow-up t
 
 ### 3.4 Node.js 20 deprecation warnings on CI runner
 
-**Not a change to M3 scope** — but should inform M3.5 planning.
-
-Since PR #17 merge, every CI run emits a deprecation warning: Node 20 will be force-upgraded to Node 24 on June 2, 2026, and removed from runners September 16, 2026. Dependabot is already opening PRs to bump the affected actions (5 PRs open on origin at time of this handoff); as they merge, Node 24 support arrives transparently. No explicit M3 action — flagged in inventory §5 so M3.5 planning picks up the merge cadence decision.
+Not strictly a scope change — surfaced during T06 but doesn't alter the M3 task list. See `_plan/M3_A0_GATE_INVENTORY.md` §5.1 for the full entry (deadline, tracking via Dependabot, flag for M3.5 planning).
 
 ---
 
@@ -129,6 +127,12 @@ Since PR #17 merge, every CI run emits a deprecation warning: Node 20 will be fo
 **Verified:** T03b commit (`fdfa3fa`) added composite to all 3 apps. Full local gate battery (build, typecheck, lint, format:check, test:unit) passed; `tsc -b tsconfig.solution.json` builds the full 9-project graph in topological order; `pnpm --filter @sep/control-plane run build` (`nest build`) and `pnpm --filter @sep/operator-console run typecheck` (Next.js `tsc --noEmit`) both exit 0.
 
 **For future contributors:** do not re-litigate this. The pattern in `fdfa3fa` is correct. If `next build` behavior changes in a future major (Next 16+), re-evaluate; otherwise leave it.
+
+### 4.2 Why a separate `tsconfig.solution.json` rather than making root tsconfig the solution file
+
+Root `tsconfig.json` is referenced by ESLint's `parserOptions.project` setting (see `.eslintrc.base.js`), which requires a tsconfig with `include` patterns covering the files ESLint needs to type-check. A solution-file tsconfig has no `include` (by design — it only contains `references[]`), so using root as the solution file would break ESLint's type-aware rules across the repo.
+
+Resolution: root tsconfig stays unchanged (with `include` for ESLint), and `tsconfig.solution.json` lives alongside it as the dedicated `tsc -b` entry point. The `build:types` script in root `package.json` runs `tsc -b tsconfig.solution.json` explicitly.
 
 ---
 
@@ -158,7 +162,7 @@ Net commit count: **9** instead of plan's **7** (T01, T05-moved, T01b-added, T02
 | 6   | `fdfa3fa` | T03b | add composite:true to app tsconfigs (PRIOR-R1-003 part 3b)       |
 | 7   | `f4787f1` | T04  | confirm tsc -b works from root (PRIOR-R1-003 part 4)             |
 | 8   | `6ce4dd1` | T06  | dormant-gate inventory across all CI triggers                    |
-| 9   | `<T07>`   | T07  | handoff note — M3.A0 complete, M3 execution cleared to start     |
+| 9   | `78d4bf8` | T07  | handoff note — M3.A0 complete, M3 execution cleared to start     |
 
 ---
 
