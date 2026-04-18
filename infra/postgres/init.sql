@@ -39,6 +39,15 @@ BEGIN
 END
 $$;
 
+-- M3.A1-T01: Make BYPASSRLS attributes explicit on both roles.
+--   sep is also a SUPERUSER (inherited from POSTGRES_USER), so BYPASSRLS is
+--   implicit — but the plan (§2.1) requires it to be set explicitly so that
+--   changes to the SUPERUSER attribute don't accidentally flip RLS bypass
+--   behaviour. sep_app is never allowed to bypass RLS; NOBYPASSRLS +
+--   NOSUPERUSER is enforced as defence-in-depth against future misconfig.
+ALTER ROLE sep WITH BYPASSRLS;
+ALTER ROLE sep_app WITH NOBYPASSRLS NOSUPERUSER;
+
 GRANT CONNECT ON DATABASE sep_dev TO sep_app;
 GRANT USAGE ON SCHEMA public TO sep_app;
 
