@@ -1,0 +1,14 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/common" },
+    { "path": "./packages/schemas" },
+    { "path": "./packages/observability" },
+    { "path": "./packages/crypto" },
+    { "path": "./packages/db" },
+    { "path": "./packages/partner-profiles" },
+    { "path": "./apps/control-plane" },
+    { "path": "./apps/data-plane" },
+    { "path": "./apps/operator-console" }
+  ]
+}

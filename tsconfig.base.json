@@ -21,15 +21,7 @@
     "sourceMap": true,
     "incremental": true,
     "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-    "paths": {
-      "@sep/common": ["../../packages/common/src/index.ts"],
-      "@sep/schemas": ["../../packages/schemas/src/index.ts"],
-      "@sep/crypto": ["../../packages/crypto/src/index.ts"],
-      "@sep/partner-profiles": ["../../packages/partner-profiles/src/index.ts"],
-      "@sep/observability": ["../../packages/observability/src/index.ts"],
-      "@sep/db": ["../../packages/db/src/index.ts"]
-    }
+    "emitDecoratorMetadata": true
   },
   "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]
 }
