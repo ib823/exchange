@@ -16,7 +16,7 @@ Promoted from `M3_EXECUTION_PLAN.draft.md` on 2026-04-18 with the following gate
 
 1. **Scope + estimate (gate 1):** Approved — in-scope list in §1.1 and 20–28 eng-day estimate accepted.
 2. **Second-reviewer decision (gate 2, §10.1):** **Option (ii) — solo with CODEOWNERS self-review discipline.** Each PR to `packages/db/prisma/migrations/`, `packages/crypto/`, or `apps/control-plane/src/modules/auth/` must include an explicit self-review comment in the PR body addressing: threat model, test coverage, rollback path. No exceptions.
-3. **Q9 — R8-001 owner (gate 3):** Deferred — "will name during M3.A4." Named owner must be recorded in `_plan/M3_HANDOFF.md` §5 before M3 closes (per §11 process exit).
+3. **Q9 — R8-001 owner (gate 3):** Owner identification proceeds in parallel with M3 execution. User commits to starting Malaysian compliance-advisor conversations during M3.A0–M3.A4, with an owner formally named by M3 close at latest. If M3.A4 arrives without a candidate short-list, M3 pauses until the path resolves (either a named candidate or explicit flip to option c — user wears the compliance hat through Phase 1). Named owner must be recorded in `_plan/M3_HANDOFF.md` §5 before M3 closes (per §11 process exit).
 
 Amendments: if any of the above needs correction, edit this block in a follow-up commit before M3.A0-T01 lands; do not silently diverge during execution.
 
@@ -1535,7 +1535,7 @@ Promoted 2026-04-18. See "Sign-off record" block at the top of this file for gat
 
 1. User signs off on the scope + estimate — **done** (gate 1)
 2. User confirms second-reviewer decision (option i or ii per §10.1) — **done, option (ii)** (gate 2)
-3. User confirms Q9 owner path (either named, or "will name during M3.A4") — **done, deferred to M3.A4** (gate 3)
+3. User confirms Q9 owner path — **done** (gate 3). Answer: owner identification proceeds in parallel with M3 execution; advisor conversations start during M3.A0–M3.A4; owner formally named by M3 close at latest; M3 pauses at M3.A4 if no candidate short-list (option c — user wears compliance hat through Phase 1 — is the explicit fallback). See Sign-off record block at top of file for canonical language.
 
 Claude Code picks this plan up via an execution prompt analogous to M3.0's §17, starting with M3.A0 and proceeding group by group.
 
