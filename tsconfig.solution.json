@@ -6,6 +6,9 @@
     { "path": "./packages/observability" },
     { "path": "./packages/crypto" },
     { "path": "./packages/db" },
-    { "path": "./packages/partner-profiles" }
+    { "path": "./packages/partner-profiles" },
+    { "path": "./apps/control-plane" },
+    { "path": "./apps/data-plane" },
+    { "path": "./apps/operator-console" }
   ]
 }
