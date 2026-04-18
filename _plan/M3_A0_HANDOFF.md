@@ -168,24 +168,21 @@ Net commit count: **9** instead of plan's **7** (T01, T05-moved, T01b-added, T02
 
 ## 7. User action items
 
-### 7.1 **Merge-blocker (verify before PR merge, not after)** — branch-protection required checks on `main`
+### 7.1 Branch-protection required checks on `main` — DEFERRED
 
-Current branch-protection settings on `main` could not be queried from this session (`gh api repos/:owner/:repo/branches/main/protection` returns 403; the session's token lacks admin scope).
+**Status:** Deferred; no action taken in M3.A0.
 
-**Before merging the M3.A0 PR**, verify via the GitHub UI that the following 8 jobs are in the required-checks list:
+The M3.A0 execution prompt framed this as a merge-blocker. User decision on 2026-04-18: defer branch-protection setup. Rationale:
 
-1. Install dependencies
-2. Lint
-3. Type check
-4. Unit tests
-5. Build
-6. Contract tests
-7. Integration tests
-8. Security scan
+- Repo is private on GitHub Free plan; protected branches are a paid feature (Pro or higher).
+- Solo contributor with demonstrated gate-honoring discipline means branch protection would be belt-on-belt over the practical discipline already in place.
+- CI runs on every push and PR regardless of branch protection state — gates still execute; only the "must pass before merge" enforcement layer is absent.
 
-Rationale in `_plan/M3_A0_GATE_INVENTORY.md` §6. All 8 are non-optional for a security-sensitive enterprise platform (CLAUDE.md §0).
+**Trigger to revisit:** if a second contributor joins the repo (whether employee, contractor, or advisor with write access), branch protection becomes meaningful and should be enabled alongside a GitHub plan that supports it. This is tied to §10.1 option (ii) → option (i) transition — if we flip to a real second reviewer, branch protection should flip from deferred to enabled in the same change.
 
-If any are missing, add them before merge. Post-merge is too late — the first M3.A1 PR will open against a less-protected `main`.
+**Known risk:** without branch protection, an errant merge (e.g., clicking "merge anyway" past a CI warning) is mechanically possible. Discipline is the compensating control; this is acceptable for solo development but explicitly noted here for future context.
+
+The M3.A0 gate inventory document (§6) recorded the recommendation that all 8 CI jobs should be required checks if branch protection is ever enabled. That recommendation stands; it's just not applicable while protection is deferred.
 
 ### 7.2 Follow-up issues tracking (no immediate action required)
 
