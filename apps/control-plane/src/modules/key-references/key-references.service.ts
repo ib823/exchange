@@ -94,7 +94,7 @@ export class KeyReferencesService {
         select: KEY_REF_SELECT,
       });
 
-      await this.audit.record({
+      await this.audit.record(db, {
         tenantId: dto.tenantId,
         actorType: 'USER',
         actorId: actor.userId,
@@ -182,7 +182,7 @@ export class KeyReferencesService {
         select: KEY_REF_SELECT,
       });
 
-      await this.audit.record({
+      await this.audit.record(db, {
         tenantId: actor.tenantId,
         actorType: 'USER',
         actorId: actor.userId,
@@ -223,7 +223,7 @@ export class KeyReferencesService {
         select: KEY_REF_SELECT,
       });
 
-      await this.audit.record({
+      await this.audit.record(db, {
         tenantId: actor.tenantId,
         actorType: 'USER',
         actorId: actor.userId,
@@ -293,7 +293,7 @@ export class KeyReferencesService {
         select: KEY_REF_SELECT,
       });
 
-      await this.audit.record({
+      await this.audit.record(db, {
         tenantId: actor.tenantId,
         actorType: 'USER',
         actorId: actor.userId,
@@ -326,7 +326,7 @@ export class KeyReferencesService {
         select: KEY_REF_SELECT,
       });
 
-      await this.audit.record({
+      await this.audit.record(db, {
         tenantId: actor.tenantId,
         actorType: 'USER',
         actorId: actor.userId,
@@ -363,7 +363,7 @@ export class KeyReferencesService {
         select: KEY_REF_SELECT,
       });
 
-      await this.audit.record({
+      await this.audit.record(db, {
         tenantId: actor.tenantId,
         actorType: 'USER',
         actorId: actor.userId,
@@ -410,7 +410,7 @@ export class KeyReferencesService {
         select: KEY_REF_SELECT,
       });
 
-      await this.audit.record({
+      await this.audit.record(db, {
         tenantId: actor.tenantId,
         actorType: 'USER',
         actorId: actor.userId,

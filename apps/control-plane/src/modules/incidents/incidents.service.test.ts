@@ -84,6 +84,7 @@ describe('IncidentsService', () => {
 
       expect(result).toEqual(baseIncident);
       expect(mockAudit.record).toHaveBeenCalledWith(
+        expect.anything(),
         expect.objectContaining({ action: 'INCIDENT_CREATED', result: 'SUCCESS' }),
       );
     });
@@ -177,6 +178,7 @@ describe('IncidentsService', () => {
 
       expect(result.state).toBe('TRIAGED');
       expect(mockAudit.record).toHaveBeenCalledWith(
+        expect.anything(),
         expect.objectContaining({
           action: 'INCIDENT_TRIAGED',
           result: 'SUCCESS',
@@ -251,6 +253,7 @@ describe('IncidentsService', () => {
 
       expect(result.state).toBe('RESOLVED');
       expect(mockAudit.record).toHaveBeenCalledWith(
+        expect.anything(),
         expect.objectContaining({ action: 'INCIDENT_RESOLVED', result: 'SUCCESS' }),
       );
     });

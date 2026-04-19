@@ -3,30 +3,25 @@
 // audit_events diverges from the helper's standard 8-assertion pattern in
 // two ways and is therefore handwritten rather than parametrized:
 //
-// (1) Writes (INSERT/UPDATE/DELETE) are blocked at the GRANT layer by the
-//     REVOKE landed in PR #23 (M3.A1-T04 migration
-//     20260418222953_enable_rls_tenant_tables — bottom of the file). The
-//     REVOKE strips UPDATE/DELETE/INSERT from sep_app, so all 6 write
-//     attempts in the standard pattern raise "permission denied for table
-//     audit_events" rather than failing via RLS predicate. The error class
-//     is correct (writes are prevented from the runtime role) but the
-//     mechanism differs from the other 17 tables — a class change worth
-//     making explicit instead of hiding behind a helper discriminator.
+// (1) UPDATE/DELETE writes are blocked at the GRANT layer by REVOKEs that
+//     have been in place since 20260418222953 (M3.A1-T04) and remain after
+//     M3.A2-T03 — sep_app has no UPDATE or DELETE grant on audit_events.
+//     All UPDATE/DELETE attempts raise "permission denied for table
+//     audit_events" rather than failing via RLS predicate or trigger.
+//     A second layer (the BEFORE UPDATE / BEFORE DELETE triggers
+//     audit_events_no_update / audit_events_no_delete added by
+//     20260412140000) sits behind the grant layer for defense-in-depth.
 //
-// (2) SELECT is NOT blocked by REVOKE (sep_app retains SELECT) and the
-//     baseline `audit_allow_select` policy USING (true) OR-wins against
-//     the M3.A1-T04 `audit_events_tenant_select` policy. Cross-tenant
-//     SELECT is currently visible — same RLS gap PR #23 round-3 re-read
-//     surfaced. Two assertions in this file therefore document the
-//     CURRENT permissive behavior rather than the desired tenant-isolated
-//     behavior. They will flip to .toBe(0) in M3.A2 when audit_allow_select
-//     is dropped (and AuditService writes via parent transaction
-//     re-acquire INSERT via a controlled GRANT).
+// (2) INSERT writes are GRANTED to sep_app (restored by M3.A2-T03 so
+//     AuditService.record can write inside forTenant). The
+//     audit_events_tenant_insert WITH CHECK policy enforces tenant
+//     boundary — INSERT attempts without the right app.current_tenant_id
+//     raise "new row violates row-level security policy" rather than
+//     "permission denied".
 //
-// TODO(M3.A2): when audit_allow_select is dropped and tenant_select
-// becomes the only SELECT policy on audit_events, flip these two
-// assertions from .toBeGreaterThan(0) to .toBe(0). See PR #23 round-3
-// re-read finding and issue #26.
+// (3) SELECT is correctly tenant-scoped after M3.A2-T03 dropped the
+//     baseline audit_allow_select USING (true) policy. Cross-tenant
+//     SELECT now returns zero rows. Issue #26 is closed.
 
 import { PrismaClient } from '@prisma/client';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -56,9 +51,9 @@ describe.skipIf(!hasIntegrationEnv)('RLS negative — audit_events', () => {
 
     await ensureTestTenants(seedClient);
 
-    // Seed via sep (BYPASSRLS) — sep_app's grant-layer REVOKE prevents
-    // it from doing this directly. The seeded rows feed the SELECT-
-    // divergence assertions and the targeted-row write assertions.
+    // Seed via sep (BYPASSRLS). sep_app's INSERT grant is enforced via
+    // tenant_insert WITH CHECK, so seed via sep keeps the seeded rows
+    // independent of any app-level policy state under test.
     const seededA = await seedClient.auditEvent.create({
       data: {
         tenantId: TENANT_A_ID,
@@ -88,33 +83,30 @@ describe.skipIf(!hasIntegrationEnv)('RLS negative — audit_events', () => {
   });
 
   afterAll(async () => {
-    // No cleanup of audit_events — the M3.0 audit_deny_delete policy
-    // (USING false) blocks DELETE for every role, BYPASSRLS or not. Rows
-    // accumulate across local reruns; CI starts from a fresh DB, so this
-    // is dev-only. Unlike crypto_operation_records, the deny here is via
-    // RLS policy rather than a trigger, but the practical effect is the
-    // same: the seed row is permanent.
+    // No cleanup of audit_events. The BEFORE DELETE trigger
+    // (audit_events_no_delete from 20260412140000) RAISEs on every
+    // delete attempt regardless of role — both sep and sep_app are
+    // blocked. Rows accumulate across local reruns; CI starts from a
+    // fresh DB.
     await seedClient.$disconnect();
     await runtimeClient.$disconnect();
   });
 
   // ── Without tenant context ──────────────────────────────────────────────
 
-  it('audit_events: SELECT without tenant context returns rows (DIVERGENT)', async () => {
-    // TODO(M3.A2): when audit_allow_select is dropped and tenant_select
-    // becomes the only SELECT policy on audit_events, flip this from
-    // .toBeGreaterThan(0) to .toBe(0). See PR #23 round-3 re-read finding
-    // and issue #26.
+  it('audit_events: SELECT without tenant context returns zero rows (tenant-scoped)', async () => {
+    // Post M3.A2-T03: audit_allow_select USING (true) is gone, so
+    // tenant_select USING tenantId = current_tenant_id is the only SELECT
+    // policy. With no app.current_tenant_id set, NULLIF returns NULL and
+    // no rows match. Closes issue #26.
     const rows = await runtimeClient.auditEvent.findMany();
-    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.length).toBe(0);
   });
 
-  it('audit_events: INSERT without tenant context fails (grant-layer REVOKE)', async () => {
-    // sep_app has no INSERT grant on audit_events after PR #23's REVOKE.
-    // This raises "permission denied for table audit_events" — different
-    // class from the WITH CHECK rejection on the other 17 tables but a
-    // stronger guarantee (RLS-bypassable roles cannot circumvent it
-    // without re-granting at the role level).
+  it('audit_events: INSERT without tenant context fails (tenant_insert WITH CHECK)', async () => {
+    // sep_app has INSERT grant restored by M3.A2-T03; the audit_events
+    // tenant_insert WITH CHECK rejects rows whose tenantId does not
+    // match app.current_tenant_id. With no context set, the check fails.
     await expect(
       runtimeClient.auditEvent.create({
         data: {
@@ -128,7 +120,7 @@ describe.skipIf(!hasIntegrationEnv)('RLS negative — audit_events', () => {
           immutableHash: `probe-${Date.now()}`,
         },
       }),
-    ).rejects.toThrow(/permission denied/i);
+    ).rejects.toThrow(/row-level security/i);
   });
 
   it('audit_events: UPDATE without tenant context fails (grant-layer REVOKE)', async () => {
@@ -148,18 +140,15 @@ describe.skipIf(!hasIntegrationEnv)('RLS negative — audit_events', () => {
 
   // ── With tenant-A context, targeting tenant-B rows ──────────────────────
 
-  it('audit_events: SELECT in tenant-A context still sees tenant-B rows (DIVERGENT)', async () => {
-    // TODO(M3.A2): when audit_allow_select is dropped and tenant_select
-    // becomes the only SELECT policy on audit_events, flip this from
-    // .toBeGreaterThan(0) to .toBe(0). See PR #23 round-3 re-read finding
-    // and issue #26.
+  it('audit_events: SELECT in tenant-A context cannot see tenant-B rows', async () => {
+    // tenant_select correctly scopes after M3.A2-T03 drop of audit_allow_select.
     const rows = await db.forTenant(TENANT_A_ID, async (tx) =>
       tx.auditEvent.findMany({ where: { id: seededBRowId } }),
     );
-    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.length).toBe(0);
   });
 
-  it('audit_events: INSERT in tenant-A context with tenantId=B fails (grant-layer REVOKE)', async () => {
+  it('audit_events: INSERT in tenant-A context with tenantId=B fails (tenant_insert WITH CHECK)', async () => {
     await expect(
       db.forTenant(TENANT_A_ID, async (tx) =>
         tx.auditEvent.create({
@@ -175,7 +164,7 @@ describe.skipIf(!hasIntegrationEnv)('RLS negative — audit_events', () => {
           },
         }),
       ),
-    ).rejects.toThrow(/permission denied/i);
+    ).rejects.toThrow(/row-level security/i);
   });
 
   it('audit_events: UPDATE in tenant-A context on tenant-B row fails (grant-layer REVOKE)', async () => {
@@ -195,5 +184,29 @@ describe.skipIf(!hasIntegrationEnv)('RLS negative — audit_events', () => {
         tx.auditEvent.deleteMany({ where: { id: seededBRowId } }),
       ),
     ).rejects.toThrow(/permission denied/i);
+  });
+
+  // ── M3.A2 positive assertions: INSERT with correct tenant context succeeds ──
+
+  it('audit_events: INSERT in tenant-A context with tenantId=A succeeds (M3.A2 happy path)', async () => {
+    // Validates the closed regression: AuditService.record writes via
+    // sep_app inside forTenant now succeed. Before M3.A2 this raised
+    // "permission denied" because PR #23 had revoked INSERT.
+    const created = await db.forTenant(TENANT_A_ID, async (tx) =>
+      tx.auditEvent.create({
+        data: {
+          tenantId: TENANT_A_ID,
+          actorType: 'SYSTEM',
+          actorId: 'm3a2-positive',
+          objectType: 'Probe',
+          objectId: `m3a2-${Date.now()}`,
+          action: 'TENANT_CREATED',
+          result: 'SUCCESS',
+          immutableHash: `m3a2-positive-${Date.now()}`,
+        },
+      }),
+    );
+    expect(created.id).toBeDefined();
+    expect(created.tenantId).toBe(TENANT_A_ID);
   });
 });

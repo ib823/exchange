@@ -98,7 +98,7 @@ export class SubmissionsService {
         },
       });
 
-      await this.audit.record({
+      await this.audit.record(db, {
         tenantId: dto.tenantId,
         actorType: 'USER',
         actorId: actor.userId,
@@ -218,7 +218,7 @@ export class SubmissionsService {
         data: { status: 'CANCELLED' },
       });
 
-      await this.audit.record({
+      await this.audit.record(db, {
         tenantId: actor.tenantId,
         actorType: 'USER',
         actorId: actor.userId,

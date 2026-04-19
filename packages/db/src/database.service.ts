@@ -109,6 +109,61 @@ export class DatabaseService {
   }
 
   /**
+   * System-scope transactional wrapper for flows that combine a
+   * platform-scope write with a tenant-scoped audit append in one atomic
+   * unit (e.g., tenant.create / tenant.update / tenant.suspend).
+   *
+   * Two modes:
+   *
+   * 1. `tenantIdForAudit` provided (id known up front — update/suspend):
+   *    forSystemTx sets `app.current_tenant_id` BEFORE invoking the
+   *    callback, so any audit.record(tx, ...) inside the callback inherits
+   *    the RLS context. Validation of the cuid shape happens up front,
+   *    before the tx opens.
+   *
+   * 2. `tenantIdForAudit` null (id not yet known — tenant.create):
+   *    forSystemTx opens the tx without setting RLS context. The caller
+   *    is expected to set context manually after the platform write that
+   *    materialises the tenant id:
+   *
+   *        await tx.$executeRaw`SELECT set_config('app.current_tenant_id', ${tenant.id}, true)`;
+   *        await this.audit.record(tx, {...});
+   *
+   *    The two-statement pattern keeps the contract explicit: a fresh
+   *    tenant id only becomes available inside the tx, and forSystemTx
+   *    cannot guess when the platform write completes.
+   *
+   * If a caller passes null AND tries to write an audit event without
+   * manually setting the context, the audit_events `tenant_insert` WITH
+   * CHECK will fail the insert — the correct signal that the flow has
+   * bypassed RLS context.
+   *
+   * Distinct from forTenant(): forTenant requires the tenant id up front
+   * and is the right choice for any flow where the id pre-exists.
+   * forSystemTx is the narrow escape hatch for platform-bootstrap flows.
+   */
+  forSystemTx<T>(
+    tenantIdForAudit: string | null,
+    fn: (tx: Prisma.TransactionClient) => Promise<T>,
+  ): Promise<T> {
+    if (tenantIdForAudit !== null) {
+      if (typeof tenantIdForAudit !== 'string' || tenantIdForAudit.length === 0) {
+        throw new SepError(ErrorCode.TENANT_CONTEXT_MISSING);
+      }
+      if (!CuidSchema.safeParse(tenantIdForAudit).success) {
+        throw new SepError(ErrorCode.TENANT_CONTEXT_INVALID, { tenantId: tenantIdForAudit });
+      }
+    }
+
+    return this.client.$transaction(async (tx) => {
+      if (tenantIdForAudit !== null) {
+        await tx.$executeRaw`SELECT set_config('app.current_tenant_id', ${tenantIdForAudit}, true)`;
+      }
+      return fn(tx);
+    });
+  }
+
+  /**
    * Disconnect the runtime client. Used in graceful shutdown.
    */
   async disconnect(): Promise<void> {

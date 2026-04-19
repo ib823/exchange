@@ -4,8 +4,10 @@
  * Mirrors the control-plane AuditService pattern: chained SHA-256 hash,
  * application-generated timestamps, append-only persistence.
  *
- * Every processor state transition MUST write an audit event via this service
- * BEFORE the transition is committed.
+ * record() requires a Prisma transaction client (or a raw PrismaClient as a
+ * safety net). Processors inside `database.forTenant(...)` pass `db` so the
+ * audit append shares the parent tx — a business-write failure rolls back
+ * the audit append and vice versa (M3.A2 transactional coupling).
  */
 
 import { createHash } from 'crypto';
@@ -16,6 +18,7 @@ import {
   type Role,
   type Environment,
   type Prisma,
+  type PrismaClient,
 } from '@sep/db';
 import { getConfig, SepError, ErrorCode } from '@sep/common';
 import { createLogger } from '@sep/observability';
@@ -40,50 +43,60 @@ export interface AuditEventParams {
 export class AuditWriterService {
   constructor(private readonly database: DatabaseService) {}
 
-  async record(params: AuditEventParams): Promise<void> {
+  async record(
+    tx: Prisma.TransactionClient | PrismaClient,
+    params: AuditEventParams,
+  ): Promise<void> {
+    if ('$transaction' in tx) {
+      return this.database.forTenant(params.tenantId, (innerTx) =>
+        this.appendEvent(innerTx, params),
+      );
+    }
+    return this.appendEvent(tx, params);
+  }
+
+  private async appendEvent(tx: Prisma.TransactionClient, params: AuditEventParams): Promise<void> {
     try {
       const cfg = getConfig();
 
-      await this.database.forTenant(params.tenantId, async (db) => {
-        const latest = await db.auditEvent.findFirst({
-          where: { tenantId: params.tenantId },
-          orderBy: { eventTime: 'desc' },
-          select: { immutableHash: true },
-        });
+      const latest = await tx.auditEvent.findFirst({
+        where: { tenantId: params.tenantId },
+        orderBy: { eventTime: 'desc' },
+        select: { immutableHash: true },
+      });
 
-        const previousHash = latest?.immutableHash ?? null;
-        const eventTime = new Date();
-        const hashInput = [
-          params.tenantId,
-          params.actorId,
-          params.action,
-          params.result,
-          eventTime.toISOString(),
-          previousHash ?? 'genesis',
-          cfg.audit.hashSecret,
-        ].join('|');
+      const previousHash = latest?.immutableHash ?? null;
+      const eventTime = new Date();
+      const hashInput = [
+        params.tenantId,
+        params.actorId,
+        params.action,
+        params.result,
+        eventTime.toISOString(),
+        previousHash ?? 'genesis',
+        cfg.audit.hashSecret,
+      ].join('|');
 
-        const immutableHash = createHash('sha256').update(hashInput).digest('hex');
+      const immutableHash = createHash('sha256').update(hashInput).digest('hex');
 
-        await db.auditEvent.create({
-          data: {
-            tenantId: params.tenantId,
-            actorType: params.actorType,
-            actorId: params.actorId,
-            actorRole: params.actorRole ?? null,
-            objectType: params.objectType,
-            objectId: params.objectId,
-            action: params.action,
-            result: params.result,
-            correlationId: params.correlationId ?? null,
-            traceId: params.traceId ?? null,
-            environment: params.environment ?? null,
-            eventTime,
-            immutableHash,
-            previousHash,
-            metadata: (params.metadata ?? null) as Prisma.InputJsonValue,
-          },
-        });
+      await tx.auditEvent.create({
+        data: {
+          tenantId: params.tenantId,
+          actorType: params.actorType,
+          actorId: params.actorId,
+          actorRole: params.actorRole ?? null,
+          objectType: params.objectType,
+          objectId: params.objectId,
+          action: params.action,
+          result: params.result,
+          correlationId: params.correlationId ?? null,
+          traceId: params.traceId ?? null,
+          environment: params.environment ?? null,
+          eventTime,
+          immutableHash,
+          previousHash,
+          metadata: (params.metadata ?? null) as Prisma.InputJsonValue,
+        },
       });
     } catch (err) {
       if (err instanceof SepError) {

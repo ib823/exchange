@@ -169,7 +169,7 @@ export class InboundProcessor extends WorkerHost {
         );
 
         // Write audit event
-        await this.auditWriter.record({
+        await this.auditWriter.record(db, {
           tenantId,
           actorType: 'SERVICE',
           actorId,
@@ -254,7 +254,7 @@ export class InboundProcessor extends WorkerHost {
         });
 
         // Write explicit audit event
-        await this.auditWriter.record({
+        await this.auditWriter.record(db, {
           tenantId,
           actorType: 'SERVICE',
           actorId,
@@ -320,7 +320,7 @@ export class InboundProcessor extends WorkerHost {
           data: { status: 'ACK_RECEIVED', updatedAt: new Date() },
         });
 
-        await this.auditWriter.record({
+        await this.auditWriter.record(db, {
           tenantId,
           actorType: 'SERVICE',
           actorId,
@@ -339,7 +339,7 @@ export class InboundProcessor extends WorkerHost {
       }
 
       // 7. Write inbound received audit event
-      await this.auditWriter.record({
+      await this.auditWriter.record(db, {
         tenantId,
         actorType: 'SERVICE',
         actorId,

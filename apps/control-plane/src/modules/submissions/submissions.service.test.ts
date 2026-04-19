@@ -92,6 +92,7 @@ describe('SubmissionsService', () => {
       expect(result.submissionId).toBe('sub-1');
       expect(result.status).toBe('RECEIVED');
       expect(mockAudit.record).toHaveBeenCalledWith(
+        expect.anything(),
         expect.objectContaining({ action: 'SUBMISSION_RECEIVED', result: 'SUCCESS' }),
       );
     });
@@ -147,6 +148,7 @@ describe('SubmissionsService', () => {
 
       expect(result.status).toBe('CANCELLED');
       expect(mockAudit.record).toHaveBeenCalledWith(
+        expect.anything(),
         expect.objectContaining({ action: 'SUBMISSION_CANCELLED', result: 'SUCCESS' }),
       );
     });

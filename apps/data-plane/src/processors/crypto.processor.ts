@@ -359,7 +359,7 @@ export class CryptoProcessor extends WorkerHost {
       });
 
       // 7. Write audit event
-      await this.auditWriter.record({
+      await this.auditWriter.record(db, {
         tenantId,
         actorType: 'SERVICE',
         actorId,
