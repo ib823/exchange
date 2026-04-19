@@ -75,7 +75,7 @@ export class WebhooksService {
         select: WEBHOOK_SELECT,
       });
 
-      await this.audit.record({
+      await this.audit.record(db, {
         tenantId: input.tenantId,
         actorType: 'USER',
         actorId: actor.userId,
@@ -134,7 +134,7 @@ export class WebhooksService {
         select: WEBHOOK_SELECT,
       });
 
-      await this.audit.record({
+      await this.audit.record(db, {
         tenantId: actor.tenantId,
         actorType: 'USER',
         actorId: actor.userId,

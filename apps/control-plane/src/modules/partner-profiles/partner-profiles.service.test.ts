@@ -90,6 +90,7 @@ describe('PartnerProfilesService', () => {
 
       expect(result).toEqual(baseProfile);
       expect(mockAudit.record).toHaveBeenCalledWith(
+        expect.anything(),
         expect.objectContaining({ action: 'PARTNER_PROFILE_CREATED', result: 'SUCCESS' }),
       );
     });
@@ -131,6 +132,7 @@ describe('PartnerProfilesService', () => {
 
       expect(result.status).toBe('TEST_READY');
       expect(mockAudit.record).toHaveBeenCalledWith(
+        expect.anything(),
         expect.objectContaining({
           action: 'PARTNER_PROFILE_STATUS_CHANGED',
           result: 'SUCCESS',

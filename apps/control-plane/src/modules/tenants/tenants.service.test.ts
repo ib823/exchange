@@ -11,6 +11,10 @@ const mockDb = {
     count: vi.fn(),
     update: vi.fn(),
   },
+  // tenants.service.ts calls tx.$executeRaw for set_config in the
+  // forSystemTx(null, ...) path on tenant.create. The mock doesn't actually
+  // execute SQL — it just needs to resolve.
+  $executeRaw: vi.fn().mockResolvedValue(undefined),
 };
 
 vi.mock('@sep/db', async () => {
@@ -21,6 +25,14 @@ vi.mock('@sep/db', async () => {
 const mockDatabaseService = {
   forTenant: <T>(_tid: string, fn: (db: typeof mockDb) => Promise<T>): Promise<T> => fn(mockDb),
   forSystem: (): typeof mockDb => mockDb,
+  // Mirror forSystemTx semantics: validate tenant id when provided, then
+  // invoke the callback with the same mockDb (which doubles as the tx).
+  // The real implementation would also issue a SET LOCAL via set_config —
+  // skipped here because the mock does not execute SQL.
+  forSystemTx: <T>(
+    _tenantIdForAudit: string | null,
+    fn: (tx: typeof mockDb) => Promise<T>,
+  ): Promise<T> => fn(mockDb),
 } as unknown as DatabaseService;
 
 const mockAudit = { record: vi.fn().mockResolvedValue(undefined) };
@@ -73,6 +85,7 @@ describe('TenantsService', () => {
 
       expect(result).toEqual(created);
       expect(mockAudit.record).toHaveBeenCalledWith(
+        expect.anything(),
         expect.objectContaining({ action: 'TENANT_CREATED', result: 'SUCCESS' }),
       );
     });
@@ -126,6 +139,7 @@ describe('TenantsService', () => {
 
       expect(result.status).toBe('SUSPENDED');
       expect(mockAudit.record).toHaveBeenCalledWith(
+        expect.anything(),
         expect.objectContaining({ action: 'TENANT_SUSPENDED', result: 'SUCCESS' }),
       );
     });
@@ -164,6 +178,7 @@ describe('TenantsService', () => {
 
       expect(result.name).toBe('NEW');
       expect(mockAudit.record).toHaveBeenCalledWith(
+        expect.anything(),
         expect.objectContaining({ action: 'TENANT_UPDATED', result: 'SUCCESS' }),
       );
     });

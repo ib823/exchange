@@ -126,7 +126,7 @@ export class ApprovalsService {
       // (e.g. PR #1's audit_events REVOKE INSERT) rolls back the approval
       // update too. M3.A2 will migrate audit.record to share the parent tx
       // directly instead of opening a nested $transaction savepoint.
-      await this.audit.record({
+      await this.audit.record(db, {
         tenantId: actor.tenantId,
         actorType: 'USER',
         actorId: actor.userId,
@@ -164,7 +164,7 @@ export class ApprovalsService {
         },
       });
 
-      await this.audit.record({
+      await this.audit.record(db, {
         tenantId: actor.tenantId,
         actorType: 'USER',
         actorId: actor.userId,

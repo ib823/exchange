@@ -105,6 +105,7 @@ describe('KeyReferencesService', () => {
 
       expect(result).toEqual(baseKeyRef);
       expect(mockAudit.record).toHaveBeenCalledWith(
+        expect.anything(),
         expect.objectContaining({ action: 'KEY_REFERENCE_CREATED', result: 'SUCCESS' }),
       );
     });
@@ -171,6 +172,7 @@ describe('KeyReferencesService', () => {
 
       expect(result.state).toBe('ACTIVE');
       expect(mockAudit.record).toHaveBeenCalledWith(
+        expect.anything(),
         expect.objectContaining({ action: 'KEY_REFERENCE_ACTIVATED', result: 'SUCCESS' }),
       );
     });
@@ -194,6 +196,7 @@ describe('KeyReferencesService', () => {
 
       expect(result.state).toBe('REVOKED');
       expect(mockAudit.record).toHaveBeenCalledWith(
+        expect.anything(),
         expect.objectContaining({ action: 'KEY_REFERENCE_REVOKED', result: 'SUCCESS' }),
       );
     });
@@ -311,6 +314,7 @@ describe('KeyReferencesService', () => {
       const result = await service.suspend('key-1', actor);
       expect(result.state).toBe('SUSPENDED');
       expect(mockAudit.record).toHaveBeenCalledWith(
+        expect.anything(),
         expect.objectContaining({ action: 'KEY_REFERENCE_SUSPENDED' }),
       );
     });
@@ -327,6 +331,7 @@ describe('KeyReferencesService', () => {
       const result = await service.reinstate('key-1', actor);
       expect(result.state).toBe('ACTIVE');
       expect(mockAudit.record).toHaveBeenCalledWith(
+        expect.anything(),
         expect.objectContaining({ action: 'KEY_REFERENCE_REINSTATED' }),
       );
     });
@@ -344,6 +349,7 @@ describe('KeyReferencesService', () => {
       const result = await service.markCompromised('key-1', actor, 'Private key exposed');
       expect(result.state).toBe('COMPROMISED');
       expect(mockAudit.record).toHaveBeenCalledWith(
+        expect.anything(),
         expect.objectContaining({ action: 'KEY_REFERENCE_COMPROMISED' }),
       );
       expect(mockDb.incident.create).toHaveBeenCalledWith({
@@ -370,6 +376,7 @@ describe('KeyReferencesService', () => {
       const result = await service.destroy('key-1', actor);
       expect(result.state).toBe('DESTROYED');
       expect(mockAudit.record).toHaveBeenCalledWith(
+        expect.anything(),
         expect.objectContaining({ action: 'KEY_REFERENCE_DESTROYED' }),
       );
     });

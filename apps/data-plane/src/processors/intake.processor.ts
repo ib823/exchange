@@ -135,7 +135,7 @@ export class IntakeProcessor extends WorkerHost {
             tenantId,
             ErrorCode.SUBMISSION_PAYLOAD_TAMPERED,
           );
-          await this.auditWriter.record({
+          await this.auditWriter.record(db, {
             tenantId,
             actorType: 'SERVICE',
             actorId,
@@ -297,7 +297,7 @@ export class IntakeProcessor extends WorkerHost {
       });
 
       // 13. Write audit event
-      await this.auditWriter.record({
+      await this.auditWriter.record(db, {
         tenantId,
         actorType: 'SERVICE',
         actorId,

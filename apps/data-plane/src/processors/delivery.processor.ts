@@ -158,7 +158,7 @@ export class DeliveryProcessor extends WorkerHost {
           data: { status: 'SENT', updatedAt: new Date() },
         });
 
-        await this.auditWriter.record({
+        await this.auditWriter.record(db, {
           tenantId,
           actorType: 'SERVICE',
           actorId,
@@ -214,7 +214,7 @@ export class DeliveryProcessor extends WorkerHost {
             data: { status: 'FAILED_RETRYABLE', updatedAt: new Date() },
           });
 
-          await this.auditWriter.record({
+          await this.auditWriter.record(db, {
             tenantId,
             actorType: 'SERVICE',
             actorId,
@@ -258,7 +258,7 @@ export class DeliveryProcessor extends WorkerHost {
             },
           });
 
-          await this.auditWriter.record({
+          await this.auditWriter.record(db, {
             tenantId,
             actorType: 'SERVICE',
             actorId,

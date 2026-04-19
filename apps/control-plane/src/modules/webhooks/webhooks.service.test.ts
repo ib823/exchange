@@ -76,6 +76,7 @@ describe('WebhooksService', () => {
 
       expect(result).toEqual(baseWebhook);
       expect(mockAudit.record).toHaveBeenCalledWith(
+        expect.anything(),
         expect.objectContaining({ action: 'WEBHOOK_REGISTERED', result: 'SUCCESS' }),
       );
     });
@@ -112,6 +113,7 @@ describe('WebhooksService', () => {
 
       expect(result.active).toBe(false);
       expect(mockAudit.record).toHaveBeenCalledWith(
+        expect.anything(),
         expect.objectContaining({
           action: 'WEBHOOK_DEACTIVATED',
           result: 'SUCCESS',

@@ -113,6 +113,7 @@ describe('ApprovalsService', () => {
 
       expect(result.status).toBe('APPROVED');
       expect(mockAudit.record).toHaveBeenCalledWith(
+        expect.anything(),
         expect.objectContaining({ action: 'APPROVAL_GRANTED', result: 'SUCCESS' }),
       );
     });
@@ -159,6 +160,7 @@ describe('ApprovalsService', () => {
 
       expect(result.status).toBe('REJECTED');
       expect(mockAudit.record).toHaveBeenCalledWith(
+        expect.anything(),
         expect.objectContaining({ action: 'APPROVAL_REJECTED', result: 'SUCCESS' }),
       );
     });
