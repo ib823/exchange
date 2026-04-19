@@ -222,6 +222,8 @@ Before writing any RLS policy or SET LOCAL call, internalize this list. If you f
 
 10. **Policy naming.** Plan pattern is `<table>_tenant_<op>` (e.g., `users_tenant_select`). Postgres scopes policy names per-table, so two tables can both have `<t>_tenant_select` without collision. Stick to the plan pattern; don't deviate.
 
+11. **OR-defeat by pre-existing permissive policies.** Postgres combines permissive policies with OR. A pre-existing `<table>_allow_select` USING (true) (or `_allow_insert` WITH CHECK (true)) from an earlier migration will OR-combine with a new `<table>_tenant_select` and silently defeat tenant isolation — the OR result is `true OR <tenant predicate>` = `true`. When adding RLS to a table, audit the full current policy list on that table (`SELECT polname, polcmd FROM pg_policy p JOIN pg_class c ON p.polrelid = c.oid WHERE c.relname = '<t>'`) and ensure no `USING (true)` or `WITH CHECK (true)` policies exist that would OR-combine to defeat tenant isolation. Fix either by dropping the permissive policies or by REVOKE at the grant layer if the writes should remain privileged. PR #23's round-3 re-read caught this for `audit_events`; M3.A1-T06 surfaced the same gap on `crypto_operation_records` (issue #28, fixed in PR #29). `_deny_*` policies USING (false) are safe — `false OR <x>` = `<x>`, so they don't OR-defeat anything; they're inert when a tenant policy is present.
+
 ## 8. Self-review mechanics — option (ii)
 
 **When to write the self-review block:** at PR creation, not at merge time. The block goes in the PR body.

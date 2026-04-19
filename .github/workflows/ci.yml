@@ -225,6 +225,58 @@ jobs:
       - run: pnpm test:e2e
 
   # ─────────────────────────────────────────────────────────
+  # Stage 7b: RLS negative tests (cross-tenant isolation)
+  # ─────────────────────────────────────────────────────────
+  # Plan §5-T06 / §9 calls for these as a required check. Mirrors the
+  # integration-tests job's services + env-var contract; runs the
+  # 144-assertion cross-tenant suite via @sep/rls-negative-tests.
+  rls-negative-tests:
+    name: RLS negative tests
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    needs: build
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: sep_test
+          POSTGRES_USER: sep
+          POSTGRES_PASSWORD: sep
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://sep:sep@localhost:5432/sep_test
+      RUNTIME_DATABASE_URL: postgresql://sep_app:sep_app@localhost:5432/sep_test
+      NODE_ENV: test
+      APP_ENV: ci
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: pnpm/action-setup@a3252b78c470c02df07e9d59298aecedc3ccdd6d # v3.0.0
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: build-artifacts
+      - name: Run DB migrations
+        # Migrations create the sep_app runtime role (M3.A1-T01) and apply
+        # all RLS policies the suite verifies. Must run before the suite.
+        run: pnpm --filter @sep/db exec prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+      - run: pnpm --filter @sep/rls-negative-tests test:integration
+
+  # ─────────────────────────────────────────────────────────
   # Stage 8: Security scans
   # ─────────────────────────────────────────────────────────
   security:
