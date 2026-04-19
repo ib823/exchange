@@ -69,6 +69,7 @@ export interface SepErrorContext {
   readonly toSeverity?: string;
   readonly field?: string;
   readonly issues?: ReadonlyArray<{ path: string; message: string }>;
+  readonly backendType?: string;
 }
 
 export interface SepErrorJson {
@@ -157,6 +158,16 @@ export class SepError extends Error {
         'Request nonce has already been used — replay attack rejected',
       [ErrorCode.POLICY_ENVIRONMENT_MISMATCH]:
         'Test profile cannot be used against production endpoints',
+      [ErrorCode.CRYPTO_BACKEND_NOT_IMPLEMENTED]:
+        'Key custody backend is not implemented in this milestone',
+      [ErrorCode.CRYPTO_BACKEND_NOT_AVAILABLE]:
+        'Key custody backend is not approved for production use',
+      [ErrorCode.CRYPTO_BACKEND_UNKNOWN]:
+        'Key reference names an unknown key custody backend type',
+      [ErrorCode.CRYPTO_BACKENDS_INCOMPATIBLE]:
+        'Composite key-custody operation requires both references to resolve to the same backend',
+      [ErrorCode.CRYPTO_OPERATION_NOT_SUPPORTED]:
+        'Key custody backend does not support this operation',
     };
     return messages[code] ?? `Platform error: ${code}`;
   }
