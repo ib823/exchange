@@ -41,8 +41,13 @@ export async function disconnectPrisma(): Promise<void> {
   }
 }
 
-// Re-export Prisma types for consumers
+// Re-export Prisma types for consumers. PrismaClient is type-only — the
+// client value remains gated behind getPrismaClient() to enforce the
+// singleton pattern. The type is needed by services that accept a
+// `Prisma.TransactionClient | PrismaClient` discriminated union (see
+// AuditService.record / AuditWriterService.record).
 export { Prisma } from '@prisma/client';
+export type { PrismaClient } from '@prisma/client';
 export type {
   Tenant,
   User,

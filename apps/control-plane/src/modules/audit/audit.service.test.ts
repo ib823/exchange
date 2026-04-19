@@ -50,6 +50,19 @@ const baseParams = {
   result: 'SUCCESS' as const,
 };
 
+// TransactionClient stand-in: same surface as a real TransactionClient
+// from the consumer's POV (auditEvent.findFirst / .create), and crucially
+// has no `$transaction` property so AuditService.record() takes the
+// TransactionClient branch.
+const tx = mockDb as unknown as Parameters<AuditService['record']>[0];
+
+// PrismaClient stand-in: includes $transaction so AuditService.record()
+// takes the PrismaClient branch and delegates to DatabaseService.forTenant.
+const client = {
+  ...mockDb,
+  $transaction: vi.fn(),
+} as unknown as Parameters<AuditService['record']>[0];
+
 describe('AuditService', () => {
   let service: AuditService;
 
@@ -63,7 +76,7 @@ describe('AuditService', () => {
       mockDb.auditEvent.findFirst.mockResolvedValue(null);
       mockDb.auditEvent.create.mockResolvedValue({ id: 'evt-1' });
 
-      await service.record(baseParams);
+      await service.record(tx, baseParams);
 
       expect(mockDb.auditEvent.findFirst).toHaveBeenCalledWith({
         where: { tenantId: 'tenant-1' },
@@ -91,7 +104,7 @@ describe('AuditService', () => {
       mockDb.auditEvent.findFirst.mockResolvedValue({ immutableHash: previousHash });
       mockDb.auditEvent.create.mockResolvedValue({ id: 'evt-2' });
 
-      await service.record(baseParams);
+      await service.record(tx, baseParams);
 
       expect(mockDb.auditEvent.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
@@ -105,7 +118,7 @@ describe('AuditService', () => {
       mockDb.auditEvent.findFirst.mockResolvedValue(null);
       mockDb.auditEvent.create.mockResolvedValue({ id: 'evt-1' });
 
-      await service.record(baseParams);
+      await service.record(tx, baseParams);
       const firstCall = mockDb.auditEvent.create.mock.calls[0];
       if (!firstCall) {
         throw new Error('expected first create call');
@@ -115,7 +128,7 @@ describe('AuditService', () => {
       mockDb.auditEvent.findFirst.mockResolvedValue({ immutableHash: firstHash });
       mockDb.auditEvent.create.mockResolvedValue({ id: 'evt-2' });
 
-      await service.record({ ...baseParams, action: 'SUBMISSION_VALIDATED' as const });
+      await service.record(tx, { ...baseParams, action: 'SUBMISSION_VALIDATED' as const });
       const secondCall = mockDb.auditEvent.create.mock.calls[1];
       if (!secondCall) {
         throw new Error('expected second create call');
@@ -129,13 +142,13 @@ describe('AuditService', () => {
       mockDb.auditEvent.findFirst.mockResolvedValue(null);
       mockDb.auditEvent.create.mockResolvedValue({ id: 'evt-1' });
 
-      await service.record({ ...baseParams, tenantId: 'tenant-A' });
+      await service.record(tx, { ...baseParams, tenantId: 'tenant-A' });
 
       expect(mockDb.auditEvent.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({ where: { tenantId: 'tenant-A' } }),
       );
 
-      await service.record({ ...baseParams, tenantId: 'tenant-B' });
+      await service.record(tx, { ...baseParams, tenantId: 'tenant-B' });
 
       expect(mockDb.auditEvent.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({ where: { tenantId: 'tenant-B' } }),
@@ -146,14 +159,14 @@ describe('AuditService', () => {
       mockDb.auditEvent.findFirst.mockResolvedValue(null);
       mockDb.auditEvent.create.mockRejectedValue(new Error('DB connection lost'));
 
-      await expect(service.record(baseParams)).rejects.toThrow('DATABASE_ERROR');
+      await expect(service.record(tx, baseParams)).rejects.toThrow('DATABASE_ERROR');
     });
 
     it('uses application-generated timestamp for both hash and eventTime (Issue 6)', async () => {
       mockDb.auditEvent.findFirst.mockResolvedValue(null);
       mockDb.auditEvent.create.mockResolvedValue({ id: 'evt-1' });
 
-      await service.record(baseParams);
+      await service.record(tx, baseParams);
 
       const createCall = mockDb.auditEvent.create.mock.calls[0];
       if (!createCall) {
@@ -188,17 +201,17 @@ describe('AuditService', () => {
         },
       );
 
-      await service.record(baseParams);
+      await service.record(tx, baseParams);
 
       // Event 2 — chained to event 1
       const evt0 = events[0] as (typeof events)[number];
       mockDb.auditEvent.findFirst.mockResolvedValue({ immutableHash: evt0.immutableHash });
-      await service.record({ ...baseParams, action: 'SUBMISSION_VALIDATED' as const });
+      await service.record(tx, { ...baseParams, action: 'SUBMISSION_VALIDATED' as const });
 
       // Event 3 — chained to event 2
       const evt1 = events[1] as (typeof events)[number];
       mockDb.auditEvent.findFirst.mockResolvedValue({ immutableHash: evt1.immutableHash });
-      await service.record({ ...baseParams, action: 'SUBMISSION_QUEUED' as const });
+      await service.record(tx, { ...baseParams, action: 'SUBMISSION_QUEUED' as const });
 
       expect(events).toHaveLength(3);
       const evt2 = events[2] as (typeof events)[number];
@@ -233,7 +246,7 @@ describe('AuditService', () => {
       mockDb.auditEvent.findFirst.mockResolvedValue(null);
       mockDb.auditEvent.create.mockResolvedValue({ id: 'evt-1' });
 
-      await service.record({
+      await service.record(tx, {
         ...baseParams,
         correlationId: 'corr-1',
         traceId: 'trace-1',
@@ -251,6 +264,35 @@ describe('AuditService', () => {
           metadata: { key: 'value' },
         }),
       });
+    });
+
+    it('TransactionClient branch: uses provided tx directly without re-opening forTenant', async () => {
+      mockDb.auditEvent.findFirst.mockResolvedValue(null);
+      mockDb.auditEvent.create.mockResolvedValue({ id: 'evt-1' });
+      const forTenantSpy = vi.spyOn(mockDatabaseService, 'forTenant');
+
+      await service.record(tx, baseParams);
+
+      // Direct write through the supplied tx — DatabaseService.forTenant
+      // must NOT be called when caller provided a TransactionClient.
+      expect(forTenantSpy).not.toHaveBeenCalled();
+      expect(mockDb.auditEvent.create).toHaveBeenCalledTimes(1);
+
+      forTenantSpy.mockRestore();
+    });
+
+    it('PrismaClient branch: delegates to DatabaseService.forTenant for atomicity + RLS context', async () => {
+      mockDb.auditEvent.findFirst.mockResolvedValue(null);
+      mockDb.auditEvent.create.mockResolvedValue({ id: 'evt-1' });
+      const forTenantSpy = vi.spyOn(mockDatabaseService, 'forTenant');
+
+      await service.record(client, baseParams);
+
+      expect(forTenantSpy).toHaveBeenCalledTimes(1);
+      expect(forTenantSpy).toHaveBeenCalledWith('tenant-1', expect.any(Function));
+      expect(mockDb.auditEvent.create).toHaveBeenCalledTimes(1);
+
+      forTenantSpy.mockRestore();
     });
   });
 

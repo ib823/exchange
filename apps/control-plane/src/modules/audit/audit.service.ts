@@ -3,6 +3,7 @@ import { createHash } from 'crypto';
 import {
   DatabaseService,
   Prisma,
+  type PrismaClient,
   type AuditAction,
   type ActorType,
   type Role,
@@ -28,59 +29,91 @@ export interface RecordAuditEventParams {
   metadata?: Record<string, string | number | boolean | null>;
 }
 
+/**
+ * AuditService — append-only event writer with chained SHA-256 hash.
+ *
+ * record() requires a Prisma transaction client (or a raw PrismaClient for
+ * legacy callers without a tx). Callers inside a `database.forTenant(...)` or
+ * `database.forSystemTx(...)` block pass `db` so the audit append shares the
+ * caller's tx — a business-write failure rolls back the audit append, and an
+ * audit-write failure rolls back the business write. M3.A2-T02 made this the
+ * standard pattern; the PrismaClient branch is retained as a safety net for
+ * any caller that has no surrounding tx.
+ */
 @Injectable()
 export class AuditService {
   constructor(private readonly database: DatabaseService) {}
 
-  async record(params: RecordAuditEventParams): Promise<void> {
+  async record(
+    tx: Prisma.TransactionClient | PrismaClient,
+    params: RecordAuditEventParams,
+  ): Promise<void> {
+    // PrismaClient has $transaction; TransactionClient does not (Prisma's
+    // ITXClientDenyList omits it). Discriminate at runtime: a raw client
+    // means the caller has no tx, so open a forTenant block to provide
+    // both atomicity (findFirst+create as one tx) and RLS context
+    // (set_config of app.current_tenant_id required by audit_events
+    // tenant_insert WITH CHECK).
+    if ('$transaction' in tx) {
+      return this.database.forTenant(params.tenantId, (innerTx) =>
+        this.appendEvent(innerTx, params),
+      );
+    }
+    return this.appendEvent(tx, params);
+  }
+
+  private async appendEvent(
+    tx: Prisma.TransactionClient,
+    params: RecordAuditEventParams,
+  ): Promise<void> {
     try {
       const cfg = getConfig();
 
-      await this.database.forTenant(params.tenantId, async (db) => {
-        const latest = await db.auditEvent.findFirst({
-          where: { tenantId: params.tenantId },
-          orderBy: { eventTime: 'desc' },
-          select: { immutableHash: true },
-        });
+      const latest = await tx.auditEvent.findFirst({
+        where: { tenantId: params.tenantId },
+        orderBy: { eventTime: 'desc' },
+        select: { immutableHash: true },
+      });
 
-        const previousHash = latest?.immutableHash ?? null;
-        // Use a single timestamp for both hash computation and persistence
-        // to guarantee the hash chain can be independently verified from persisted data
-        const eventTime = new Date();
-        const hashInput = [
-          params.tenantId,
-          params.actorId,
-          params.action,
-          params.result,
-          eventTime.toISOString(),
-          previousHash ?? 'genesis',
-          cfg.audit.hashSecret,
-        ].join('|');
+      const previousHash = latest?.immutableHash ?? null;
+      // Single timestamp for both hash computation and persistence so the
+      // chain can be independently verified from persisted data.
+      const eventTime = new Date();
+      const hashInput = [
+        params.tenantId,
+        params.actorId,
+        params.action,
+        params.result,
+        eventTime.toISOString(),
+        previousHash ?? 'genesis',
+        cfg.audit.hashSecret,
+      ].join('|');
 
-        const immutableHash = createHash('sha256').update(hashInput).digest('hex');
+      const immutableHash = createHash('sha256').update(hashInput).digest('hex');
 
-        await db.auditEvent.create({
-          data: {
-            tenantId: params.tenantId,
-            actorType: params.actorType,
-            actorId: params.actorId,
-            actorRole: params.actorRole ?? null,
-            objectType: params.objectType,
-            objectId: params.objectId,
-            action: params.action,
-            result: params.result,
-            correlationId: params.correlationId ?? null,
-            traceId: params.traceId ?? null,
-            environment: params.environment ?? null,
-            eventTime,
-            immutableHash,
-            previousHash,
-            metadata: params.metadata ?? Prisma.JsonNull,
-          },
-        });
+      await tx.auditEvent.create({
+        data: {
+          tenantId: params.tenantId,
+          actorType: params.actorType,
+          actorId: params.actorId,
+          actorRole: params.actorRole ?? null,
+          objectType: params.objectType,
+          objectId: params.objectId,
+          action: params.action,
+          result: params.result,
+          correlationId: params.correlationId ?? null,
+          traceId: params.traceId ?? null,
+          environment: params.environment ?? null,
+          eventTime,
+          immutableHash,
+          previousHash,
+          metadata: params.metadata ?? Prisma.JsonNull,
+        },
       });
     } catch (err) {
-      // Audit write failure must surface — never swallow
+      if (err instanceof SepError) {
+        throw err;
+      }
       logger.error(
         { err, params: { action: params.action, tenantId: params.tenantId } },
         'CRITICAL: audit event write failed',
