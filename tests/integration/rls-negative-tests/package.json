@@ -1,0 +1,26 @@
+{
+  "name": "@sep/rls-negative-tests",
+  "version": "0.1.0",
+  "private": true,
+  "description": "M3.A1-T06 cross-tenant RLS negative test suite (18 tables × 8 assertions = 144).",
+  "scripts": {
+    "test:integration": "vitest run",
+    "lint": "eslint . --ext .ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@sep/common": "workspace:*",
+    "@sep/db": "workspace:*",
+    "@sep/schemas": "workspace:*",
+    "@prisma/client": "5.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "5.9.3",
+    "vitest": "3.2.4",
+    "eslint": "^8.57.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "eslint-config-prettier": "^9.1.0"
+  }
+}
