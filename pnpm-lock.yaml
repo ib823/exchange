@@ -451,6 +451,9 @@ importers:
       '@sep/common':
         specifier: workspace:*
         version: link:../common
+      '@sep/schemas':
+        specifier: workspace:*
+        version: link:../schemas
     devDependencies:
       '@types/node':
         specifier: ^20.11.0

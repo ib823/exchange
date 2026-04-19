@@ -59,8 +59,11 @@ export class KeyReferencesService {
     private readonly database: DatabaseService,
   ) {}
 
-  private async assertTenantOwnership(id: string, tenantId: string): Promise<KeyRefRow> {
-    const db = this.database.forTenant(tenantId);
+  private async assertTenantOwnership(
+    db: Prisma.TransactionClient,
+    id: string,
+    tenantId: string,
+  ): Promise<KeyRefRow> {
     const key = await db.keyReference.findUnique({
       where: { id },
       select: KEY_REF_SELECT,
@@ -72,40 +75,43 @@ export class KeyReferencesService {
   }
 
   async create(dto: CreateKeyReferenceDto, actor: TokenPayload): Promise<KeyRefRow> {
-    const db = this.database.forTenant(dto.tenantId);
-    const keyRef = await db.keyReference.create({
-      data: {
+    return this.database.forTenant(dto.tenantId, async (db) => {
+      const keyRef = await db.keyReference.create({
+        data: {
+          tenantId: dto.tenantId,
+          partnerProfileId: dto.partnerProfileId ?? null,
+          name: dto.name,
+          usage: dto.usage,
+          backendType: dto.backendType,
+          backendRef: dto.backendRef,
+          fingerprint: dto.fingerprint,
+          algorithm: dto.algorithm,
+          environment: dto.environment,
+          expiresAt: dto.expiresAt !== undefined ? new Date(dto.expiresAt) : null,
+          metadata:
+            dto.metadata !== undefined ? (dto.metadata as Prisma.InputJsonValue) : Prisma.JsonNull,
+        },
+        select: KEY_REF_SELECT,
+      });
+
+      await this.audit.record({
         tenantId: dto.tenantId,
-        partnerProfileId: dto.partnerProfileId ?? null,
-        name: dto.name,
-        usage: dto.usage,
-        backendType: dto.backendType,
-        backendRef: dto.backendRef,
-        fingerprint: dto.fingerprint,
-        algorithm: dto.algorithm,
-        environment: dto.environment,
-        expiresAt: dto.expiresAt !== undefined ? new Date(dto.expiresAt) : null,
-        metadata:
-          dto.metadata !== undefined ? (dto.metadata as Prisma.InputJsonValue) : Prisma.JsonNull,
-      },
-      select: KEY_REF_SELECT,
-    });
+        actorType: 'USER',
+        actorId: actor.userId,
+        objectType: 'KeyReference',
+        objectId: keyRef.id,
+        action: 'KEY_REFERENCE_CREATED',
+        result: 'SUCCESS',
+      });
 
-    await this.audit.record({
-      tenantId: dto.tenantId,
-      actorType: 'USER',
-      actorId: actor.userId,
-      objectType: 'KeyReference',
-      objectId: keyRef.id,
-      action: 'KEY_REFERENCE_CREATED',
-      result: 'SUCCESS',
+      return keyRef;
     });
-
-    return keyRef;
   }
 
   async findById(id: string, actor: TokenPayload): Promise<KeyRefWithExpiry> {
-    const keyRef = await this.assertTenantOwnership(id, actor.tenantId);
+    const keyRef = await this.database.forTenant(actor.tenantId, (db) =>
+      this.assertTenantOwnership(db, id, actor.tenantId),
+    );
     return this.addExpiryFlag(keyRef);
   }
 
@@ -128,18 +134,19 @@ export class KeyReferencesService {
       where.environment = filters.environment as 'TEST' | 'CERTIFICATION' | 'PRODUCTION';
     }
 
-    const db = this.database.forTenant(actor.tenantId);
-
-    const [data, total] = await Promise.all([
-      db.keyReference.findMany({
-        where,
-        select: KEY_REF_SELECT,
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-        orderBy: { createdAt: 'desc' },
-      }),
-      db.keyReference.count({ where }),
-    ]);
+    const { data, total } = await this.database.forTenant(actor.tenantId, async (db) => {
+      const [d, t] = await Promise.all([
+        db.keyReference.findMany({
+          where,
+          select: KEY_REF_SELECT,
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+          orderBy: { createdAt: 'desc' },
+        }),
+        db.keyReference.count({ where }),
+      ]);
+      return { data: d, total: t };
+    });
 
     const enrichedData = data.map((k) => this.addExpiryFlag(k));
 
@@ -150,83 +157,85 @@ export class KeyReferencesService {
   }
 
   async activate(id: string, actor: TokenPayload): Promise<KeyRefRow> {
-    const keyRef = await this.assertTenantOwnership(id, actor.tenantId);
+    return this.database.forTenant(actor.tenantId, async (db) => {
+      const keyRef = await this.assertTenantOwnership(db, id, actor.tenantId);
 
-    if (keyRef.state !== 'VALIDATED') {
-      throw new SepError(ErrorCode.VALIDATION_SCHEMA_FAILED, {
-        message: `Cannot activate key in state ${keyRef.state}. Key must be in VALIDATED state.`,
-        currentState: keyRef.state,
-        targetState: 'ACTIVE',
+      if (keyRef.state !== 'VALIDATED') {
+        throw new SepError(ErrorCode.VALIDATION_SCHEMA_FAILED, {
+          message: `Cannot activate key in state ${keyRef.state}. Key must be in VALIDATED state.`,
+          currentState: keyRef.state,
+          targetState: 'ACTIVE',
+        });
+      }
+
+      // Production keys require dual-control approval
+      if (keyRef.environment === 'PRODUCTION') {
+        await this.assertApprovalExists(db, id, 'ACTIVATE_PRODUCTION_KEY', actor.tenantId);
+      }
+
+      const updated = await db.keyReference.update({
+        where: { id },
+        data: {
+          state: 'ACTIVE',
+          activatedAt: new Date(),
+        },
+        select: KEY_REF_SELECT,
       });
-    }
 
-    // Production keys require dual-control approval
-    if (keyRef.environment === 'PRODUCTION') {
-      await this.assertApprovalExists(id, 'ACTIVATE_PRODUCTION_KEY', actor.tenantId);
-    }
+      await this.audit.record({
+        tenantId: actor.tenantId,
+        actorType: 'USER',
+        actorId: actor.userId,
+        objectType: 'KeyReference',
+        objectId: id,
+        action: 'KEY_REFERENCE_ACTIVATED',
+        result: 'SUCCESS',
+        metadata: { environment: keyRef.environment },
+      });
 
-    const db = this.database.forTenant(actor.tenantId);
-    const updated = await db.keyReference.update({
-      where: { id },
-      data: {
-        state: 'ACTIVE',
-        activatedAt: new Date(),
-      },
-      select: KEY_REF_SELECT,
+      return updated;
     });
-
-    await this.audit.record({
-      tenantId: actor.tenantId,
-      actorType: 'USER',
-      actorId: actor.userId,
-      objectType: 'KeyReference',
-      objectId: id,
-      action: 'KEY_REFERENCE_ACTIVATED',
-      result: 'SUCCESS',
-      metadata: { environment: keyRef.environment },
-    });
-
-    return updated;
   }
 
   async revoke(id: string, actor: TokenPayload): Promise<KeyRefRow> {
-    const keyRef = await this.assertTenantOwnership(id, actor.tenantId);
+    return this.database.forTenant(actor.tenantId, async (db) => {
+      const keyRef = await this.assertTenantOwnership(db, id, actor.tenantId);
 
-    if (keyRef.state !== 'ACTIVE' && keyRef.state !== 'ROTATING') {
-      throw new SepError(ErrorCode.VALIDATION_SCHEMA_FAILED, {
-        message: `Cannot revoke key in state ${keyRef.state}. Key must be ACTIVE or ROTATING.`,
-        currentState: keyRef.state,
-        targetState: 'REVOKED',
+      if (keyRef.state !== 'ACTIVE' && keyRef.state !== 'ROTATING') {
+        throw new SepError(ErrorCode.VALIDATION_SCHEMA_FAILED, {
+          message: `Cannot revoke key in state ${keyRef.state}. Key must be ACTIVE or ROTATING.`,
+          currentState: keyRef.state,
+          targetState: 'REVOKED',
+        });
+      }
+
+      // Production keys require dual-control approval for revocation
+      if (keyRef.environment === 'PRODUCTION') {
+        await this.assertApprovalExists(db, id, 'REVOKE_PRODUCTION_KEY', actor.tenantId);
+      }
+
+      const updated = await db.keyReference.update({
+        where: { id },
+        data: {
+          state: 'REVOKED',
+          revokedAt: new Date(),
+        },
+        select: KEY_REF_SELECT,
       });
-    }
 
-    // Production keys require dual-control approval for revocation
-    if (keyRef.environment === 'PRODUCTION') {
-      await this.assertApprovalExists(id, 'REVOKE_PRODUCTION_KEY', actor.tenantId);
-    }
+      await this.audit.record({
+        tenantId: actor.tenantId,
+        actorType: 'USER',
+        actorId: actor.userId,
+        objectType: 'KeyReference',
+        objectId: id,
+        action: 'KEY_REFERENCE_REVOKED',
+        result: 'SUCCESS',
+        metadata: { environment: keyRef.environment },
+      });
 
-    const db = this.database.forTenant(actor.tenantId);
-    const updated = await db.keyReference.update({
-      where: { id },
-      data: {
-        state: 'REVOKED',
-        revokedAt: new Date(),
-      },
-      select: KEY_REF_SELECT,
+      return updated;
     });
-
-    await this.audit.record({
-      tenantId: actor.tenantId,
-      actorType: 'USER',
-      actorId: actor.userId,
-      objectType: 'KeyReference',
-      objectId: id,
-      action: 'KEY_REFERENCE_REVOKED',
-      result: 'SUCCESS',
-      metadata: { environment: keyRef.environment },
-    });
-
-    return updated;
   }
 
   /**
@@ -234,11 +243,11 @@ export class KeyReferencesService {
    * Mirrors the pattern used by PartnerProfilesService.transition for PROD_ACTIVE.
    */
   private async assertApprovalExists(
+    db: Prisma.TransactionClient,
     keyReferenceId: string,
     action: string,
     tenantId: string,
   ): Promise<void> {
-    const db = this.database.forTenant(tenantId);
     const approval = await db.approval.findFirst({
       where: {
         tenantId,
@@ -267,149 +276,153 @@ export class KeyReferencesService {
   }
 
   async suspend(id: string, actor: TokenPayload): Promise<KeyRefRow> {
-    const keyRef = await this.assertTenantOwnership(id, actor.tenantId);
+    return this.database.forTenant(actor.tenantId, async (db) => {
+      const keyRef = await this.assertTenantOwnership(db, id, actor.tenantId);
 
-    if (keyRef.state !== 'ACTIVE' && keyRef.state !== 'ROTATING') {
-      throw new SepError(ErrorCode.VALIDATION_SCHEMA_FAILED, {
-        message: `Cannot suspend key in state ${keyRef.state}. Key must be ACTIVE or ROTATING.`,
-        currentState: keyRef.state,
-        targetState: 'SUSPENDED',
+      if (keyRef.state !== 'ACTIVE' && keyRef.state !== 'ROTATING') {
+        throw new SepError(ErrorCode.VALIDATION_SCHEMA_FAILED, {
+          message: `Cannot suspend key in state ${keyRef.state}. Key must be ACTIVE or ROTATING.`,
+          currentState: keyRef.state,
+          targetState: 'SUSPENDED',
+        });
+      }
+
+      const updated = await db.keyReference.update({
+        where: { id },
+        data: { state: 'SUSPENDED' },
+        select: KEY_REF_SELECT,
       });
-    }
 
-    const db = this.database.forTenant(actor.tenantId);
-    const updated = await db.keyReference.update({
-      where: { id },
-      data: { state: 'SUSPENDED' },
-      select: KEY_REF_SELECT,
+      await this.audit.record({
+        tenantId: actor.tenantId,
+        actorType: 'USER',
+        actorId: actor.userId,
+        objectType: 'KeyReference',
+        objectId: id,
+        action: 'KEY_REFERENCE_SUSPENDED',
+        result: 'SUCCESS',
+        metadata: { previousState: keyRef.state },
+      });
+
+      return updated;
     });
-
-    await this.audit.record({
-      tenantId: actor.tenantId,
-      actorType: 'USER',
-      actorId: actor.userId,
-      objectType: 'KeyReference',
-      objectId: id,
-      action: 'KEY_REFERENCE_SUSPENDED',
-      result: 'SUCCESS',
-      metadata: { previousState: keyRef.state },
-    });
-
-    return updated;
   }
 
   async reinstate(id: string, actor: TokenPayload): Promise<KeyRefRow> {
-    const keyRef = await this.assertTenantOwnership(id, actor.tenantId);
+    return this.database.forTenant(actor.tenantId, async (db) => {
+      const keyRef = await this.assertTenantOwnership(db, id, actor.tenantId);
 
-    if (keyRef.state !== 'SUSPENDED') {
-      throw new SepError(ErrorCode.VALIDATION_SCHEMA_FAILED, {
-        message: `Cannot reinstate key in state ${keyRef.state}. Key must be SUSPENDED.`,
-        currentState: keyRef.state,
-        targetState: 'ACTIVE',
+      if (keyRef.state !== 'SUSPENDED') {
+        throw new SepError(ErrorCode.VALIDATION_SCHEMA_FAILED, {
+          message: `Cannot reinstate key in state ${keyRef.state}. Key must be SUSPENDED.`,
+          currentState: keyRef.state,
+          targetState: 'ACTIVE',
+        });
+      }
+
+      const updated = await db.keyReference.update({
+        where: { id },
+        data: { state: 'ACTIVE' },
+        select: KEY_REF_SELECT,
       });
-    }
 
-    const db = this.database.forTenant(actor.tenantId);
-    const updated = await db.keyReference.update({
-      where: { id },
-      data: { state: 'ACTIVE' },
-      select: KEY_REF_SELECT,
+      await this.audit.record({
+        tenantId: actor.tenantId,
+        actorType: 'USER',
+        actorId: actor.userId,
+        objectType: 'KeyReference',
+        objectId: id,
+        action: 'KEY_REFERENCE_REINSTATED',
+        result: 'SUCCESS',
+      });
+
+      return updated;
     });
-
-    await this.audit.record({
-      tenantId: actor.tenantId,
-      actorType: 'USER',
-      actorId: actor.userId,
-      objectType: 'KeyReference',
-      objectId: id,
-      action: 'KEY_REFERENCE_REINSTATED',
-      result: 'SUCCESS',
-    });
-
-    return updated;
   }
 
   async markCompromised(id: string, actor: TokenPayload, reason: string): Promise<KeyRefRow> {
-    const keyRef = await this.assertTenantOwnership(id, actor.tenantId);
+    return this.database.forTenant(actor.tenantId, async (db) => {
+      const keyRef = await this.assertTenantOwnership(db, id, actor.tenantId);
 
-    // COMPROMISED can be reached from any non-terminal state
-    const terminalStates = ['DESTROYED', 'RETIRED'];
-    if (terminalStates.includes(keyRef.state)) {
-      throw new SepError(ErrorCode.VALIDATION_SCHEMA_FAILED, {
-        message: `Cannot mark ${keyRef.state} key as compromised.`,
-        currentState: keyRef.state,
-        targetState: 'COMPROMISED',
+      // COMPROMISED can be reached from any non-terminal state
+      const terminalStates = ['DESTROYED', 'RETIRED'];
+      if (terminalStates.includes(keyRef.state)) {
+        throw new SepError(ErrorCode.VALIDATION_SCHEMA_FAILED, {
+          message: `Cannot mark ${keyRef.state} key as compromised.`,
+          currentState: keyRef.state,
+          targetState: 'COMPROMISED',
+        });
+      }
+
+      const updated = await db.keyReference.update({
+        where: { id },
+        data: {
+          state: 'COMPROMISED',
+          revokedAt: new Date(),
+        },
+        select: KEY_REF_SELECT,
       });
-    }
 
-    const db = this.database.forTenant(actor.tenantId);
-    const updated = await db.keyReference.update({
-      where: { id },
-      data: {
-        state: 'COMPROMISED',
-        revokedAt: new Date(),
-      },
-      select: KEY_REF_SELECT,
-    });
-
-    await this.audit.record({
-      tenantId: actor.tenantId,
-      actorType: 'USER',
-      actorId: actor.userId,
-      objectType: 'KeyReference',
-      objectId: id,
-      action: 'KEY_REFERENCE_COMPROMISED',
-      result: 'SUCCESS',
-      metadata: { previousState: keyRef.state, reason },
-    });
-
-    // Auto-create a P1 incident for compromised key
-    await db.incident.create({
-      data: {
+      await this.audit.record({
         tenantId: actor.tenantId,
-        severity: 'P1',
-        title: `Key compromised: ${keyRef.name} (${keyRef.fingerprint})`,
-        description: `Key ${id} was marked as COMPROMISED by ${actor.userId}. Reason: ${reason}`,
-        sourceType: 'KEY_COMPROMISE',
-        sourceId: id,
-      },
-    });
+        actorType: 'USER',
+        actorId: actor.userId,
+        objectType: 'KeyReference',
+        objectId: id,
+        action: 'KEY_REFERENCE_COMPROMISED',
+        result: 'SUCCESS',
+        metadata: { previousState: keyRef.state, reason },
+      });
 
-    return updated;
+      // Auto-create a P1 incident for compromised key
+      await db.incident.create({
+        data: {
+          tenantId: actor.tenantId,
+          severity: 'P1',
+          title: `Key compromised: ${keyRef.name} (${keyRef.fingerprint})`,
+          description: `Key ${id} was marked as COMPROMISED by ${actor.userId}. Reason: ${reason}`,
+          sourceType: 'KEY_COMPROMISE',
+          sourceId: id,
+        },
+      });
+
+      return updated;
+    });
   }
 
   async destroy(id: string, actor: TokenPayload): Promise<KeyRefRow> {
-    const keyRef = await this.assertTenantOwnership(id, actor.tenantId);
+    return this.database.forTenant(actor.tenantId, async (db) => {
+      const keyRef = await this.assertTenantOwnership(db, id, actor.tenantId);
 
-    // DESTROYED can be reached from REVOKED, COMPROMISED, EXPIRED, or RETIRED
-    const allowedFromStates = ['REVOKED', 'COMPROMISED', 'EXPIRED', 'RETIRED'];
-    if (!allowedFromStates.includes(keyRef.state)) {
-      throw new SepError(ErrorCode.VALIDATION_SCHEMA_FAILED, {
-        message: `Cannot destroy key in state ${keyRef.state}. Key must be REVOKED, COMPROMISED, EXPIRED, or RETIRED.`,
-        currentState: keyRef.state,
-        targetState: 'DESTROYED',
+      // DESTROYED can be reached from REVOKED, COMPROMISED, EXPIRED, or RETIRED
+      const allowedFromStates = ['REVOKED', 'COMPROMISED', 'EXPIRED', 'RETIRED'];
+      if (!allowedFromStates.includes(keyRef.state)) {
+        throw new SepError(ErrorCode.VALIDATION_SCHEMA_FAILED, {
+          message: `Cannot destroy key in state ${keyRef.state}. Key must be REVOKED, COMPROMISED, EXPIRED, or RETIRED.`,
+          currentState: keyRef.state,
+          targetState: 'DESTROYED',
+        });
+      }
+
+      const updated = await db.keyReference.update({
+        where: { id },
+        data: { state: 'DESTROYED' },
+        select: KEY_REF_SELECT,
       });
-    }
 
-    const db = this.database.forTenant(actor.tenantId);
-    const updated = await db.keyReference.update({
-      where: { id },
-      data: { state: 'DESTROYED' },
-      select: KEY_REF_SELECT,
+      await this.audit.record({
+        tenantId: actor.tenantId,
+        actorType: 'USER',
+        actorId: actor.userId,
+        objectType: 'KeyReference',
+        objectId: id,
+        action: 'KEY_REFERENCE_DESTROYED',
+        result: 'SUCCESS',
+        metadata: { previousState: keyRef.state },
+      });
+
+      return updated;
     });
-
-    await this.audit.record({
-      tenantId: actor.tenantId,
-      actorType: 'USER',
-      actorId: actor.userId,
-      objectType: 'KeyReference',
-      objectId: id,
-      action: 'KEY_REFERENCE_DESTROYED',
-      result: 'SUCCESS',
-      metadata: { previousState: keyRef.state },
-    });
-
-    return updated;
   }
 
   private addExpiryFlag(keyRef: KeyRefRow): KeyRefWithExpiry {

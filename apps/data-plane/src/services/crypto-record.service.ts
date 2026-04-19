@@ -53,35 +53,35 @@ export class CryptoRecordService {
 
   async persist(input: CryptoRecordInput): Promise<string> {
     try {
-      const db = this.database.forTenant(input.tenantId);
+      return await this.database.forTenant(input.tenantId, async (db) => {
+        const record = await db.cryptoOperationRecord.create({
+          data: {
+            tenantId: input.tenantId,
+            submissionId: input.submissionId ?? null,
+            keyReferenceId: input.meta.keyReferenceId,
+            operationType: mapOperationType(input.meta.operation),
+            result: input.result,
+            algorithmPolicy: input.policy as unknown as Prisma.InputJsonValue,
+            keyFingerprint: input.keyFingerprint,
+            performedAt: input.meta.performedAt,
+            errorCode: input.errorCode ?? null,
+            correlationId: input.correlationId ?? null,
+            actorId: input.actorId,
+          },
+        });
 
-      const record = await db.cryptoOperationRecord.create({
-        data: {
-          tenantId: input.tenantId,
-          submissionId: input.submissionId ?? null,
-          keyReferenceId: input.meta.keyReferenceId,
-          operationType: mapOperationType(input.meta.operation),
-          result: input.result,
-          algorithmPolicy: input.policy as unknown as Prisma.InputJsonValue,
-          keyFingerprint: input.keyFingerprint,
-          performedAt: input.meta.performedAt,
-          errorCode: input.errorCode ?? null,
-          correlationId: input.correlationId ?? null,
-          actorId: input.actorId,
-        },
+        logger.debug(
+          {
+            recordId: record.id,
+            tenantId: input.tenantId,
+            operation: input.meta.operation,
+            correlationId: input.correlationId,
+          },
+          'Crypto operation record persisted',
+        );
+
+        return record.id;
       });
-
-      logger.debug(
-        {
-          recordId: record.id,
-          tenantId: input.tenantId,
-          operation: input.meta.operation,
-          correlationId: input.correlationId,
-        },
-        'Crypto operation record persisted',
-      );
-
-      return record.id;
     } catch (err) {
       if (err instanceof SepError) {
         throw err;
@@ -101,16 +101,17 @@ export class CryptoRecordService {
     submissionId: string,
     operationType: string,
   ): Promise<boolean> {
-    const db = this.database.forTenant(tenantId);
-    const record = await db.cryptoOperationRecord.findFirst({
-      where: {
-        tenantId,
-        submissionId,
-        operationType: mapOperationType(operationType),
-        result: 'SUCCESS',
-      },
-      select: { id: true },
+    return this.database.forTenant(tenantId, async (db) => {
+      const record = await db.cryptoOperationRecord.findFirst({
+        where: {
+          tenantId,
+          submissionId,
+          operationType: mapOperationType(operationType),
+          result: 'SUCCESS',
+        },
+        select: { id: true },
+      });
+      return record !== null;
     });
-    return record !== null;
   }
 }

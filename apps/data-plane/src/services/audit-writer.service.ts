@@ -43,46 +43,47 @@ export class AuditWriterService {
   async record(params: AuditEventParams): Promise<void> {
     try {
       const cfg = getConfig();
-      const db = this.database.forTenant(params.tenantId);
 
-      const latest = await db.auditEvent.findFirst({
-        where: { tenantId: params.tenantId },
-        orderBy: { eventTime: 'desc' },
-        select: { immutableHash: true },
-      });
+      await this.database.forTenant(params.tenantId, async (db) => {
+        const latest = await db.auditEvent.findFirst({
+          where: { tenantId: params.tenantId },
+          orderBy: { eventTime: 'desc' },
+          select: { immutableHash: true },
+        });
 
-      const previousHash = latest?.immutableHash ?? null;
-      const eventTime = new Date();
-      const hashInput = [
-        params.tenantId,
-        params.actorId,
-        params.action,
-        params.result,
-        eventTime.toISOString(),
-        previousHash ?? 'genesis',
-        cfg.audit.hashSecret,
-      ].join('|');
+        const previousHash = latest?.immutableHash ?? null;
+        const eventTime = new Date();
+        const hashInput = [
+          params.tenantId,
+          params.actorId,
+          params.action,
+          params.result,
+          eventTime.toISOString(),
+          previousHash ?? 'genesis',
+          cfg.audit.hashSecret,
+        ].join('|');
 
-      const immutableHash = createHash('sha256').update(hashInput).digest('hex');
+        const immutableHash = createHash('sha256').update(hashInput).digest('hex');
 
-      await db.auditEvent.create({
-        data: {
-          tenantId: params.tenantId,
-          actorType: params.actorType,
-          actorId: params.actorId,
-          actorRole: params.actorRole ?? null,
-          objectType: params.objectType,
-          objectId: params.objectId,
-          action: params.action,
-          result: params.result,
-          correlationId: params.correlationId ?? null,
-          traceId: params.traceId ?? null,
-          environment: params.environment ?? null,
-          eventTime,
-          immutableHash,
-          previousHash,
-          metadata: (params.metadata ?? null) as Prisma.InputJsonValue,
-        },
+        await db.auditEvent.create({
+          data: {
+            tenantId: params.tenantId,
+            actorType: params.actorType,
+            actorId: params.actorId,
+            actorRole: params.actorRole ?? null,
+            objectType: params.objectType,
+            objectId: params.objectId,
+            action: params.action,
+            result: params.result,
+            correlationId: params.correlationId ?? null,
+            traceId: params.traceId ?? null,
+            environment: params.environment ?? null,
+            eventTime,
+            immutableHash,
+            previousHash,
+            metadata: (params.metadata ?? null) as Prisma.InputJsonValue,
+          },
+        });
       });
     } catch (err) {
       if (err instanceof SepError) {

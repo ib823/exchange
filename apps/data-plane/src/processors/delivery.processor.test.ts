@@ -44,7 +44,7 @@ const mockDb = {
 
 vi.mock('@sep/db', () => ({
   DatabaseService: vi.fn().mockImplementation(() => ({
-    forTenant: () => mockDb,
+    forTenant: <T>(_tid: string, fn: (db: typeof mockDb) => Promise<T>): Promise<T> => fn(mockDb),
     forSystem: () => mockDb,
   })),
 }));

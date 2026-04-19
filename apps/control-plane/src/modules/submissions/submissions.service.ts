@@ -39,8 +39,11 @@ export class SubmissionsService {
     private readonly database: DatabaseService,
   ) {}
 
-  private async assertTenantOwnership(id: string, tenantId: string): Promise<SubmissionRow> {
-    const db = this.database.forTenant(tenantId);
+  private async assertTenantOwnership(
+    db: Prisma.TransactionClient,
+    id: string,
+    tenantId: string,
+  ): Promise<SubmissionRow> {
     const submission = await db.submission.findUnique({ where: { id } });
     if (submission === null || submission.tenantId !== tenantId) {
       throw new NotFoundException('Submission not found');
@@ -56,67 +59,68 @@ export class SubmissionsService {
     correlationId: string;
     status: string;
   }> {
-    const db = this.database.forTenant(dto.tenantId);
-
-    // Check idempotency key uniqueness within tenant
-    const existing = await db.submission.findUnique({
-      where: {
-        tenantId_idempotencyKey: {
-          tenantId: dto.tenantId,
-          idempotencyKey: dto.idempotencyKey,
+    return this.database.forTenant(dto.tenantId, async (db) => {
+      // Check idempotency key uniqueness within tenant
+      const existing = await db.submission.findUnique({
+        where: {
+          tenantId_idempotencyKey: {
+            tenantId: dto.tenantId,
+            idempotencyKey: dto.idempotencyKey,
+          },
         },
-      },
-    });
-
-    if (existing !== null) {
-      throw new SepError(ErrorCode.VALIDATION_DUPLICATE, {
-        message: 'Submission with this idempotency key already exists',
-        existingSubmissionId: existing.id,
-        idempotencyKey: dto.idempotencyKey,
       });
-    }
 
-    const correlationId = randomUUID();
+      if (existing !== null) {
+        throw new SepError(ErrorCode.VALIDATION_DUPLICATE, {
+          message: 'Submission with this idempotency key already exists',
+          existingSubmissionId: existing.id,
+          idempotencyKey: dto.idempotencyKey,
+        });
+      }
 
-    const submission = await db.submission.create({
-      data: {
+      const correlationId = randomUUID();
+
+      const submission = await db.submission.create({
+        data: {
+          tenantId: dto.tenantId,
+          partnerProfileId: dto.partnerProfileId,
+          sourceSystemId: dto.sourceSystemId ?? null,
+          exchangeProfileId: dto.exchangeProfileId ?? null,
+          contentType: dto.contentType,
+          idempotencyKey: dto.idempotencyKey,
+          correlationId,
+          payloadRef: dto.payloadRef ?? null,
+          normalizedHash: dto.normalizedHash ?? null,
+          payloadSize: dto.payloadSize ?? null,
+          status: 'RECEIVED',
+          metadata:
+            dto.metadata !== undefined ? (dto.metadata as Prisma.InputJsonValue) : Prisma.JsonNull,
+        },
+      });
+
+      await this.audit.record({
         tenantId: dto.tenantId,
-        partnerProfileId: dto.partnerProfileId,
-        sourceSystemId: dto.sourceSystemId ?? null,
-        exchangeProfileId: dto.exchangeProfileId ?? null,
-        contentType: dto.contentType,
-        idempotencyKey: dto.idempotencyKey,
+        actorType: 'USER',
+        actorId: actor.userId,
+        objectType: 'Submission',
+        objectId: submission.id,
+        action: 'SUBMISSION_RECEIVED',
+        result: 'SUCCESS',
         correlationId,
-        payloadRef: dto.payloadRef ?? null,
-        normalizedHash: dto.normalizedHash ?? null,
-        payloadSize: dto.payloadSize ?? null,
-        status: 'RECEIVED',
-        metadata:
-          dto.metadata !== undefined ? (dto.metadata as Prisma.InputJsonValue) : Prisma.JsonNull,
-      },
-    });
+      });
 
-    await this.audit.record({
-      tenantId: dto.tenantId,
-      actorType: 'USER',
-      actorId: actor.userId,
-      objectType: 'Submission',
-      objectId: submission.id,
-      action: 'SUBMISSION_RECEIVED',
-      result: 'SUCCESS',
-      correlationId,
+      return {
+        submissionId: submission.id,
+        correlationId: submission.correlationId,
+        status: submission.status,
+      };
     });
-
-    return {
-      submissionId: submission.id,
-      correlationId: submission.correlationId,
-      status: submission.status,
-    };
   }
 
   async findById(id: string, actor: TokenPayload): Promise<SubmissionRow> {
-    const submission = await this.assertTenantOwnership(id, actor.tenantId);
-    return submission;
+    return this.database.forTenant(actor.tenantId, (db) =>
+      this.assertTenantOwnership(db, id, actor.tenantId),
+    );
   }
 
   async findAll(
@@ -133,43 +137,43 @@ export class SubmissionsService {
     data: SubmissionRow[];
     meta: { page: number; pageSize: number; total: number; totalPages: number };
   }> {
-    const createdAtFilter: Record<string, Date> = {};
-    if (filters.from !== undefined) {
-      createdAtFilter['gte'] = new Date(filters.from);
-    }
-    if (filters.to !== undefined) {
-      createdAtFilter['lte'] = new Date(filters.to);
-    }
+    return this.database.forTenant(actor.tenantId, async (db) => {
+      const createdAtFilter: Record<string, Date> = {};
+      if (filters.from !== undefined) {
+        createdAtFilter['gte'] = new Date(filters.from);
+      }
+      if (filters.to !== undefined) {
+        createdAtFilter['lte'] = new Date(filters.to);
+      }
 
-    const where: Prisma.SubmissionWhereInput = {
-      tenantId: actor.tenantId,
-    };
-    if (filters.status !== undefined) {
-      where.status = filters.status as SubmissionStatus;
-    }
-    if (filters.partnerProfileId !== undefined) {
-      where.partnerProfileId = filters.partnerProfileId;
-    }
-    if (Object.keys(createdAtFilter).length > 0) {
-      where.createdAt = createdAtFilter;
-    }
+      const where: Prisma.SubmissionWhereInput = {
+        tenantId: actor.tenantId,
+      };
+      if (filters.status !== undefined) {
+        where.status = filters.status as SubmissionStatus;
+      }
+      if (filters.partnerProfileId !== undefined) {
+        where.partnerProfileId = filters.partnerProfileId;
+      }
+      if (Object.keys(createdAtFilter).length > 0) {
+        where.createdAt = createdAtFilter;
+      }
 
-    const db = this.database.forTenant(actor.tenantId);
+      const [data, total] = await Promise.all([
+        db.submission.findMany({
+          where,
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+          orderBy: { createdAt: 'desc' },
+        }),
+        db.submission.count({ where }),
+      ]);
 
-    const [data, total] = await Promise.all([
-      db.submission.findMany({
-        where,
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-        orderBy: { createdAt: 'desc' },
-      }),
-      db.submission.count({ where }),
-    ]);
-
-    return {
-      data,
-      meta: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) },
-    };
+      return {
+        data,
+        meta: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) },
+      };
+    });
   }
 
   async getTimeline(
@@ -179,7 +183,12 @@ export class SubmissionsService {
     data: Array<Record<string, unknown>>;
     meta: { page: number; pageSize: number; total: number; totalPages: number };
   }> {
-    await this.assertTenantOwnership(id, actor.tenantId);
+    // Ownership check runs in its own forTenant block. The subsequent
+    // audit.search call manages its own forTenant, so we don't need to
+    // hold the ownership tx open across the search query.
+    await this.database.forTenant(actor.tenantId, (db) =>
+      this.assertTenantOwnership(db, id, actor.tenantId),
+    );
 
     const events = await this.audit.search({
       tenantId: actor.tenantId,
@@ -193,34 +202,34 @@ export class SubmissionsService {
   }
 
   async cancel(id: string, actor: TokenPayload): Promise<SubmissionRow> {
-    const submission = await this.assertTenantOwnership(id, actor.tenantId);
+    return this.database.forTenant(actor.tenantId, async (db) => {
+      const submission = await this.assertTenantOwnership(db, id, actor.tenantId);
 
-    if (TERMINAL_SUBMISSION_STATUSES.has(submission.status as CommonSubmissionStatus)) {
-      throw new SepError(ErrorCode.SUBMISSION_TERMINAL_STATE, {
-        message: 'Cannot cancel a submission in a terminal state',
-        currentStatus: submission.status,
-        submissionId: id,
+      if (TERMINAL_SUBMISSION_STATUSES.has(submission.status as CommonSubmissionStatus)) {
+        throw new SepError(ErrorCode.SUBMISSION_TERMINAL_STATE, {
+          message: 'Cannot cancel a submission in a terminal state',
+          currentStatus: submission.status,
+          submissionId: id,
+        });
+      }
+
+      const updated = await db.submission.update({
+        where: { id },
+        data: { status: 'CANCELLED' },
       });
-    }
 
-    const db = this.database.forTenant(actor.tenantId);
+      await this.audit.record({
+        tenantId: actor.tenantId,
+        actorType: 'USER',
+        actorId: actor.userId,
+        objectType: 'Submission',
+        objectId: id,
+        action: 'SUBMISSION_CANCELLED',
+        result: 'SUCCESS',
+        correlationId: submission.correlationId,
+      });
 
-    const updated = await db.submission.update({
-      where: { id },
-      data: { status: 'CANCELLED' },
+      return updated;
     });
-
-    await this.audit.record({
-      tenantId: actor.tenantId,
-      actorType: 'USER',
-      actorId: actor.userId,
-      objectType: 'Submission',
-      objectId: id,
-      action: 'SUBMISSION_CANCELLED',
-      result: 'SUCCESS',
-      correlationId: submission.correlationId,
-    });
-
-    return updated;
   }
 }

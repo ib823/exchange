@@ -15,7 +15,7 @@ const mockDb = {
 };
 
 const mockDatabaseService = {
-  forTenant: (): typeof mockDb => mockDb,
+  forTenant: <T>(_tid: string, fn: (db: typeof mockDb) => Promise<T>): Promise<T> => fn(mockDb),
   forSystem: (): typeof mockDb => mockDb,
 } as unknown as DatabaseService;
 

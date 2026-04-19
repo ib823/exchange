@@ -101,7 +101,29 @@ describe('CuidSchema', () => {
     expect(CuidSchema.safeParse('clx2qwertyuiop1234567890').success).toBe(true);
   });
 
+  it('accepts a freshly-shaped 25-char cuid', () => {
+    // The pattern produced by `cuid()` defaults: c + 24 base-32 chars.
+    expect(CuidSchema.safeParse('cl9z3a4b5c6d7e8f9g0h1i2j3').success).toBe(true);
+  });
+
   it('rejects empty string', () => {
     expect(CuidSchema.safeParse('').success).toBe(false);
+  });
+
+  it('rejects UUID-shaped strings (M3.A1 §3 — Tenant.id is cuid, not UUID)', () => {
+    expect(CuidSchema.safeParse('550e8400-e29b-41d4-a716-446655440000').success).toBe(false);
+  });
+
+  it('rejects too-short strings', () => {
+    expect(CuidSchema.safeParse('cabc').success).toBe(false);
+  });
+
+  it('rejects strings whose first char is not c', () => {
+    expect(CuidSchema.safeParse('xlx2qwertyuiop1234567890').success).toBe(false);
+  });
+
+  it('rejects null and undefined at runtime', () => {
+    expect(CuidSchema.safeParse(null).success).toBe(false);
+    expect(CuidSchema.safeParse(undefined).success).toBe(false);
   });
 });
