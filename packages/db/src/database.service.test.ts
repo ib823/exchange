@@ -107,3 +107,60 @@ describe('DatabaseService.forSystem()', () => {
     expect(client).toHaveProperty('$queryRaw');
   });
 });
+
+describe('DatabaseService.forSystemTx() — input validation', () => {
+  // Behaviour exercised here is the synchronous validation gate.
+  // The tx-open + set_config behaviour is exercised by integration tests
+  // (audit-transactional-coupling.test.ts via tenants.service flows).
+
+  it('throws TENANT_CONTEXT_MISSING when tenantIdForAudit is empty string', async () => {
+    const service = new DatabaseService();
+    try {
+      await service.forSystemTx('', () => Promise.resolve(0));
+      throw new Error('expected throw');
+    } catch (err) {
+      expect(isSepError(err)).toBe(true);
+      if (isSepError(err)) {
+        expect(err.code).toBe(ErrorCode.TENANT_CONTEXT_MISSING);
+      }
+    }
+  });
+
+  it('throws TENANT_CONTEXT_INVALID when tenantIdForAudit is a non-cuid (e.g., UUID)', async () => {
+    const service = new DatabaseService();
+    try {
+      await service.forSystemTx('550e8400-e29b-41d4-a716-446655440000', () => Promise.resolve(0));
+      throw new Error('expected throw');
+    } catch (err) {
+      expect(isSepError(err)).toBe(true);
+      if (isSepError(err)) {
+        expect(err.code).toBe(ErrorCode.TENANT_CONTEXT_INVALID);
+      }
+    }
+  });
+
+  it('does not validate when tenantIdForAudit is null (caller will set context manually)', async () => {
+    // Validation gate must NOT fire on null. Use a stub client so the
+    // assertion does not depend on a live DB connection — the tx behaviour
+    // (set_config + callback dispatch) is exercised end-to-end by
+    // tests/integration/rls-negative-tests/audit-transactional-coupling.test.ts.
+    const stubClient = {
+      $transaction: vi.fn(async <T>(cb: (tx: unknown) => Promise<T>): Promise<T> => cb({})),
+    } as unknown as ConstructorParameters<typeof DatabaseService>[0];
+
+    const service = new DatabaseService(stubClient);
+    const result = await service.forSystemTx(null, () => Promise.resolve(42));
+    expect(result).toBe(42);
+  });
+
+  it('does not call the callback when validation fails', async () => {
+    const service = new DatabaseService();
+    const fn = vi.fn();
+    try {
+      await service.forSystemTx('', fn);
+    } catch {
+      // Expected — TENANT_CONTEXT_MISSING.
+    }
+    expect(fn).not.toHaveBeenCalled();
+  });
+});
