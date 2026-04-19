@@ -242,6 +242,9 @@ model Tenant {
   apiKeys                 ApiKey[]
   inboundReceipts         InboundReceipt[]
   cryptoOperationRecords  CryptoOperationRecord[]
+  deliveryAttempts        DeliveryAttempt[]
+  webhookDeliveryAttempts WebhookDeliveryAttempt[]
+  refreshTokens           RefreshToken[]
 
   @@index([status])
   @@map("tenants")
@@ -265,11 +268,37 @@ model User {
   // Named relations for Approval — uses only User.id, not compound key
   initiatedApprovals Approval[]       @relation("ApprovalInitiator")
   grantedApprovals   Approval[]       @relation("ApprovalApprover")
+  refreshTokens      RefreshToken[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
   @@index([authSubject])
   @@map("users")
+}
+
+// ── Refresh Token — M3.A1-T03, consumed by M3.A4 auth lifecycle ───────────────
+// Stored as argon2id hash of the raw token; raw value is never at rest.
+// tenantId denormalized from creation for RLS single-column predicate.
+
+model RefreshToken {
+  id               String    @id @default(cuid())
+  tenantId         String
+  userId           String
+  tokenHash        String    @unique // argon2id of raw token
+  issuedAt         DateTime  @default(now())
+  expiresAt        DateTime
+  usedAt           DateTime?
+  replacedById     String?
+  revokedAt        DateTime?
+  revocationReason String?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
 }
 
 model RoleAssignment {
@@ -437,6 +466,7 @@ model Submission {
 
 model DeliveryAttempt {
   id                  String          @id @default(cuid())
+  tenantId            String
   submissionId        String
   attemptNo           Int
   startedAt           DateTime        @default(now())
@@ -449,8 +479,10 @@ model DeliveryAttempt {
   durationMs          Int?
   metadata            Json?
 
+  tenant     Tenant     @relation(fields: [tenantId], references: [id])
   submission Submission @relation(fields: [submissionId], references: [id])
 
+  @@index([tenantId])
   @@index([submissionId])
   @@map("delivery_attempts")
 }
@@ -668,6 +700,7 @@ model Webhook {
 
 model WebhookDeliveryAttempt {
   id           String   @id @default(cuid())
+  tenantId     String
   webhookId    String
   submissionId String?
   eventType    String
@@ -678,9 +711,11 @@ model WebhookDeliveryAttempt {
   attemptedAt  DateTime @default(now())
   durationMs   Int?
 
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
   webhook    Webhook     @relation(fields: [webhookId], references: [id])
   submission Submission? @relation(fields: [submissionId], references: [id], onDelete: Restrict)
 
+  @@index([tenantId])
   @@index([webhookId])
   @@index([submissionId])
   @@map("webhook_delivery_attempts")

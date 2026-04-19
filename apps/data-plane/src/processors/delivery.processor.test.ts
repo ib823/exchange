@@ -107,10 +107,11 @@ describe('DeliveryProcessor', () => {
   it('delivers successfully and updates submission to SENT', async () => {
     await processor.process(makeJob());
 
-    // DeliveryAttempt created
+    // DeliveryAttempt created — tenantId must be denormalized from the job
     expect(mockDeliveryAttemptCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
+          tenantId: 'tenant-001',
           submissionId: 'sub-001',
           attemptNo: 1,
           connectorType: 'SFTP',

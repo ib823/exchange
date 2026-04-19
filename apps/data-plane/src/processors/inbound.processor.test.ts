@@ -174,6 +174,7 @@ describe('InboundProcessor', () => {
     mockWebhookFindMany.mockResolvedValue([
       {
         id: 'wh-001',
+        tenantId: 'tenant-001',
         url: 'https://callback.example.com/hook',
         events: ['SUBMISSION_ACK_RECEIVED'],
       },
@@ -183,9 +184,11 @@ describe('InboundProcessor', () => {
 
     await processor.process(makeJob());
 
+    // tenantId must be denormalized from the parent webhook (M3.A1-T02)
     expect(mockWebhookAttemptCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
+          tenantId: 'tenant-001',
           webhookId: 'wh-001',
           submissionId: 'sub-001',
           eventType: 'SUBMISSION_ACK_RECEIVED',
@@ -198,6 +201,7 @@ describe('InboundProcessor', () => {
     mockWebhookFindMany.mockResolvedValue([
       {
         id: 'wh-001',
+        tenantId: 'tenant-001',
         url: 'https://callback.example.com/hook',
         events: ['SUBMISSION_ACK_RECEIVED'],
       },
