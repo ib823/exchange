@@ -5,9 +5,12 @@
 --
 --   17 tables × 4 tenant policies  = 68 policies (this migration)
 --   refresh_tokens × 4              =  4 policies (T03)
---   audit_events existing deny/allow = 3 policies (baseline M3.0)
+--   audit_events baseline M3.0      =  4 policies (audit_insert_only,
+--                                                  audit_allow_select,
+--                                                  audit_deny_update,
+--                                                  audit_deny_delete)
 --                                    ────
---   total pg_policies rows          = 75
+--   total pg_policies rows          = 76
 --
 -- The 72 tenant-scoped policies demanded by plan §5-T04 acceptance are
 -- 18 tables × 4 operations = 72. Those are 68 (this migration) + 4 (T03).
