@@ -30,11 +30,13 @@ M3.A2 is "Audit transactional coupling." Four entwined concerns, executed as fiv
 The user (Claude.ai) approved **defense-in-depth**: keep both the GRANT-layer REVOKE (option a, from migration 20260418222953) AND the BEFORE UPDATE / BEFORE DELETE triggers (option c, from migration 20260412140000). Drop the redundant deny-all RLS policies (option b).
 
 Reasoning:
+
 - The REVOKE prevents sep_app from issuing UPDATE/DELETE statements at all — fastest, simplest layer.
 - The triggers raise `audit_events is append-only` even if a future grant change accidentally re-enables UPDATE/DELETE — survives policy/grant drift.
 - Keeping the RLS deny-all policies adds zero behaviour beyond the REVOKE/trigger pair and was the OR-defeat vector that PR #23 had to work around.
 
 Post-migration audit_events state:
+
 - 4 per-tenant policies: `audit_events_tenant_{select,insert,update,delete}`
 - sep_app grants: `SELECT, INSERT` (UPDATE, DELETE remain revoked)
 - 2 triggers: `audit_events_no_update`, `audit_events_no_delete`
@@ -68,20 +70,20 @@ Validation: when `tenantIdForAudit` is non-null, it must be a valid cuid (same `
 
 ## 4. Call-site migration map
 
-| File | Sites | Pattern |
-|---|---|---|
-| `apps/control-plane/src/modules/key-references/key-references.service.ts` | 7 | `await this.audit.record(db, {...})` |
-| `apps/control-plane/src/modules/partner-profiles/partner-profiles.service.ts` | 3 | same |
-| `apps/control-plane/src/modules/submissions/submissions.service.ts` | 2 | same |
-| `apps/control-plane/src/modules/incidents/incidents.service.ts` | 2 | same |
-| `apps/control-plane/src/modules/webhooks/webhooks.service.ts` | 2 | same |
-| `apps/control-plane/src/modules/approvals/approvals.service.ts` | 2 | same |
-| `apps/control-plane/src/modules/tenants/tenants.service.ts` | 3 | `forSystemTx` (see §3) |
-| `apps/data-plane/src/processors/intake.processor.ts` | 2 | `await this.auditWriter.record(db, {...})` |
-| `apps/data-plane/src/processors/delivery.processor.ts` | 3 | same |
-| `apps/data-plane/src/processors/inbound.processor.ts` | 4 | same |
-| `apps/data-plane/src/processors/crypto.processor.ts` | 1 | same |
-| **Total** | **31** | |
+| File                                                                          | Sites  | Pattern                                    |
+| ----------------------------------------------------------------------------- | ------ | ------------------------------------------ |
+| `apps/control-plane/src/modules/key-references/key-references.service.ts`     | 7      | `await this.audit.record(db, {...})`       |
+| `apps/control-plane/src/modules/partner-profiles/partner-profiles.service.ts` | 3      | same                                       |
+| `apps/control-plane/src/modules/submissions/submissions.service.ts`           | 2      | same                                       |
+| `apps/control-plane/src/modules/incidents/incidents.service.ts`               | 2      | same                                       |
+| `apps/control-plane/src/modules/webhooks/webhooks.service.ts`                 | 2      | same                                       |
+| `apps/control-plane/src/modules/approvals/approvals.service.ts`               | 2      | same                                       |
+| `apps/control-plane/src/modules/tenants/tenants.service.ts`                   | 3      | `forSystemTx` (see §3)                     |
+| `apps/data-plane/src/processors/intake.processor.ts`                          | 2      | `await this.auditWriter.record(db, {...})` |
+| `apps/data-plane/src/processors/delivery.processor.ts`                        | 3      | same                                       |
+| `apps/data-plane/src/processors/inbound.processor.ts`                         | 4      | same                                       |
+| `apps/data-plane/src/processors/crypto.processor.ts`                          | 1      | same                                       |
+| **Total**                                                                     | **31** |                                            |
 
 All control-plane and data-plane callers (28 sites) use `db` as the variable name inside their `forTenant` blocks — single-replace migration with no per-site edits required. Tenants.service.ts (3 sites) is the only file requiring structural changes for the `forSystemTx` adoption.
 
@@ -105,10 +107,12 @@ expect(mockAudit.record).toHaveBeenCalledWith(
 Updated files: approvals, incidents, key-references, partner-profiles, submissions, webhooks, tenants. Single replace_all per file.
 
 `tenants.service.test.ts` additionally needed:
+
 - `mockDatabaseService.forSystemTx` mock that mirrors the helper's contract (validates id, calls callback with mockDb).
 - `mockDb.$executeRaw` mock (returns `Promise<void>`) because tenants.service.create issues SET LOCAL via `tx.$executeRaw` before audit.record.
 
 `audit.service.test.ts` gained two new tests:
+
 - TransactionClient branch must NOT call `DatabaseService.forTenant` (audit shares caller's tx).
 - PrismaClient branch (mock with `$transaction`) MUST delegate to `DatabaseService.forTenant` for atomicity + RLS context.
 
@@ -128,6 +132,7 @@ Two changes under `tests/integration/rls-negative-tests/`:
 `vitest.config.ts` `include` pattern broadened to also match `audit-transactional-coupling.test.ts` (the only file in the suite that isn't named `*.rls-negative.test.ts`).
 
 Test totals after this milestone:
+
 - Control-plane unit: 116 tests (10 files), unchanged count (test mocks updated, no new tests beyond the two AuditService branch-discrimination cases — net +2 → 116 includes those).
 - Data-plane unit: 72 tests (9 files), unchanged.
 - DB unit: 11 tests passing + 12 skipped (4 files).
@@ -139,7 +144,7 @@ Test totals after this milestone:
 
 2. **`tsup` returns success but `tsc -b` may not run reliably under `&&`.** The `pnpm build` script in `packages/db` is `tsup ... --clean && tsc -b`. On the first invocation after a clean it sometimes leaves `dist/` with `.d.ts.map` files but no `.d.ts` files. Workaround: re-run `tsc -b` separately (or `rm -rf dist && pnpm build` followed by `pnpm exec tsc -b`). Same pattern as M3.A1 issue #21 — not blocking M3.A2 but worth tracking.
 
-3. **`forSystemTx(null, ...)` set_config timing.** `tx.$executeRaw\`SELECT set_config(...)\`` must run AFTER the platform write that produces the tenant id but BEFORE any audit append in the same callback. The contract is that the caller orders these correctly — `forSystemTx` itself only sets context up front when `tenantIdForAudit` is non-null. The convention is documented inline on the helper and demonstrated in `tenants.service.create`.
+3. **`forSystemTx(null, ...)` set_config timing.** `tx.$executeRaw\`SELECT set_config(...)\``must run AFTER the platform write that produces the tenant id but BEFORE any audit append in the same callback. The contract is that the caller orders these correctly —`forSystemTx`itself only sets context up front when`tenantIdForAudit`is non-null. The convention is documented inline on the helper and demonstrated in`tenants.service.create`.
 
 4. **Vitest `include` patterns are AND-or-nothing.** The rls-negative-tests vitest config originally globbed `**/*.rls-negative.test.ts`. The new `audit-transactional-coupling.test.ts` does not match. Resolution: add it as a second pattern. Renaming the file to `*.rls-negative.test.ts` would have been misleading (it's atomicity, not RLS-negative).
 
@@ -156,6 +161,7 @@ Commits on `m3.a2/audit-transactional-coupling`:
 5. `docs(m3.a2-t05): execution prompt + gotcha index`
 
 PR body MUST include:
+
 - "Closes #26"
 - §10.1(ii) self-review block with commit-by-commit diff scan and any findings.
 

@@ -55,10 +55,7 @@ export class AuditWriterService {
     return this.appendEvent(tx, params);
   }
 
-  private async appendEvent(
-    tx: Prisma.TransactionClient,
-    params: AuditEventParams,
-  ): Promise<void> {
+  private async appendEvent(tx: Prisma.TransactionClient, params: AuditEventParams): Promise<void> {
     try {
       const cfg = getConfig();
 
