@@ -14,6 +14,7 @@ import { KeyReferencesModule } from './modules/key-references/key-references.mod
 import { IncidentsModule } from './modules/incidents/incidents.module';
 import { ApprovalsModule } from './modules/approvals/approvals.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
+import { CryptoCustodyModule } from './modules/crypto-custody/crypto-custody.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
@@ -42,6 +43,7 @@ const cfg = getConfig();
     DatabaseModule,
     AuditModule,
     AuthModule,
+    CryptoCustodyModule,
     TenantsModule,
     PartnerProfilesModule,
     SubmissionsModule,
