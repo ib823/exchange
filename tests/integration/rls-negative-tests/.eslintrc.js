@@ -16,6 +16,11 @@ module.exports = {
         '@typescript-eslint/no-unsafe-call': 'off',
         '@typescript-eslint/no-unsafe-return': 'off',
         '@typescript-eslint/no-unsafe-argument': 'off',
+        // Per-table parent-id maps populated in setupParents are read by
+        // seedRow/validInsertPayload — Record<string, string> indexing
+        // gives string|undefined under noUncheckedIndexedAccess, but the
+        // value is guaranteed populated by setupParents ordering.
+        '@typescript-eslint/no-non-null-assertion': 'off',
       },
     },
   ],
