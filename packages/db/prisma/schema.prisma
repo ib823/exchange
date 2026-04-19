@@ -319,6 +319,16 @@ model RoleAssignment {
 }
 
 // ── Retention Policy (previously missing entity) ───────────────────────────────
+//
+// M3.A3-T03: declarative-only in M3. This model provides per-tenant
+// retention policy *configuration*; enforcement (age-based purge jobs,
+// decrypted-artifact expiry, audit/operator-log/incident-history
+// deletion) is M5 scope (R2-004). Until M5 ships, values in this table
+// are informational — no background job reads them. The fields are
+// intentionally category-specific (encrypted vs decrypted artifacts,
+// audit, operator logs, incidents) rather than a single retentionDays,
+// because each category has different regulatory drivers and the
+// enforcement job in M5 must honor them independently.
 
 model RetentionPolicy {
   id                      String   @id @default(cuid())
