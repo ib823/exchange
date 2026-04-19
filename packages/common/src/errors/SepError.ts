@@ -145,6 +145,9 @@ export class SepError extends Error {
       [ErrorCode.TRANSPORT_HOST_KEY_MISMATCH]:
         'Partner host key does not match expected fingerprint',
       [ErrorCode.TENANT_BOUNDARY_VIOLATION]: 'Resource does not belong to the requesting tenant',
+      [ErrorCode.TENANT_CONTEXT_MISSING]:
+        'Tenant context is required for this database operation but was not provided',
+      [ErrorCode.TENANT_CONTEXT_INVALID]: 'Tenant context value is not a valid tenant identifier',
       [ErrorCode.APPROVAL_REQUIRED]: 'This action requires dual-control approval before proceeding',
       [ErrorCode.APPROVAL_SELF_APPROVAL_FORBIDDEN]:
         'Initiator and approver must be different users',
