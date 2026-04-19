@@ -1,22 +1,31 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
+import { ErrorCode, SepError } from '@sep/common';
+import { CuidSchema } from '@sep/schemas';
 
 /**
  * Tenant-scoped database accessor.
  *
  * Every database interaction from the application must go through this service.
- * It wraps the Prisma client and enforces that tenant context is always provided.
+ * forTenant() opens a Prisma $transaction, sets `app.current_tenant_id` via
+ * Postgres `set_config(...)`, and invokes the caller's callback with the
+ * transactional client. RLS policies on every tenant-scoped table reference
+ * `current_setting('app.current_tenant_id', true)` so queries inside the
+ * callback are tenant-scoped at the DB layer.
  *
- * Design decisions:
- * - tenantId is an explicit parameter on every method that touches tenant-scoped data
- * - forTenant() returns the raw Prisma client today but establishes the integration
- *   point where M3 RLS can inject SET LOCAL app.current_tenant_id per-connection
- * - Direct getPrismaClient() calls in service code are eliminated by design
- * - Health checks and migrations use the raw client via forSystem() — no tenant context
+ * Why a callback (not a free-standing tx)?
+ *   Prisma's $transaction is callback-only — the tx object is destroyed when
+ *   the callback returns. The plan §5-T05 line "returns a Prisma.TransactionClient"
+ *   is shorthand; the only correct shape is the callback form below.
  *
- * M3 integration path:
- *   forTenant() will wrap the operation in $transaction and call
- *   SET LOCAL app.current_tenant_id = $1 before returning the transactional client.
- *   This is the ONLY place that change needs to happen.
+ * Why set_config (not SET LOCAL)?
+ *   Postgres SET LOCAL does not accept parameterized values — the right-hand
+ *   side must be a literal. set_config('var', $1, true) does accept a
+ *   parameterized value and is equivalent to SET LOCAL. Avoids needing
+ *   $executeRawUnsafe with string concatenation.
+ *
+ * forSystem() returns the raw client for non-tenant-scoped paths (health
+ * checks, migration runners, cross-tenant admin queries). It must NOT be
+ * used by request-handling or job-processing code paths.
  */
 
 declare global {
@@ -25,10 +34,6 @@ declare global {
   var __sepRuntimePrismaClient: PrismaClient | undefined;
 }
 
-/**
- * Determines the correct DATABASE_URL for the runtime application.
- * RUNTIME_DATABASE_URL (sep_app role) takes precedence over DATABASE_URL (migration role).
- */
 function getRuntimeDatabaseUrl(): string | undefined {
   // eslint-disable-next-line no-process-env -- single entry point for runtime DB URL
   return process.env['RUNTIME_DATABASE_URL'] ?? undefined;
@@ -64,36 +69,40 @@ export class DatabaseService {
   }
 
   /**
-   * Returns a Prisma client scoped to a tenant context.
+   * Run `fn` inside a Prisma transaction with `app.current_tenant_id` set
+   * to `tenantId`. RLS policies on tenant-scoped tables fail-closed when
+   * the variable is unset; here it is set per the validated cuid.
    *
-   * Today this returns the raw client. In M3, this will wrap operations
-   * in a transaction that sets `app.current_tenant_id` via SET LOCAL,
-   * enabling PostgreSQL RLS to enforce tenant isolation at the database level.
+   * Throws TENANT_CONTEXT_MISSING when tenantId is null/undefined/empty.
+   * Throws TENANT_CONTEXT_INVALID when tenantId does not match the cuid
+   * shape required by Tenant.id (Prisma `@default(cuid())`).
    *
-   * @param tenantId — required. Throws if missing or empty.
+   * Both errors are programming bugs (terminal, never retryable).
    */
-  forTenant(tenantId: string): PrismaClient {
-    if (tenantId.length === 0) {
-      throw new Error(
-        'DatabaseService.forTenant() requires a non-empty tenantId. ' +
-          'This is a programming error — tenant context must always be provided.',
-      );
+  forTenant<T>(tenantId: string, fn: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+    if (typeof tenantId !== 'string' || tenantId.length === 0) {
+      throw new SepError(ErrorCode.TENANT_CONTEXT_MISSING);
+    }
+    if (!CuidSchema.safeParse(tenantId).success) {
+      throw new SepError(ErrorCode.TENANT_CONTEXT_INVALID, { tenantId });
     }
 
-    // M3 RLS integration point:
-    // return this.client.$transaction(async (tx) => {
-    //   await tx.$executeRaw`SET LOCAL app.current_tenant_id = ${tenantId}`;
-    //   return tx;
-    // });
-
-    return this.client;
+    return this.client.$transaction(async (tx) => {
+      // set_config(name, value, is_local=true) is the parameterized
+      // equivalent of `SET LOCAL` — the SET statement itself does not
+      // accept parameters. is_local=true scopes the change to this
+      // transaction.
+      await tx.$executeRaw`SELECT set_config('app.current_tenant_id', ${tenantId}, true)`;
+      return fn(tx);
+    });
   }
 
   /**
    * Returns the raw Prisma client for system-level operations that are not
    * tenant-scoped: health checks, migrations, cross-tenant admin queries.
    *
-   * M2+ processors must NOT use this for tenant-scoped data access.
+   * Request-handling and job-processing code MUST NOT call this — use
+   * forTenant() so RLS context is established.
    */
   forSystem(): PrismaClient {
     return this.client;

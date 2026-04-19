@@ -13,7 +13,7 @@
 
 import { Processor, WorkerHost, InjectQueue } from '@nestjs/bullmq';
 import type { Job, Queue } from 'bullmq';
-import { DatabaseService } from '@sep/db';
+import { DatabaseService, type Prisma } from '@sep/db';
 import {
   SepError,
   ErrorCode,
@@ -98,225 +98,235 @@ export class IntakeProcessor extends WorkerHost {
       'Intake processing started',
     );
 
-    const db = this.database.forTenant(tenantId);
-
-    // 1. Load and verify submission exists and belongs to tenant
-    const submission = await db.submission.findFirst({
-      where: { id: submissionId, tenantId },
-    });
-
-    if (!submission) {
-      throw new SepError(ErrorCode.SUBMISSION_NOT_FOUND, {
-        submissionId,
-        tenantId,
-        correlationId,
+    await this.database.forTenant(tenantId, async (db) => {
+      // 1. Load and verify submission exists and belongs to tenant
+      const submission = await db.submission.findFirst({
+        where: { id: submissionId, tenantId },
       });
-    }
 
-    // 2. Idempotency: if already past RECEIVED, this is a retry of a completed intake
-    if (submission.status !== 'RECEIVED' && submission.status !== 'VALIDATED') {
-      logger.info(
-        { correlationId, tenantId, submissionId, currentStatus: submission.status },
-        'Intake skipped — submission already past intake stage',
-      );
-      return;
-    }
+      if (!submission) {
+        throw new SepError(ErrorCode.SUBMISSION_NOT_FOUND, {
+          submissionId,
+          tenantId,
+          correlationId,
+        });
+      }
 
-    // 3. Validate payload hash
-    if (
-      submission.normalizedHash !== null &&
-      submission.normalizedHash !== '' &&
-      normalizedHash !== ''
-    ) {
-      const hashMatch = submission.normalizedHash === normalizedHash;
-      if (!hashMatch) {
+      // 2. Idempotency: if already past RECEIVED, this is a retry of a completed intake
+      if (submission.status !== 'RECEIVED' && submission.status !== 'VALIDATED') {
+        logger.info(
+          { correlationId, tenantId, submissionId, currentStatus: submission.status },
+          'Intake skipped — submission already past intake stage',
+        );
+        return;
+      }
+
+      // 3. Validate payload hash
+      if (
+        submission.normalizedHash !== null &&
+        submission.normalizedHash !== '' &&
+        normalizedHash !== ''
+      ) {
+        const hashMatch = submission.normalizedHash === normalizedHash;
+        if (!hashMatch) {
+          await this.failSubmission(
+            db,
+            submissionId,
+            tenantId,
+            ErrorCode.SUBMISSION_PAYLOAD_TAMPERED,
+          );
+          await this.auditWriter.record({
+            tenantId,
+            actorType: 'SERVICE',
+            actorId,
+            objectType: 'Submission',
+            objectId: submissionId,
+            action: 'SUBMISSION_FAILED',
+            result: 'FAILURE',
+            correlationId,
+            metadata: {
+              reason: 'payload_hash_mismatch',
+              errorCode: ErrorCode.SUBMISSION_PAYLOAD_TAMPERED,
+            },
+          });
+          throw new SepError(ErrorCode.SUBMISSION_PAYLOAD_TAMPERED, {
+            submissionId,
+            correlationId,
+          });
+        }
+      }
+
+      // 4. Validate filename if present in metadata
+      const metadata = submission.metadata as Record<string, unknown> | null;
+      if (metadata?.['filename'] !== undefined && metadata['filename'] !== null) {
+        this.validateFilename(String(metadata['filename']), correlationId);
+      }
+
+      // 5. Magic-byte validation — verify file extension matches actual content
+      if (
+        metadata?.['filename'] !== undefined &&
+        metadata['filename'] !== null &&
+        payloadRef !== ''
+      ) {
+        await this.validateMagicBytes(String(metadata['filename']), payloadRef, correlationId);
+      }
+
+      // 6. Validate payload size ceiling
+      const cfg = getConfig();
+      if (
+        submission.payloadSize !== null &&
+        submission.payloadSize > cfg.storage.maxPayloadSizeBytes
+      ) {
         await this.failSubmission(
           db,
           submissionId,
           tenantId,
-          ErrorCode.SUBMISSION_PAYLOAD_TAMPERED,
+          ErrorCode.VALIDATION_PAYLOAD_TOO_LARGE,
         );
-        await this.auditWriter.record({
-          tenantId,
-          actorType: 'SERVICE',
-          actorId,
-          objectType: 'Submission',
-          objectId: submissionId,
-          action: 'SUBMISSION_FAILED',
-          result: 'FAILURE',
-          correlationId,
-          metadata: {
-            reason: 'payload_hash_mismatch',
-            errorCode: ErrorCode.SUBMISSION_PAYLOAD_TAMPERED,
-          },
-        });
-        throw new SepError(ErrorCode.SUBMISSION_PAYLOAD_TAMPERED, {
+        throw new SepError(ErrorCode.VALIDATION_PAYLOAD_TOO_LARGE, {
           submissionId,
           correlationId,
         });
       }
-    }
 
-    // 4. Validate filename if present in metadata
-    const metadata = submission.metadata as Record<string, unknown> | null;
-    if (metadata?.['filename'] !== undefined && metadata['filename'] !== null) {
-      this.validateFilename(String(metadata['filename']), correlationId);
-    }
+      // 7. Malware scan gate
+      if (cfg.features.malwareScanEnabled) {
+        // If malware scanning is enabled but scanner is unavailable, fail closed
+        logger.warn(
+          { correlationId, tenantId, submissionId },
+          'Malware scan enabled but scanner not yet integrated — failing closed',
+        );
+        await this.failSubmission(
+          db,
+          submissionId,
+          tenantId,
+          ErrorCode.SUBMISSION_SCAN_UNAVAILABLE,
+        );
+        throw new SepError(ErrorCode.SUBMISSION_SCAN_UNAVAILABLE, {
+          submissionId,
+          correlationId,
+          message: 'Malware scanner unavailable — fail closed',
+        });
+      }
 
-    // 5. Magic-byte validation — verify file extension matches actual content
-    if (
-      metadata?.['filename'] !== undefined &&
-      metadata['filename'] !== null &&
-      payloadRef !== ''
-    ) {
-      await this.validateMagicBytes(String(metadata['filename']), payloadRef, correlationId);
-    }
-
-    // 6. Validate payload size ceiling
-    const cfg = getConfig();
-    if (
-      submission.payloadSize !== null &&
-      submission.payloadSize > cfg.storage.maxPayloadSizeBytes
-    ) {
-      await this.failSubmission(db, submissionId, tenantId, ErrorCode.VALIDATION_PAYLOAD_TOO_LARGE);
-      throw new SepError(ErrorCode.VALIDATION_PAYLOAD_TOO_LARGE, {
-        submissionId,
-        correlationId,
+      // 8. Load partner profile to determine crypto operation
+      const profile = await db.partnerProfile.findFirst({
+        where: { id: partnerProfileId, tenantId },
+        select: {
+          id: true,
+          messageSecurityMode: true,
+          transportProtocol: true,
+          environment: true,
+          status: true,
+          config: true,
+        },
       });
-    }
 
-    // 7. Malware scan gate
-    if (cfg.features.malwareScanEnabled) {
-      // If malware scanning is enabled but scanner is unavailable, fail closed
-      logger.warn(
-        { correlationId, tenantId, submissionId },
-        'Malware scan enabled but scanner not yet integrated — failing closed',
-      );
-      await this.failSubmission(db, submissionId, tenantId, ErrorCode.SUBMISSION_SCAN_UNAVAILABLE);
-      throw new SepError(ErrorCode.SUBMISSION_SCAN_UNAVAILABLE, {
-        submissionId,
-        correlationId,
-        message: 'Malware scanner unavailable — fail closed',
+      if (!profile) {
+        throw new SepError(ErrorCode.RBAC_RESOURCE_NOT_FOUND, {
+          tenantId,
+          profileId: partnerProfileId,
+          correlationId,
+        });
+      }
+
+      if (
+        profile.status !== 'PROD_ACTIVE' &&
+        profile.status !== 'TEST_APPROVED' &&
+        profile.status !== 'TEST_READY'
+      ) {
+        throw new SepError(ErrorCode.POLICY_PROFILE_INACTIVE, {
+          tenantId,
+          profileId: partnerProfileId,
+          correlationId,
+          currentState: profile.status,
+        });
+      }
+
+      // 9. Determine crypto requirements from profile
+      const cryptoOperation = this.mapSecurityModeToCryptoOp(profile.messageSecurityMode);
+      const profileConfig = profile.config as Record<string, unknown> | null;
+      const keyReferenceId = profileConfig?.['keyReferenceId'] as string | undefined;
+
+      // 10. Update submission to VALIDATED
+      await db.submission.update({
+        where: { id: submissionId },
+        data: { status: 'VALIDATED', updatedAt: new Date() },
       });
-    }
 
-    // 8. Load partner profile to determine crypto operation
-    const profile = await db.partnerProfile.findFirst({
-      where: { id: partnerProfileId, tenantId },
-      select: {
-        id: true,
-        messageSecurityMode: true,
-        transportProtocol: true,
-        environment: true,
-        status: true,
-        config: true,
-      },
-    });
+      // 11. Enqueue to delivery.requested (crypto stage)
+      if (cryptoOperation !== null && keyReferenceId !== undefined && keyReferenceId !== '') {
+        const cryptoJob: CryptoJob = {
+          jobId: `crypto-${submissionId}-${job.attemptsMade}`,
+          correlationId: correlationId,
+          tenantId: tenantId,
+          submissionId: submissionId,
+          partnerProfileId: partnerProfileId,
+          payloadRef,
+          normalizedHash,
+          attempt: 1,
+          enqueuedAt: new Date().toISOString(),
+          actorId,
+          actorRole,
+          credentialId,
+          operation: cryptoOperation,
+          keyReferenceId: keyReferenceId as KeyReferenceId,
+        };
 
-    if (!profile) {
-      throw new SepError(ErrorCode.RBAC_RESOURCE_NOT_FOUND, {
+        await this.deliveryQueue.add('crypto', cryptoJob, {
+          jobId: `crypto-${submissionId}`,
+        });
+      } else {
+        // No crypto needed — enqueue directly for delivery
+        const deliveryJob = {
+          ...job.data,
+          securedPayloadRef: payloadRef,
+          connectorType: profile.transportProtocol,
+          attempt: 1,
+          enqueuedAt: new Date().toISOString(),
+        };
+        await this.deliveryQueue.add('delivery', deliveryJob, {
+          jobId: `delivery-${submissionId}`,
+        });
+      }
+
+      // 12. Update submission to QUEUED
+      await db.submission.update({
+        where: { id: submissionId },
+        data: { status: 'QUEUED', updatedAt: new Date() },
+      });
+
+      // 13. Write audit event
+      await this.auditWriter.record({
         tenantId,
-        profileId: partnerProfileId,
-        correlationId,
-      });
-    }
-
-    if (
-      profile.status !== 'PROD_ACTIVE' &&
-      profile.status !== 'TEST_APPROVED' &&
-      profile.status !== 'TEST_READY'
-    ) {
-      throw new SepError(ErrorCode.POLICY_PROFILE_INACTIVE, {
-        tenantId,
-        profileId: partnerProfileId,
-        correlationId,
-        currentState: profile.status,
-      });
-    }
-
-    // 9. Determine crypto requirements from profile
-    const cryptoOperation = this.mapSecurityModeToCryptoOp(profile.messageSecurityMode);
-    const profileConfig = profile.config as Record<string, unknown> | null;
-    const keyReferenceId = profileConfig?.['keyReferenceId'] as string | undefined;
-
-    // 10. Update submission to VALIDATED
-    await db.submission.update({
-      where: { id: submissionId },
-      data: { status: 'VALIDATED', updatedAt: new Date() },
-    });
-
-    // 11. Enqueue to delivery.requested (crypto stage)
-    if (cryptoOperation !== null && keyReferenceId !== undefined && keyReferenceId !== '') {
-      const cryptoJob: CryptoJob = {
-        jobId: `crypto-${submissionId}-${job.attemptsMade}`,
-        correlationId: correlationId,
-        tenantId: tenantId,
-        submissionId: submissionId,
-        partnerProfileId: partnerProfileId,
-        payloadRef,
-        normalizedHash,
-        attempt: 1,
-        enqueuedAt: new Date().toISOString(),
+        actorType: 'SERVICE',
         actorId,
-        actorRole,
-        credentialId,
-        operation: cryptoOperation,
-        keyReferenceId: keyReferenceId as KeyReferenceId,
-      };
-
-      await this.deliveryQueue.add('crypto', cryptoJob, {
-        jobId: `crypto-${submissionId}`,
+        actorRole: actorRole as 'INTEGRATION_ENGINEER',
+        objectType: 'Submission',
+        objectId: submissionId,
+        action: 'SUBMISSION_QUEUED',
+        result: 'SUCCESS',
+        correlationId,
+        environment: profile.environment,
+        metadata: {
+          partnerProfileId,
+          cryptoOperation: cryptoOperation ?? 'NONE',
+          transportProtocol: profile.transportProtocol,
+        },
       });
-    } else {
-      // No crypto needed — enqueue directly for delivery
-      const deliveryJob = {
-        ...job.data,
-        securedPayloadRef: payloadRef,
-        connectorType: profile.transportProtocol,
-        attempt: 1,
-        enqueuedAt: new Date().toISOString(),
-      };
-      await this.deliveryQueue.add('delivery', deliveryJob, {
-        jobId: `delivery-${submissionId}`,
+
+      submissionCounter.inc({
+        tenant_id: tenantId,
+        partner_profile_id: partnerProfileId,
+        status: 'QUEUED',
+        environment: profile.environment,
       });
-    }
 
-    // 12. Update submission to QUEUED
-    await db.submission.update({
-      where: { id: submissionId },
-      data: { status: 'QUEUED', updatedAt: new Date() },
+      logger.info(
+        { correlationId, tenantId, submissionId, status: 'QUEUED' },
+        'Intake processing completed',
+      );
     });
-
-    // 13. Write audit event
-    await this.auditWriter.record({
-      tenantId,
-      actorType: 'SERVICE',
-      actorId,
-      actorRole: actorRole as 'INTEGRATION_ENGINEER',
-      objectType: 'Submission',
-      objectId: submissionId,
-      action: 'SUBMISSION_QUEUED',
-      result: 'SUCCESS',
-      correlationId,
-      environment: profile.environment,
-      metadata: {
-        partnerProfileId,
-        cryptoOperation: cryptoOperation ?? 'NONE',
-        transportProtocol: profile.transportProtocol,
-      },
-    });
-
-    submissionCounter.inc({
-      tenant_id: tenantId,
-      partner_profile_id: partnerProfileId,
-      status: 'QUEUED',
-      environment: profile.environment,
-    });
-
-    logger.info(
-      { correlationId, tenantId, submissionId, status: 'QUEUED' },
-      'Intake processing completed',
-    );
   }
 
   private validateFilename(filename: string, correlationId: string): void {
@@ -441,7 +451,7 @@ export class IntakeProcessor extends WorkerHost {
   }
 
   private async failSubmission(
-    db: ReturnType<DatabaseService['forTenant']>,
+    db: Prisma.TransactionClient,
     submissionId: string,
     _tenantId: string,
     errorCode: ErrorCode,

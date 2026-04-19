@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { DatabaseService } from '@sep/db';
+import { DatabaseService, type Prisma } from '@sep/db';
 import { SepError, ErrorCode } from '@sep/common';
 import { AuditService } from '../audit/audit.service';
 import type { TokenPayload } from '../auth/auth.service';
@@ -28,8 +28,14 @@ export class ApprovalsService {
     private readonly database: DatabaseService,
   ) {}
 
-  private async assertTenantOwnership(id: string, tenantId: string): Promise<ApprovalRow> {
-    const db = this.database.forTenant(tenantId);
+  // Helper takes the tx client from the caller's forTenant block so it
+  // does not open a nested $transaction (which would create a redundant
+  // savepoint for a single-query helper).
+  private async assertTenantOwnership(
+    db: Prisma.TransactionClient,
+    id: string,
+    tenantId: string,
+  ): Promise<ApprovalRow> {
     const approval = await db.approval.findUnique({ where: { id } });
     if (approval === null || approval.tenantId !== tenantId) {
       throw new NotFoundException('Approval not found');
@@ -54,114 +60,122 @@ export class ApprovalsService {
     data: ApprovalRow[];
     meta: { page: number; pageSize: number; total: number; totalPages: number };
   }> {
-    const db = this.database.forTenant(actor.tenantId);
-    const where = {
-      tenantId: actor.tenantId,
-      status: 'PENDING' as const,
-      expiresAt: { gt: new Date() },
-    };
+    return this.database.forTenant(actor.tenantId, async (db) => {
+      const where = {
+        tenantId: actor.tenantId,
+        status: 'PENDING' as const,
+        expiresAt: { gt: new Date() },
+      };
 
-    const [data, total] = await Promise.all([
-      db.approval.findMany({
-        where,
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-        orderBy: { initiatedAt: 'desc' },
-      }),
-      db.approval.count({ where }),
-    ]);
+      const [data, total] = await Promise.all([
+        db.approval.findMany({
+          where,
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+          orderBy: { initiatedAt: 'desc' },
+        }),
+        db.approval.count({ where }),
+      ]);
 
-    return {
-      data,
-      meta: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) },
-    };
+      return {
+        data,
+        meta: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) },
+      };
+    });
   }
 
   async findById(id: string, actor: TokenPayload): Promise<ApprovalRow> {
-    const approval = await this.assertTenantOwnership(id, actor.tenantId);
-    return approval;
+    return this.database.forTenant(actor.tenantId, (db) =>
+      this.assertTenantOwnership(db, id, actor.tenantId),
+    );
   }
 
   async approve(id: string, actor: TokenPayload, notes: string | undefined): Promise<ApprovalRow> {
-    const approval = await this.assertTenantOwnership(id, actor.tenantId);
+    return this.database.forTenant(actor.tenantId, async (db) => {
+      const approval = await this.assertTenantOwnership(db, id, actor.tenantId);
 
-    this.assertNotExpired(approval);
+      this.assertNotExpired(approval);
 
-    if (approval.status !== 'PENDING') {
-      throw new SepError(ErrorCode.VALIDATION_SCHEMA_FAILED, {
-        message: `Approval is already in ${approval.status} state`,
-        currentStatus: approval.status,
+      if (approval.status !== 'PENDING') {
+        throw new SepError(ErrorCode.VALIDATION_SCHEMA_FAILED, {
+          message: `Approval is already in ${approval.status} state`,
+          currentStatus: approval.status,
+        });
+      }
+
+      // Self-approval prevention
+      if (approval.initiatorId === actor.userId) {
+        throw new SepError(ErrorCode.APPROVAL_SELF_APPROVAL_FORBIDDEN, {
+          message: 'Cannot approve your own request',
+          initiatorId: approval.initiatorId,
+          actorId: actor.userId,
+        });
+      }
+
+      const updated = await db.approval.update({
+        where: { id },
+        data: {
+          status: 'APPROVED',
+          approverId: actor.userId,
+          respondedAt: new Date(),
+          notes: notes ?? null,
+        },
       });
-    }
 
-    // Self-approval prevention
-    if (approval.initiatorId === actor.userId) {
-      throw new SepError(ErrorCode.APPROVAL_SELF_APPROVAL_FORBIDDEN, {
-        message: 'Cannot approve your own request',
-        initiatorId: approval.initiatorId,
+      // Audit write happens inside the outer forTenant block so a failure
+      // (e.g. PR #1's audit_events REVOKE INSERT) rolls back the approval
+      // update too. M3.A2 will migrate audit.record to share the parent tx
+      // directly instead of opening a nested $transaction savepoint.
+      await this.audit.record({
+        tenantId: actor.tenantId,
+        actorType: 'USER',
         actorId: actor.userId,
+        objectType: 'Approval',
+        objectId: id,
+        action: 'APPROVAL_GRANTED',
+        result: 'SUCCESS',
+        metadata: { objectType: approval.objectType, objectId: approval.objectId },
       });
-    }
 
-    const db = this.database.forTenant(actor.tenantId);
-    const updated = await db.approval.update({
-      where: { id },
-      data: {
-        status: 'APPROVED',
-        approverId: actor.userId,
-        respondedAt: new Date(),
-        notes: notes ?? null,
-      },
+      return updated;
     });
-
-    await this.audit.record({
-      tenantId: actor.tenantId,
-      actorType: 'USER',
-      actorId: actor.userId,
-      objectType: 'Approval',
-      objectId: id,
-      action: 'APPROVAL_GRANTED',
-      result: 'SUCCESS',
-      metadata: { objectType: approval.objectType, objectId: approval.objectId },
-    });
-
-    return updated;
   }
 
   async reject(id: string, actor: TokenPayload, notes: string | undefined): Promise<ApprovalRow> {
-    const approval = await this.assertTenantOwnership(id, actor.tenantId);
+    return this.database.forTenant(actor.tenantId, async (db) => {
+      const approval = await this.assertTenantOwnership(db, id, actor.tenantId);
 
-    this.assertNotExpired(approval);
+      this.assertNotExpired(approval);
 
-    if (approval.status !== 'PENDING') {
-      throw new SepError(ErrorCode.VALIDATION_SCHEMA_FAILED, {
-        message: `Approval is already in ${approval.status} state`,
-        currentStatus: approval.status,
+      if (approval.status !== 'PENDING') {
+        throw new SepError(ErrorCode.VALIDATION_SCHEMA_FAILED, {
+          message: `Approval is already in ${approval.status} state`,
+          currentStatus: approval.status,
+        });
+      }
+
+      const updated = await db.approval.update({
+        where: { id },
+        data: {
+          status: 'REJECTED',
+          approverId: actor.userId,
+          respondedAt: new Date(),
+          notes: notes ?? null,
+        },
       });
-    }
 
-    const db = this.database.forTenant(actor.tenantId);
-    const updated = await db.approval.update({
-      where: { id },
-      data: {
-        status: 'REJECTED',
-        approverId: actor.userId,
-        respondedAt: new Date(),
-        notes: notes ?? null,
-      },
+      await this.audit.record({
+        tenantId: actor.tenantId,
+        actorType: 'USER',
+        actorId: actor.userId,
+        objectType: 'Approval',
+        objectId: id,
+        action: 'APPROVAL_REJECTED',
+        result: 'SUCCESS',
+        metadata: { objectType: approval.objectType, objectId: approval.objectId },
+      });
+
+      return updated;
     });
-
-    await this.audit.record({
-      tenantId: actor.tenantId,
-      actorType: 'USER',
-      actorId: actor.userId,
-      objectType: 'Approval',
-      objectId: id,
-      action: 'APPROVAL_REJECTED',
-      result: 'SUCCESS',
-      metadata: { objectType: approval.objectType, objectId: approval.objectId },
-    });
-
-    return updated;
   }
 }

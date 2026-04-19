@@ -33,6 +33,7 @@
   },
   "dependencies": {
     "@sep/common": "workspace:*",
+    "@sep/schemas": "workspace:*",
     "@prisma/client": "5.22.0"
   },
   "devDependencies": {

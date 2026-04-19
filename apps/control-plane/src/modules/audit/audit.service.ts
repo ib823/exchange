@@ -36,49 +36,48 @@ export class AuditService {
     try {
       const cfg = getConfig();
 
-      // Compute chained hash for tamper-evidence
-      const db = this.database.forTenant(params.tenantId);
+      await this.database.forTenant(params.tenantId, async (db) => {
+        const latest = await db.auditEvent.findFirst({
+          where: { tenantId: params.tenantId },
+          orderBy: { eventTime: 'desc' },
+          select: { immutableHash: true },
+        });
 
-      const latest = await db.auditEvent.findFirst({
-        where: { tenantId: params.tenantId },
-        orderBy: { eventTime: 'desc' },
-        select: { immutableHash: true },
-      });
+        const previousHash = latest?.immutableHash ?? null;
+        // Use a single timestamp for both hash computation and persistence
+        // to guarantee the hash chain can be independently verified from persisted data
+        const eventTime = new Date();
+        const hashInput = [
+          params.tenantId,
+          params.actorId,
+          params.action,
+          params.result,
+          eventTime.toISOString(),
+          previousHash ?? 'genesis',
+          cfg.audit.hashSecret,
+        ].join('|');
 
-      const previousHash = latest?.immutableHash ?? null;
-      // Use a single timestamp for both hash computation and persistence
-      // to guarantee the hash chain can be independently verified from persisted data
-      const eventTime = new Date();
-      const hashInput = [
-        params.tenantId,
-        params.actorId,
-        params.action,
-        params.result,
-        eventTime.toISOString(),
-        previousHash ?? 'genesis',
-        cfg.audit.hashSecret,
-      ].join('|');
+        const immutableHash = createHash('sha256').update(hashInput).digest('hex');
 
-      const immutableHash = createHash('sha256').update(hashInput).digest('hex');
-
-      await db.auditEvent.create({
-        data: {
-          tenantId: params.tenantId,
-          actorType: params.actorType,
-          actorId: params.actorId,
-          actorRole: params.actorRole ?? null,
-          objectType: params.objectType,
-          objectId: params.objectId,
-          action: params.action,
-          result: params.result,
-          correlationId: params.correlationId ?? null,
-          traceId: params.traceId ?? null,
-          environment: params.environment ?? null,
-          eventTime,
-          immutableHash,
-          previousHash,
-          metadata: params.metadata ?? Prisma.JsonNull,
-        },
+        await db.auditEvent.create({
+          data: {
+            tenantId: params.tenantId,
+            actorType: params.actorType,
+            actorId: params.actorId,
+            actorRole: params.actorRole ?? null,
+            objectType: params.objectType,
+            objectId: params.objectId,
+            action: params.action,
+            result: params.result,
+            correlationId: params.correlationId ?? null,
+            traceId: params.traceId ?? null,
+            environment: params.environment ?? null,
+            eventTime,
+            immutableHash,
+            previousHash,
+            metadata: params.metadata ?? Prisma.JsonNull,
+          },
+        });
       });
     } catch (err) {
       // Audit write failure must surface — never swallow
@@ -126,41 +125,41 @@ export class AuditService {
       ...(Object.keys(eventTimeFilter).length > 0 && { eventTime: eventTimeFilter }),
     };
 
-    const db = this.database.forTenant(params.tenantId);
+    return this.database.forTenant(params.tenantId, async (db) => {
+      const [data, total] = await Promise.all([
+        db.auditEvent.findMany({
+          where,
+          orderBy: { eventTime: 'desc' },
+          skip: (params.page - 1) * params.pageSize,
+          take: params.pageSize,
+          select: {
+            id: true,
+            tenantId: true,
+            actorType: true,
+            actorId: true,
+            actorRole: true,
+            objectType: true,
+            objectId: true,
+            action: true,
+            result: true,
+            correlationId: true,
+            eventTime: true,
+            metadata: true,
+            // Never return immutableHash or previousHash — internal chain integrity only
+          },
+        }),
+        db.auditEvent.count({ where }),
+      ]);
 
-    const [data, total] = await Promise.all([
-      db.auditEvent.findMany({
-        where,
-        orderBy: { eventTime: 'desc' },
-        skip: (params.page - 1) * params.pageSize,
-        take: params.pageSize,
-        select: {
-          id: true,
-          tenantId: true,
-          actorType: true,
-          actorId: true,
-          actorRole: true,
-          objectType: true,
-          objectId: true,
-          action: true,
-          result: true,
-          correlationId: true,
-          eventTime: true,
-          metadata: true,
-          // Never return immutableHash or previousHash — internal chain integrity only
+      return {
+        data,
+        meta: {
+          page: params.page,
+          pageSize: params.pageSize,
+          total,
+          totalPages: Math.ceil(total / params.pageSize),
         },
-      }),
-      db.auditEvent.count({ where }),
-    ]);
-
-    return {
-      data,
-      meta: {
-        page: params.page,
-        pageSize: params.pageSize,
-        total,
-        totalPages: Math.ceil(total / params.pageSize),
-      },
-    };
+      };
+    });
   }
 }
