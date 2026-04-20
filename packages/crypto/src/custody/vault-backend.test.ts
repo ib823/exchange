@@ -15,27 +15,36 @@ const VAULT_ADDR = 'http://vault.test:8200';
 let mockAgent: MockAgent;
 let originalDispatcher: Dispatcher;
 
-// Generate a deterministic fixture keypair once per suite.
+// Generate two deterministic fixture keypairs once per suite. The
+// second one is used as a distinct recipient in the signAndEncrypt
+// round-trip so the test exercises two keys being loaded in the same
+// call (sign key + recipient key).
 interface Fixture {
   armoredPublicKey: string;
   armoredPrivateKey: string;
   fingerprint: string;
 }
 let fixture: Fixture;
+let recipientFixture: Fixture;
 
-beforeAll(async () => {
+async function makeFixture(label: string): Promise<Fixture> {
   const generated = await openpgp.generateKey({
     type: 'ecc',
     curve: 'curve25519',
-    userIDs: [{ name: 'test', email: 'test@fixture.invalid' }],
+    userIDs: [{ name: label, email: `${label}@fixture.invalid` }],
     format: 'armored',
   });
   const publicKey = await openpgp.readKey({ armoredKey: generated.publicKey });
-  fixture = {
+  return {
     armoredPublicKey: generated.publicKey,
     armoredPrivateKey: generated.privateKey,
     fingerprint: publicKey.getFingerprint(),
   };
+}
+
+beforeAll(async () => {
+  fixture = await makeFixture('signer');
+  recipientFixture = await makeFixture('recipient');
 }, 30_000);
 
 beforeEach(() => {
@@ -173,6 +182,52 @@ describe('PlatformVaultBackend', () => {
     expect(decrypted.toString()).toBe('secret cargo');
   });
 
+  it('signAndEncrypt produces a signed ciphertext the recipient can decrypt and verify', async () => {
+    // loadMaterial is called twice per signAndEncrypt (once per ref),
+    // then once more on the recipient side for decrypt — three stubs.
+    const signerStored = {
+      armoredPublicKey: fixture.armoredPublicKey,
+      armoredPrivateKey: fixture.armoredPrivateKey,
+      fingerprint: fixture.fingerprint,
+      algorithm: 'ed25519',
+    };
+    const recipientStored = {
+      armoredPublicKey: recipientFixture.armoredPublicKey,
+      armoredPrivateKey: recipientFixture.armoredPrivateKey,
+      fingerprint: recipientFixture.fingerprint,
+      algorithm: 'ed25519',
+    };
+    stubKvRead('platform/keys/signer', signerStored);
+    stubKvRead('platform/keys/recipient', recipientStored);
+    stubKvRead('platform/keys/recipient', recipientStored);
+
+    const backend = new PlatformVaultBackend(makeClient());
+    const signingRef: KeyReferenceInput = {
+      id: 'signer',
+      tenantId: 'tenant-A',
+      backendType: 'PLATFORM_VAULT',
+      backendRef: 'signer',
+      algorithm: 'ed25519',
+      fingerprint: fixture.fingerprint,
+    };
+    const recipientRef: KeyReferenceInput = {
+      id: 'recipient',
+      tenantId: 'tenant-A',
+      backendType: 'PLATFORM_VAULT',
+      backendRef: 'recipient',
+      algorithm: 'ed25519',
+      fingerprint: recipientFixture.fingerprint,
+    };
+    const plaintext = Buffer.from('atomic composite cargo');
+    const sealed = await backend.signAndEncrypt(signingRef, recipientRef, plaintext);
+    expect(sealed).toContain('BEGIN PGP MESSAGE');
+
+    // The recipient decrypts; round-trip confirms the sealed output is
+    // valid RFC 9580 and honors the expected recipient key.
+    const decrypted = await backend.decrypt(recipientRef, sealed);
+    expect(decrypted.toString()).toBe('atomic composite cargo');
+  });
+
   it('rejects material when stored fingerprint does not match KeyReference', async () => {
     stubKvRead('platform/keys/key-1', {
       armoredPublicKey: fixture.armoredPublicKey,
@@ -277,6 +332,33 @@ describe('TenantVaultBackend', () => {
       expect.objectContaining({
         code: ErrorCode.TENANT_BOUNDARY_VIOLATION,
       }) as unknown as Error,
+    );
+  });
+
+  it('signAndEncrypt refuses when signing and recipient refs carry different tenantIds', async () => {
+    const backend = new TenantVaultBackend(makeClient(), 'tenant-A');
+    const signingRef: KeyReferenceInput = {
+      id: 'sig',
+      tenantId: 'tenant-A',
+      backendType: 'TENANT_VAULT',
+      backendRef: 'sig',
+      algorithm: 'ed25519',
+      fingerprint: fixture.fingerprint,
+    };
+    const foreignRecipient: KeyReferenceInput = {
+      id: 'rcp',
+      tenantId: 'tenant-B',
+      backendType: 'TENANT_VAULT',
+      backendRef: 'rcp',
+      algorithm: 'ed25519',
+      fingerprint: recipientFixture.fingerprint,
+    };
+    // No KV stubs — the tenant check in kvPathFor fires before
+    // loadMaterial makes any HTTP call.
+    await expect(
+      backend.signAndEncrypt(signingRef, foreignRecipient, Buffer.from('payload')),
+    ).rejects.toThrow(
+      expect.objectContaining({ code: ErrorCode.TENANT_BOUNDARY_VIOLATION }) as unknown as Error,
     );
   });
 

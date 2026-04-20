@@ -203,6 +203,69 @@ export abstract class VaultKeyCustodyBackend implements IKeyCustodyBackend {
     }
   }
 
+  async signAndEncrypt(
+    signingKeyRef: KeyReferenceInput,
+    recipientKeyRef: KeyReferenceInput,
+    plaintext: Plaintext,
+  ): Promise<Ciphertext> {
+    // Pre-flight both refs through kvPathFor BEFORE any HTTP read.
+    // TenantVaultBackend's override enforces the tenant boundary here,
+    // so a cross-tenant composite fails fast without leaking a Vault
+    // read on the first ref. PlatformVaultBackend's override is a pure
+    // path computation — the cost is negligible.
+    this.kvPathFor(signingKeyRef);
+    this.kvPathFor(recipientKeyRef);
+
+    const signingMaterial = await this.loadMaterial(signingKeyRef);
+    const recipientMaterial = await this.loadMaterial(recipientKeyRef);
+
+    let signingKeyBuf: Buffer | null = null;
+    try {
+      signingKeyBuf = Buffer.from(signingMaterial.armoredPrivateKey, 'utf8');
+      const signingKey = await openpgp.readPrivateKey({
+        armoredKey: signingMaterial.armoredPrivateKey,
+      });
+      const recipientKey = await openpgp.readKey({
+        armoredKey: recipientMaterial.armoredPublicKey,
+      });
+      const message = await openpgp.createMessage({ binary: new Uint8Array(plaintext) });
+      const encrypted = await openpgp.encrypt({
+        message,
+        encryptionKeys: recipientKey,
+        signingKeys: signingKey,
+      });
+      logger.debug(
+        {
+          signingKeyReferenceId: signingKeyRef.id,
+          recipientKeyReferenceId: recipientKeyRef.id,
+          signingFingerprint: signingMaterial.fingerprint.substring(0, 8),
+          recipientFingerprint: recipientMaterial.fingerprint.substring(0, 8),
+        },
+        'signAndEncrypt completed',
+      );
+      return String(encrypted) as Ciphertext;
+    } catch (err) {
+      if (err instanceof SepError) {
+        throw err;
+      }
+      logger.error(
+        {
+          signingKeyReferenceId: signingKeyRef.id,
+          recipientKeyReferenceId: recipientKeyRef.id,
+        },
+        'signAndEncrypt failed',
+      );
+      throw new SepError(ErrorCode.CRYPTO_ENCRYPTION_FAILED, {
+        keyReferenceId: signingKeyRef.id,
+        operation: 'signAndEncrypt',
+      });
+    } finally {
+      if (signingKeyBuf !== null) {
+        zeroBuffer(signingKeyBuf);
+      }
+    }
+  }
+
   async rotate(ref: KeyReferenceInput): Promise<RotationResult> {
     // Generate a new keypair of the same algorithm class.
     // Use RSA-4096 by default; subclasses override via metadata if needed.

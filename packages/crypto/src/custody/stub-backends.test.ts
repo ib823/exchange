@@ -57,13 +57,28 @@ describe('ExternalKmsBackend', () => {
       code: ErrorCode.CRYPTO_BACKEND_NOT_IMPLEMENTED,
     });
   });
+
+  it('signAndEncrypt throws CRYPTO_OPERATION_NOT_SUPPORTED (distinct from NOT_IMPLEMENTED)', async () => {
+    const recipientRef: KeyReferenceInput = { ...sampleRef, id: 'key-2' };
+    await expect(
+      backend.signAndEncrypt(sampleRef, recipientRef, Buffer.from('')),
+    ).rejects.toMatchObject({
+      code: ErrorCode.CRYPTO_OPERATION_NOT_SUPPORTED,
+      context: expect.objectContaining({
+        backendType: 'EXTERNAL_KMS',
+        operation: 'signAndEncrypt',
+        signingKeyReferenceId: 'key-1',
+        recipientKeyReferenceId: 'key-2',
+      }),
+    });
+  });
 });
 
 describe('SoftwareLocalBackend', () => {
   const backend = new SoftwareLocalBackend();
   const softwareRef: KeyReferenceInput = { ...sampleRef, backendType: 'SOFTWARE_LOCAL' };
 
-  it('all 7 methods throw CRYPTO_BACKEND_NOT_AVAILABLE', async () => {
+  it('all 7 single-ref methods throw CRYPTO_BACKEND_NOT_AVAILABLE', async () => {
     const cases: Array<Promise<unknown>> = [
       backend.getPublicKey(softwareRef),
       backend.signDetached(softwareRef, Buffer.from('')),
@@ -80,5 +95,20 @@ describe('SoftwareLocalBackend', () => {
         context: expect.objectContaining({ backendType: 'SOFTWARE_LOCAL' }),
       });
     }
+  });
+
+  it('signAndEncrypt throws CRYPTO_OPERATION_NOT_SUPPORTED (distinct from NOT_AVAILABLE)', async () => {
+    const recipientRef: KeyReferenceInput = { ...softwareRef, id: 'key-2' };
+    await expect(
+      backend.signAndEncrypt(softwareRef, recipientRef, Buffer.from('')),
+    ).rejects.toMatchObject({
+      code: ErrorCode.CRYPTO_OPERATION_NOT_SUPPORTED,
+      context: expect.objectContaining({
+        backendType: 'SOFTWARE_LOCAL',
+        operation: 'signAndEncrypt',
+        signingKeyReferenceId: 'key-1',
+        recipientKeyReferenceId: 'key-2',
+      }),
+    });
   });
 });

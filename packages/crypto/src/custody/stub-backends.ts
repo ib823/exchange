@@ -1,9 +1,14 @@
 /**
- * Interface-only backends (M3.A5-T04).
+ * Interface-only backends (M3.A5-T04, extended in M3.A5-T05b).
  *
- * Each of the 7 IKeyCustodyBackend methods throws a typed SepError
- * from the CRYPTO_BACKEND_* family so dispatch failures surface as
- * fail-closed terminal errors rather than silent drops.
+ * Every IKeyCustodyBackend method throws a typed SepError so dispatch
+ * failures surface as fail-closed terminal errors rather than silent
+ * drops. The single-ref methods throw CRYPTO_BACKEND_{NOT_IMPLEMENTED,
+ * NOT_AVAILABLE} (the backend class is not wired for production at
+ * all). The composite `signAndEncrypt` throws
+ * CRYPTO_OPERATION_NOT_SUPPORTED instead — a distinct failure mode
+ * reserved for backends that are wired but cannot honor an operation
+ * class; stubs emit it to make conformance assertions precise.
  */
 
 /* eslint-disable @typescript-eslint/require-await -- stub backends throw synchronously by contract; `async` keeps signatures aligned with IKeyCustodyBackend */
@@ -42,6 +47,24 @@ function notAvailable(backend: BackendName, method: string, ref: KeyReferenceInp
   });
 }
 
+function operationNotSupported(
+  backend: BackendName,
+  method: string,
+  signingKeyRef: KeyReferenceInput,
+  recipientKeyRef: KeyReferenceInput,
+): never {
+  throw new SepError(ErrorCode.CRYPTO_OPERATION_NOT_SUPPORTED, {
+    backendType: backend,
+    operation: method,
+    signingKeyReferenceId: signingKeyRef.id,
+    recipientKeyReferenceId: recipientKeyRef.id,
+    reason:
+      backend === 'EXTERNAL_KMS'
+        ? `External KMS cannot hold two key handles in-process for composite ${method}; route this op to a Vault backend`
+        : `Software-local backend is not approved for ${method}; route this op to a Vault backend`,
+  });
+}
+
 /**
  * External KMS backend — interface-only in M3. Concrete wiring
  * lands at M5 or at the first AWS-tier customer, whichever is
@@ -66,6 +89,18 @@ export class ExternalKmsBackend implements IKeyCustodyBackend {
   }
   async encryptForRecipient(ref: KeyReferenceInput, _plaintext: Plaintext): Promise<Ciphertext> {
     return notImplemented('EXTERNAL_KMS', 'encryptForRecipient', ref);
+  }
+  async signAndEncrypt(
+    signingKeyRef: KeyReferenceInput,
+    recipientKeyRef: KeyReferenceInput,
+    _plaintext: Plaintext,
+  ): Promise<Ciphertext> {
+    return operationNotSupported(
+      'EXTERNAL_KMS',
+      'signAndEncrypt',
+      signingKeyRef,
+      recipientKeyRef,
+    );
   }
   async rotate(ref: KeyReferenceInput): Promise<RotationResult> {
     return notImplemented('EXTERNAL_KMS', 'rotate', ref);
@@ -100,6 +135,18 @@ export class SoftwareLocalBackend implements IKeyCustodyBackend {
   }
   async encryptForRecipient(ref: KeyReferenceInput, _plaintext: Plaintext): Promise<Ciphertext> {
     return notAvailable('SOFTWARE_LOCAL', 'encryptForRecipient', ref);
+  }
+  async signAndEncrypt(
+    signingKeyRef: KeyReferenceInput,
+    recipientKeyRef: KeyReferenceInput,
+    _plaintext: Plaintext,
+  ): Promise<Ciphertext> {
+    return operationNotSupported(
+      'SOFTWARE_LOCAL',
+      'signAndEncrypt',
+      signingKeyRef,
+      recipientKeyRef,
+    );
   }
   async rotate(ref: KeyReferenceInput): Promise<RotationResult> {
     return notAvailable('SOFTWARE_LOCAL', 'rotate', ref);

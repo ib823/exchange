@@ -52,6 +52,8 @@ export interface SepErrorContext {
   readonly state?: string;
   readonly newSeverity?: string;
   readonly keyReferenceId?: string;
+  readonly recipientKeyReferenceId?: string;
+  readonly signingKeyReferenceId?: string;
   readonly requiredState?: string;
   readonly revokedAt?: string;
   readonly submissionEnvironment?: string;

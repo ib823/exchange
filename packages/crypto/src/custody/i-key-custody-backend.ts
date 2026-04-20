@@ -61,9 +61,12 @@ export interface RotationResult {
 }
 
 /**
- * The 7-operation contract. All backends implement every method;
+ * The 8-operation contract. All backends implement every method;
  * interface-only backends throw a typed CRYPTO_BACKEND_* error from
- * each method, never a generic Error.
+ * each method, never a generic Error. Backends that cannot honor a
+ * specific operation class (e.g. cloud KMS that cannot express an
+ * in-process composite sign-then-encrypt) throw
+ * CRYPTO_OPERATION_NOT_SUPPORTED from that method.
  */
 export interface IKeyCustodyBackend {
   /** Return the armored public key for this reference. Safe to log fingerprint only. */
@@ -80,6 +83,29 @@ export interface IKeyCustodyBackend {
 
   /** Encrypt plaintext for the recipient public key at ref. */
   encryptForRecipient(ref: KeyReferenceInput, plaintext: Plaintext): Promise<Ciphertext>;
+
+  /**
+   * Atomic sign-then-encrypt. Produces an OpenPGP message signed by
+   * the private key at `signingKeyRef` and encrypted to the recipient
+   * public key at `recipientKeyRef`.
+   *
+   * Called only when both refs resolve to the same backend. The
+   * backend loads both keys in-process, performs the composite op via
+   * openpgp.js (RFC 9580 sign-then-encrypt is atomic at the openpgp.js
+   * boundary — the signing key must be in scope at encrypt time), then
+   * zeroises any private-material buffers it allocated.
+   *
+   * The same-backend precondition is enforced by the dispatcher layer
+   * (KeyCustodyAbstraction), NOT here — backends do not cross-check
+   * refs against themselves. A backend whose design cannot support
+   * composite ops (e.g. a cloud KMS that cannot hold two key handles
+   * simultaneously) throws CRYPTO_OPERATION_NOT_SUPPORTED.
+   */
+  signAndEncrypt(
+    signingKeyRef: KeyReferenceInput,
+    recipientKeyRef: KeyReferenceInput,
+    plaintext: Plaintext,
+  ): Promise<Ciphertext>;
 
   /** Rotate the key at ref. Returns the new backendRef + fingerprint for persistence. */
   rotate(ref: KeyReferenceInput): Promise<RotationResult>;
