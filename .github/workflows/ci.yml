@@ -277,6 +277,61 @@ jobs:
       - run: pnpm --filter @sep/rls-negative-tests test:integration
 
   # ─────────────────────────────────────────────────────────
+  # Stage 7c: Custody backend conformance (M3.A5-T06)
+  # ─────────────────────────────────────────────────────────
+  # IKeyCustodyBackend 10-method contract asserted against every
+  # implementation (Platform + Tenant Vault — live round-trip,
+  # ExternalKms + SoftwareLocal — fail-closed). Needs a dev-mode
+  # Vault reachable at VAULT_ADDR; the service block below wires
+  # the same image the local docker-compose uses.
+  custody-conformance:
+    name: Custody conformance
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    needs: build
+    services:
+      vault:
+        image: hashicorp/vault:1.16
+        ports:
+          - 8200:8200
+        env:
+          VAULT_DEV_ROOT_TOKEN_ID: ci-root-token
+          VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+        options: >-
+          --cap-add IPC_LOCK
+    env:
+      VAULT_ADDR: http://localhost:8200
+      VAULT_TOKEN: ci-root-token
+      NODE_ENV: test
+      APP_ENV: ci
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: pnpm/action-setup@a3252b78c470c02df07e9d59298aecedc3ccdd6d # v3.0.0
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: build-artifacts
+      - name: Wait for Vault to accept requests
+        # The image ships no HEALTHCHECK; poll sys/health until it
+        # returns 200 or we run out of attempts.
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS "${VAULT_ADDR}/v1/sys/health" >/dev/null 2>&1; then
+              echo "Vault ready after ${i} attempts"; exit 0
+            fi
+            sleep 1
+          done
+          echo "Vault did not become ready within 30s"; exit 1
+      - run: pnpm --filter @sep/custody-conformance-tests test:integration
+
+  # ─────────────────────────────────────────────────────────
   # Stage 8: Security scans
   # ─────────────────────────────────────────────────────────
   security:
