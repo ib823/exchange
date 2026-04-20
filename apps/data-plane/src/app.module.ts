@@ -7,6 +7,7 @@ import { IntakeProcessor } from './processors/intake.processor';
 import { CryptoProcessor } from './processors/crypto.processor';
 import { DeliveryProcessor } from './processors/delivery.processor';
 import { InboundProcessor } from './processors/inbound.processor';
+import { KeyExpiryScanProcessor } from './processors/key-expiry-scan.processor';
 
 const cfg = getConfig();
 
@@ -25,6 +26,7 @@ const registeredQueues = Object.values(QUEUES).map((name) =>
     CryptoProcessor,
     DeliveryProcessor,
     InboundProcessor,
+    KeyExpiryScanProcessor,
   ],
 })
 export class AppModule {}

@@ -9,6 +9,7 @@ export const QUEUES = {
   INCIDENT_CREATED: 'incident.created',
   KEY_ROTATION_PENDING: 'key.rotation.pending',
   KEY_ROTATION_COMPLETED: 'key.rotation.completed',
+  KEY_EXPIRY_SCAN: 'key.expiry.scan',
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];

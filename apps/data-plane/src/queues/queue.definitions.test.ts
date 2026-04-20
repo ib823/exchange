@@ -8,8 +8,8 @@ import {
 } from './queue.definitions';
 
 describe('queue.definitions', () => {
-  it('defines all 9 required queues', () => {
-    expect(Object.keys(QUEUES)).toHaveLength(9);
+  it('defines all 10 required queues', () => {
+    expect(Object.keys(QUEUES)).toHaveLength(10);
     expect(QUEUES.SUBMISSION_ACCEPTED).toBe('submission.accepted');
     expect(QUEUES.DELIVERY_REQUESTED).toBe('delivery.requested');
     expect(QUEUES.DELIVERY_COMPLETED).toBe('delivery.completed');
@@ -19,6 +19,7 @@ describe('queue.definitions', () => {
     expect(QUEUES.INCIDENT_CREATED).toBe('incident.created');
     expect(QUEUES.KEY_ROTATION_PENDING).toBe('key.rotation.pending');
     expect(QUEUES.KEY_ROTATION_COMPLETED).toBe('key.rotation.completed');
+    expect(QUEUES.KEY_EXPIRY_SCAN).toBe('key.expiry.scan');
   });
 
   it('queue names are unique', () => {
@@ -54,6 +55,6 @@ describe('queue.definitions', () => {
 
   it('QueueName type covers all queue values', () => {
     const allQueues: QueueName[] = Object.values(QUEUES);
-    expect(allQueues).toHaveLength(9);
+    expect(allQueues).toHaveLength(10);
   });
 });
