@@ -67,6 +67,12 @@ export class ExternalKmsBackend implements IKeyCustodyBackend {
   async signDetached(ref: KeyReferenceInput, _payload: Buffer): Promise<Signature> {
     return notImplemented('EXTERNAL_KMS', 'signDetached', ref);
   }
+  async signInline(ref: KeyReferenceInput, _payload: Buffer): Promise<Ciphertext> {
+    // signInline could have been a composite-style CRYPTO_OPERATION_
+    // NOT_SUPPORTED, but semantically it's a single-key op that this
+    // backend simply hasn't wired — same category as signDetached.
+    return notImplemented('EXTERNAL_KMS', 'signInline', ref);
+  }
   async verifyDetached(
     ref: KeyReferenceInput,
     _payload: Buffer,
@@ -126,6 +132,9 @@ export class SoftwareLocalBackend implements IKeyCustodyBackend {
   }
   async signDetached(ref: KeyReferenceInput, _payload: Buffer): Promise<Signature> {
     return notAvailable('SOFTWARE_LOCAL', 'signDetached', ref);
+  }
+  async signInline(ref: KeyReferenceInput, _payload: Buffer): Promise<Ciphertext> {
+    return notAvailable('SOFTWARE_LOCAL', 'signInline', ref);
   }
   async verifyDetached(
     ref: KeyReferenceInput,

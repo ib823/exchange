@@ -40,6 +40,7 @@ function stubBackend(tag: string): IKeyCustodyBackend {
   return {
     getPublicKey: vi.fn().mockResolvedValue(`pub:${tag}` as ArmoredKey),
     signDetached: vi.fn(),
+    signInline: vi.fn(),
     verifyDetached: vi.fn(),
     decrypt: vi.fn(),
     encryptForRecipient: vi.fn(),

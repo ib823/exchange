@@ -28,6 +28,13 @@ describe('ExternalKmsBackend', () => {
     });
   });
 
+  it('signInline throws CRYPTO_BACKEND_NOT_IMPLEMENTED', async () => {
+    await expect(backend.signInline(sampleRef, Buffer.from(''))).rejects.toMatchObject({
+      code: ErrorCode.CRYPTO_BACKEND_NOT_IMPLEMENTED,
+      context: expect.objectContaining({ operation: 'signInline' }),
+    });
+  });
+
   it('verifyDetached throws CRYPTO_BACKEND_NOT_IMPLEMENTED', async () => {
     await expect(
       backend.verifyDetached(sampleRef, Buffer.from(''), '' as Signature),
@@ -93,10 +100,11 @@ describe('SoftwareLocalBackend', () => {
   const backend = new SoftwareLocalBackend();
   const softwareRef: KeyReferenceInput = { ...sampleRef, backendType: 'SOFTWARE_LOCAL' };
 
-  it('all 7 single-ref methods throw CRYPTO_BACKEND_NOT_AVAILABLE', async () => {
+  it('all 8 single-ref methods throw CRYPTO_BACKEND_NOT_AVAILABLE', async () => {
     const cases: Array<Promise<unknown>> = [
       backend.getPublicKey(softwareRef),
       backend.signDetached(softwareRef, Buffer.from('')),
+      backend.signInline(softwareRef, Buffer.from('')),
       backend.verifyDetached(softwareRef, Buffer.from(''), '' as Signature),
       backend.decrypt(softwareRef, '' as Ciphertext),
       backend.encryptForRecipient(softwareRef, Buffer.from('')),

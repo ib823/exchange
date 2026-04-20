@@ -74,12 +74,15 @@ export interface DecryptVerifyResult {
 }
 
 /**
- * The 9-operation contract. All backends implement every method;
+ * The 10-operation V1 contract. All backends implement every method;
  * interface-only backends throw a typed CRYPTO_BACKEND_* error from
  * each method, never a generic Error. Backends that cannot honor a
  * specific operation class (e.g. cloud KMS that cannot express an
  * in-process composite sign-then-encrypt) throw
  * CRYPTO_OPERATION_NOT_SUPPORTED from that method.
+ *
+ * Single-ref ops: getPublicKey, signDetached, signInline,
+ * verifyDetached, decrypt, encryptForRecipient, rotate, revoke.
  *
  * Composite ops (`signAndEncrypt`, `decryptAndVerify`) require two
  * keys to be in scope on the same in-process openpgp.js call —
@@ -87,6 +90,12 @@ export interface DecryptVerifyResult {
  * are atomic at the openpgp.js boundary. Both composites are
  * dispatched under a same-backend precondition enforced by
  * KeyCustodyAbstraction.
+ *
+ * V2 trajectory: the method surface is large and grew during M3.A5
+ * execution (signAndEncrypt, decryptAndVerify, signInline added
+ * after the initial 7-method sketch). ADR-0007 records the
+ * generalization plan — a tagged-union KeyOperation descriptor +
+ * `perform(op)` method — and the trigger for cutting over.
  */
 export interface IKeyCustodyBackend {
   /** Return the armored public key for this reference. Safe to log fingerprint only. */
@@ -94,6 +103,21 @@ export interface IKeyCustodyBackend {
 
   /** Produce a detached OpenPGP signature over payload using the private key at ref. */
   signDetached(ref: KeyReferenceInput, payload: Buffer): Promise<Signature>;
+
+  /**
+   * Produce an inline-signed armored OpenPGP MESSAGE block: payload
+   * and signature combined into a single RFC 9580 message (the output
+   * of `openpgp.sign({ detached: false })`).
+   *
+   * Like `signDetached`, this is a single-key op — the signing
+   * private key is loaded into the backend's process, used for the
+   * openpgp.sign call, and zeroised before returning. The output is
+   * returned as `Ciphertext` because the armored-MESSAGE brand covers
+   * signed-but-unencrypted messages too (RFC 9580 does not distinguish
+   * the armor header). Callers that need the embedded payload extract
+   * it via openpgp.readMessage + openpgp.verify.
+   */
+  signInline(ref: KeyReferenceInput, payload: Buffer): Promise<Ciphertext>;
 
   /** Verify a detached signature against the public key at ref. Returns true/false; never throws on mismatch. */
   verifyDetached(ref: KeyReferenceInput, payload: Buffer, signature: Signature): Promise<boolean>;

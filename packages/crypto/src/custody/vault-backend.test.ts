@@ -182,6 +182,43 @@ describe('PlatformVaultBackend', () => {
     expect(decrypted.toString()).toBe('secret cargo');
   });
 
+  it('signInline produces a verifiable armored OpenPGP MESSAGE (inline signature)', async () => {
+    stubKvRead('platform/keys/key-1', {
+      armoredPublicKey: fixture.armoredPublicKey,
+      armoredPrivateKey: fixture.armoredPrivateKey,
+      fingerprint: fixture.fingerprint,
+      algorithm: 'ed25519',
+    });
+
+    const backend = new PlatformVaultBackend(makeClient());
+    const ref: KeyReferenceInput = {
+      id: 'key-1',
+      tenantId: 'tenant-A',
+      backendType: 'PLATFORM_VAULT',
+      backendRef: 'key-1',
+      algorithm: 'ed25519',
+      fingerprint: fixture.fingerprint,
+    };
+    const signed = await backend.signInline(ref, Buffer.from('inline signed payload'));
+
+    expect(signed).toContain('BEGIN PGP MESSAGE');
+
+    // Round-trip: verify the inline signature resolves cleanly against
+    // the fixture public key. Extracted here rather than round-tripped
+    // through the backend because verifyDetached is detached-only.
+    const message = await openpgp.readMessage({ armoredMessage: signed });
+    const publicKey = await openpgp.readKey({ armoredKey: fixture.armoredPublicKey });
+    const verified = await openpgp.verify({
+      message,
+      verificationKeys: publicKey,
+    });
+    const firstSig = verified.signatures[0];
+    expect(firstSig).toBeDefined();
+    if (firstSig) {
+      await expect(firstSig.verified).resolves.toBe(true);
+    }
+  });
+
   it('decryptAndVerify round-trip recovers plaintext and reports signatureValid=true', async () => {
     const signerStored = {
       armoredPublicKey: fixture.armoredPublicKey,

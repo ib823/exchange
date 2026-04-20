@@ -82,32 +82,45 @@ export abstract class VaultKeyCustodyBackend implements IKeyCustodyBackend {
   }
 
   async signDetached(ref: KeyReferenceInput, payload: Buffer): Promise<Signature> {
+    return this.doSign(ref, payload, { detached: true }) as Promise<Signature>;
+  }
+
+  async signInline(ref: KeyReferenceInput, payload: Buffer): Promise<Ciphertext> {
+    return this.doSign(ref, payload, { detached: false }) as Promise<Ciphertext>;
+  }
+
+  private async doSign(
+    ref: KeyReferenceInput,
+    payload: Buffer,
+    opts: { detached: boolean },
+  ): Promise<Signature | Ciphertext> {
     const material = await this.loadMaterial(ref);
     let privateKeyBuf: Buffer | null = null;
+    const operation = opts.detached ? 'signDetached' : 'signInline';
     try {
       privateKeyBuf = Buffer.from(material.armoredPrivateKey, 'utf8');
       const privateKey = await openpgp.readPrivateKey({
         armoredKey: material.armoredPrivateKey,
       });
       const message = await openpgp.createMessage({ binary: new Uint8Array(payload) });
-      const signature = await openpgp.sign({
+      const signed = await openpgp.sign({
         message,
         signingKeys: privateKey,
-        detached: true,
+        detached: opts.detached,
       });
       logger.debug(
-        { keyReferenceId: ref.id, fingerprint: material.fingerprint.substring(0, 8) },
-        'signDetached completed',
+        { keyReferenceId: ref.id, fingerprint: material.fingerprint.substring(0, 8), operation },
+        `${operation} completed`,
       );
-      return String(signature) as Signature;
+      return String(signed) as Signature | Ciphertext;
     } catch (err) {
       if (err instanceof SepError) {
         throw err;
       }
-      logger.error({ keyReferenceId: ref.id }, 'signDetached failed');
+      logger.error({ keyReferenceId: ref.id, operation }, `${operation} failed`);
       throw new SepError(ErrorCode.CRYPTO_SIGNING_FAILED, {
         keyReferenceId: ref.id,
-        operation: 'signDetached',
+        operation,
       });
     } finally {
       if (privateKeyBuf !== null) {
