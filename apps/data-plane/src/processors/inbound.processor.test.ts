@@ -47,10 +47,6 @@ vi.mock('@sep/crypto', () => ({
   DEFAULT_VAULT_CLIENT_CONFIG: { requestTimeoutMs: 5_000, maxRetries: 3, initialBackoffMs: 100 },
 }));
 
-vi.mock('../services/armored-key-provider', () => ({
-  ArmoredKeyMaterialProvider: vi.fn(),
-}));
-
 const mockObjectStorage = {
   getObject: vi.fn().mockResolvedValue(Buffer.from('test payload content')),
   putObject: vi.fn().mockResolvedValue(undefined),
@@ -308,11 +304,12 @@ describe('InboundProcessor', () => {
     });
 
     // The processor constructs its own crypto/key services internally.
-    // With ArmoredKeyMaterialProvider mocked, the key resolution will fail
-    // before reaching decrypt. But the key point is that DECRYPT mode
-    // should never produce ACK_RECEIVED. We test this through the NONE-mode
-    // code path where verificationResult stays SKIPPED but messageSecurityMode
-    // is checked in the quarantine gate.
+    // The @sep/crypto mock replaces CryptoService and KeyRetrievalService
+    // with vi.fn mocks, so actual Vault wiring is bypassed. The point
+    // here is that DECRYPT mode should never produce ACK_RECEIVED;
+    // verified via the NONE-mode code path where verificationResult
+    // stays SKIPPED but messageSecurityMode is checked in the
+    // quarantine gate.
 
     // For this unit test, we verify the structural check: if somehow
     // verificationResult is SKIPPED with a non-NONE mode, it quarantines.

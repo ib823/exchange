@@ -24,7 +24,6 @@ import { QUEUES } from '../queues/queue.definitions';
 import { AuditWriterService } from '../services/audit-writer.service';
 import { CryptoRecordService } from '../services/crypto-record.service';
 import type { IObjectStorageService } from '../services/object-storage.service';
-import { ArmoredKeyMaterialProvider } from '../services/armored-key-provider';
 import { createKeyCustody } from '../services/key-custody-factory';
 
 const logger = createLogger({ service: 'data-plane', module: 'crypto' });
@@ -44,8 +43,9 @@ export class CryptoProcessor extends WorkerHost {
     super();
     this.auditWriter = new AuditWriterService(database);
     this.cryptoRecord = new CryptoRecordService(database);
-    this.cryptoService = new CryptoService(createKeyCustody());
-    this.keyRetrieval = new KeyRetrievalService(new ArmoredKeyMaterialProvider());
+    const keyCustody = createKeyCustody();
+    this.cryptoService = new CryptoService(keyCustody);
+    this.keyRetrieval = new KeyRetrievalService(keyCustody);
   }
 
   async process(job: Job<CryptoJob>): Promise<void> {

@@ -24,7 +24,6 @@ import { CryptoService, KeyRetrievalService } from '@sep/crypto';
 import { createLogger } from '@sep/observability';
 import { QUEUES } from '../queues/queue.definitions';
 import { AuditWriterService } from '../services/audit-writer.service';
-import { ArmoredKeyMaterialProvider } from '../services/armored-key-provider';
 import { createKeyCustody } from '../services/key-custody-factory';
 import type { IObjectStorageService } from '../services/object-storage.service';
 
@@ -42,8 +41,9 @@ export class InboundProcessor extends WorkerHost {
   ) {
     super();
     this.auditWriter = new AuditWriterService(database);
-    this.cryptoService = new CryptoService(createKeyCustody());
-    this.keyRetrieval = new KeyRetrievalService(new ArmoredKeyMaterialProvider());
+    const keyCustody = createKeyCustody();
+    this.cryptoService = new CryptoService(keyCustody);
+    this.keyRetrieval = new KeyRetrievalService(keyCustody);
   }
 
   async process(job: Job<InboundJob>): Promise<void> {
