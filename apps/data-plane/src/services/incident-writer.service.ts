@@ -18,11 +18,7 @@
  *   itself does not deduplicate.
  */
 
-import {
-  DatabaseService,
-  type IncidentSeverity,
-  type IncidentState,
-} from '@sep/db';
+import { DatabaseService, type IncidentSeverity, type IncidentState } from '@sep/db';
 import { createLogger } from '@sep/observability';
 import { AuditWriterService } from './audit-writer.service';
 
@@ -31,12 +27,7 @@ const logger = createLogger({ service: 'data-plane', module: 'incident-writer' }
 // Incident states where the incident is still "live" for de-dup purposes.
 // Does NOT include RESOLVED/CLOSED — once resolved, a fresh warning that
 // triggers later should produce a new incident.
-const OPEN_LIKE_STATES: IncidentState[] = [
-  'OPEN',
-  'TRIAGED',
-  'IN_PROGRESS',
-  'WAITING_EXTERNAL',
-];
+const OPEN_LIKE_STATES: IncidentState[] = ['OPEN', 'TRIAGED', 'IN_PROGRESS', 'WAITING_EXTERNAL'];
 
 export interface SystemIncidentParams {
   tenantId: string;

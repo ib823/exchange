@@ -29,10 +29,7 @@ interface Fixture {
 let rsa: Fixture;
 let ecc: Fixture;
 
-async function generateFixture(
-  type: 'rsa' | 'ecc',
-  userLabel: string,
-): Promise<Fixture> {
+async function generateFixture(type: 'rsa' | 'ecc', userLabel: string): Promise<Fixture> {
   const generated =
     type === 'rsa'
       ? await openpgp.generateKey({
@@ -87,9 +84,10 @@ function makeRow(overrides: Partial<KeyReferenceRow> = {}): KeyReferenceRow {
  * same mock; the mock's getPublicKey returns the armored key provided,
  * or throws if configured to.
  */
-function makeCustody(
-  getPublicKey: IKeyCustodyBackend['getPublicKey'],
-): { custody: KeyCustodyAbstraction; backend: IKeyCustodyBackend } {
+function makeCustody(getPublicKey: IKeyCustodyBackend['getPublicKey']): {
+  custody: KeyCustodyAbstraction;
+  backend: IKeyCustodyBackend;
+} {
   const backend: IKeyCustodyBackend = {
     getPublicKey,
     signDetached: vi.fn(),

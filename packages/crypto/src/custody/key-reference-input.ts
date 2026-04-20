@@ -6,11 +6,7 @@
  * Keep the literal union in lock-step with packages/db/prisma/schema.prisma
  * `enum KeyBackendType { … }`.
  */
-export type KeyBackendType =
-  | 'PLATFORM_VAULT'
-  | 'TENANT_VAULT'
-  | 'EXTERNAL_KMS'
-  | 'SOFTWARE_LOCAL';
+export type KeyBackendType = 'PLATFORM_VAULT' | 'TENANT_VAULT' | 'EXTERNAL_KMS' | 'SOFTWARE_LOCAL';
 
 export const KEY_BACKEND_TYPES: readonly KeyBackendType[] = [
   'PLATFORM_VAULT',

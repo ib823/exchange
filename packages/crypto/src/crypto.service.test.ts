@@ -43,22 +43,18 @@ let fingerprint: string;
 function makeFixtureBackend(): IKeyCustodyBackend {
   return {
     getPublicKey: vi.fn((): Promise<ArmoredKey> => Promise.resolve(publicKeyArmored as ArmoredKey)),
-    signDetached: vi.fn(
-      async (_ref: KeyReferenceInput, payload: Buffer): Promise<Signature> => {
-        const privateKey = await openpgp.readPrivateKey({ armoredKey: privateKeyArmored });
-        const message = await openpgp.createMessage({ binary: new Uint8Array(payload) });
-        const sig = await openpgp.sign({ message, signingKeys: privateKey, detached: true });
-        return String(sig) as Signature;
-      },
-    ),
-    signInline: vi.fn(
-      async (_ref: KeyReferenceInput, payload: Buffer): Promise<Ciphertext> => {
-        const privateKey = await openpgp.readPrivateKey({ armoredKey: privateKeyArmored });
-        const message = await openpgp.createMessage({ binary: new Uint8Array(payload) });
-        const signed = await openpgp.sign({ message, signingKeys: privateKey });
-        return String(signed) as Ciphertext;
-      },
-    ),
+    signDetached: vi.fn(async (_ref: KeyReferenceInput, payload: Buffer): Promise<Signature> => {
+      const privateKey = await openpgp.readPrivateKey({ armoredKey: privateKeyArmored });
+      const message = await openpgp.createMessage({ binary: new Uint8Array(payload) });
+      const sig = await openpgp.sign({ message, signingKeys: privateKey, detached: true });
+      return String(sig) as Signature;
+    }),
+    signInline: vi.fn(async (_ref: KeyReferenceInput, payload: Buffer): Promise<Ciphertext> => {
+      const privateKey = await openpgp.readPrivateKey({ armoredKey: privateKeyArmored });
+      const message = await openpgp.createMessage({ binary: new Uint8Array(payload) });
+      const signed = await openpgp.sign({ message, signingKeys: privateKey });
+      return String(signed) as Ciphertext;
+    }),
     verifyDetached: vi.fn((): Promise<boolean> => Promise.resolve(true)),
     decrypt: vi.fn(async (_ref: KeyReferenceInput, ct: Ciphertext): Promise<Plaintext> => {
       const privateKey = await openpgp.readPrivateKey({ armoredKey: privateKeyArmored });
@@ -122,7 +118,11 @@ function makeFixtureBackend(): IKeyCustodyBackend {
             signatureValid = false;
           }
         }
-        return { plaintext: Buffer.from(data as unknown as Uint8Array), signatureValid, signerKeyId };
+        return {
+          plaintext: Buffer.from(data as unknown as Uint8Array),
+          signatureValid,
+          signerKeyId,
+        };
       },
     ),
     rotate: vi.fn(

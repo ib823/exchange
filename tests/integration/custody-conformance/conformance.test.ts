@@ -175,11 +175,7 @@ function makePlatformRef(id: string, fingerprint: string): KeyReferenceInput {
   };
 }
 
-function makeTenantRef(
-  tenantId: string,
-  id: string,
-  fingerprint: string,
-): KeyReferenceInput {
+function makeTenantRef(tenantId: string, id: string, fingerprint: string): KeyReferenceInput {
   return {
     id,
     tenantId,
@@ -190,7 +186,10 @@ function makeTenantRef(
   };
 }
 
-function makeStubRef(backendType: 'EXTERNAL_KMS' | 'SOFTWARE_LOCAL', id: string): KeyReferenceInput {
+function makeStubRef(
+  backendType: 'EXTERNAL_KMS' | 'SOFTWARE_LOCAL',
+  id: string,
+): KeyReferenceInput {
   return {
     id,
     tenantId: 'conf-tenant',
@@ -277,9 +276,9 @@ function runStubConformance(
     });
 
     it(`decryptAndVerify throws ${expected.composite}`, async () => {
-      await expect(
-        backend.decryptAndVerify(refA, refB, 'x' as Ciphertext),
-      ).rejects.toMatchObject({ code: expected.composite });
+      await expect(backend.decryptAndVerify(refA, refB, 'x' as Ciphertext)).rejects.toMatchObject({
+        code: expected.composite,
+      });
     });
 
     it(`rotate throws ${expected.single}`, async () => {
@@ -394,9 +393,7 @@ function runVaultConformance(
       // Rotation writes a new KV v2 version — the fingerprint must
       // differ from the seed because the backend generates fresh
       // keypair material.
-      expect(result.newFingerprint.toLowerCase()).not.toBe(
-        signerFixture.fingerprint.toLowerCase(),
-      );
+      expect(result.newFingerprint.toLowerCase()).not.toBe(signerFixture.fingerprint.toLowerCase());
     }, 30_000);
 
     it('revoke destroys the KV path — subsequent getPublicKey fails', async () => {

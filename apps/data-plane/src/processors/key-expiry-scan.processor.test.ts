@@ -186,9 +186,7 @@ describe('KeyExpiryScanProcessor', () => {
 
     // Only three incidents — the 365-day key is out of range.
     expect(mockIncident.create).toHaveBeenCalledTimes(3);
-    const severities = mockIncident.create.mock.calls.map(
-      (call: any[]) => call[0].data.severity,
-    );
+    const severities = mockIncident.create.mock.calls.map((call: any[]) => call[0].data.severity);
     expect(severities).toEqual(expect.arrayContaining(['P1', 'P2', 'P3']));
   });
 

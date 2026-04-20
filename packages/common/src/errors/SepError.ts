@@ -166,8 +166,7 @@ export class SepError extends Error {
         'Key custody backend is not implemented in this milestone',
       [ErrorCode.CRYPTO_BACKEND_NOT_AVAILABLE]:
         'Key custody backend is not approved for production use',
-      [ErrorCode.CRYPTO_BACKEND_UNKNOWN]:
-        'Key reference names an unknown key custody backend type',
+      [ErrorCode.CRYPTO_BACKEND_UNKNOWN]: 'Key reference names an unknown key custody backend type',
       [ErrorCode.CRYPTO_BACKENDS_INCOMPATIBLE]:
         'Composite key-custody operation requires both references to resolve to the same backend',
       [ErrorCode.CRYPTO_OPERATION_NOT_SUPPORTED]:

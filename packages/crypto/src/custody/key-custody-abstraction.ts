@@ -158,7 +158,8 @@ export class KeyCustodyAbstraction {
     throw new SepError(ErrorCode.CRYPTO_BACKEND_UNKNOWN, {
       backendType: ref.backendType,
       keyReferenceId: ref.id,
-      reason: 'backendType is not one of PLATFORM_VAULT, TENANT_VAULT, EXTERNAL_KMS, SOFTWARE_LOCAL',
+      reason:
+        'backendType is not one of PLATFORM_VAULT, TENANT_VAULT, EXTERNAL_KMS, SOFTWARE_LOCAL',
     });
   }
 }

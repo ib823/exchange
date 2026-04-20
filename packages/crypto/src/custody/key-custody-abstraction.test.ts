@@ -19,11 +19,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { SepError, ErrorCode } from '@sep/common';
 import { KeyCustodyAbstraction } from './key-custody-abstraction';
 import { KEY_BACKEND_TYPES, type KeyBackendType } from './key-reference-input';
-import type {
-  IKeyCustodyBackend,
-  KeyReferenceInput,
-  ArmoredKey,
-} from './i-key-custody-backend';
+import type { IKeyCustodyBackend, KeyReferenceInput, ArmoredKey } from './i-key-custody-backend';
 
 function expectSepError(fn: () => unknown, code: ErrorCode): SepError {
   try {
@@ -124,7 +120,9 @@ describe('KeyCustodyAbstraction', () => {
       softwareLocal: stubBackend('local'),
     });
     const a = abs.backendFor(makeRef({ backendType: 'TENANT_VAULT', tenantId: 't-1' }));
-    const b = abs.backendFor(makeRef({ backendType: 'TENANT_VAULT', tenantId: 't-1', id: 'key-2' }));
+    const b = abs.backendFor(
+      makeRef({ backendType: 'TENANT_VAULT', tenantId: 't-1', id: 'key-2' }),
+    );
     expect(a).toBe(b);
     expect(factory).toHaveBeenCalledTimes(1);
   });
@@ -171,10 +169,7 @@ describe('KeyCustodyAbstraction', () => {
     const poisoned = makeRef({
       backendType: 'LEGACY_HSM' as unknown as KeyBackendType,
     });
-    const err = expectSepError(
-      () => abs.backendFor(poisoned),
-      ErrorCode.CRYPTO_BACKEND_UNKNOWN,
-    );
+    const err = expectSepError(() => abs.backendFor(poisoned), ErrorCode.CRYPTO_BACKEND_UNKNOWN);
     expect(err.context).toMatchObject({ backendType: 'LEGACY_HSM', keyReferenceId: 'key-1' });
   });
 
@@ -202,12 +197,14 @@ describe('KeyCustodyAbstraction', () => {
 });
 
 describe('KeyCustodyAbstraction.dispatchSignAndEncrypt / dispatchDecryptAndVerify', () => {
-  function makeAbs(overrides: {
-    platform?: IKeyCustodyBackend;
-    externalKms?: IKeyCustodyBackend;
-    softwareLocal?: IKeyCustodyBackend;
-    tenantFactory?: (id: string) => IKeyCustodyBackend;
-  } = {}): KeyCustodyAbstraction {
+  function makeAbs(
+    overrides: {
+      platform?: IKeyCustodyBackend;
+      externalKms?: IKeyCustodyBackend;
+      softwareLocal?: IKeyCustodyBackend;
+      tenantFactory?: (id: string) => IKeyCustodyBackend;
+    } = {},
+  ): KeyCustodyAbstraction {
     return new KeyCustodyAbstraction({
       platformVault: overrides.platform ?? stubBackend('platform'),
       tenantVaultFactory:

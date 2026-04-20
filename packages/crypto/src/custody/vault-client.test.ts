@@ -155,12 +155,10 @@ describe('VaultClient KV v2', () => {
   it('destroys all versions of a path', async () => {
     const pool = mockAgent.get(VAULT_ADDR);
     let destroyed = false;
-    pool
-      .intercept({ path: '/v1/kv/metadata/platform/keys/old', method: 'DELETE' })
-      .reply(() => {
-        destroyed = true;
-        return { statusCode: 204, data: '' };
-      });
+    pool.intercept({ path: '/v1/kv/metadata/platform/keys/old', method: 'DELETE' }).reply(() => {
+      destroyed = true;
+      return { statusCode: 204, data: '' };
+    });
 
     const client = makeClient();
     await client.kvDestroyAllVersions('kv', 'platform/keys/old');
@@ -212,8 +210,7 @@ describe('VaultClient namespace header', () => {
     let namespaceHeader: string | null = null;
     pool.intercept({ path: '/v1/kv/data/x', method: 'GET' }).reply((opts) => {
       const headers = opts.headers as Record<string, string> | undefined;
-      namespaceHeader =
-        headers?.['X-Vault-Namespace'] ?? headers?.['x-vault-namespace'] ?? null;
+      namespaceHeader = headers?.['X-Vault-Namespace'] ?? headers?.['x-vault-namespace'] ?? null;
       return {
         statusCode: 200,
         data: { data: { data: { armored: 'X' }, metadata: { version: 1 } } },

@@ -3,11 +3,7 @@ import { MockAgent, setGlobalDispatcher, getGlobalDispatcher, type Dispatcher } 
 import * as openpgp from 'openpgp';
 import { ErrorCode } from '@sep/common';
 import { VaultClient, DEFAULT_VAULT_CLIENT_CONFIG } from './vault-client';
-import {
-  PlatformVaultBackend,
-  TenantVaultBackend,
-  VaultKeyCustodyBackend,
-} from './vault-backend';
+import { PlatformVaultBackend, TenantVaultBackend, VaultKeyCustodyBackend } from './vault-backend';
 import type { KeyReferenceInput } from './i-key-custody-backend';
 
 const VAULT_ADDR = 'http://vault.test:8200';
@@ -497,4 +493,3 @@ describe('VaultKeyCustodyBackend class surface', () => {
     expect(typeof extendable).toBe('function');
   });
 });
-

@@ -30,20 +30,20 @@ key-expiry scanner, ADR-0007.
 
 ### Threats considered and mitigations
 
-| # | Threat | Mitigation | Evidence |
-|---|---|---|---|
-| T1 | Private key material leaks to logs | Backends NEVER log armored private keys. Log only fingerprint prefixes (8 chars). Pino redaction paths cover `*.privateKey`, `*.passphrase`, etc. | `vault-backend.ts:98`, `vault-backend.ts:241` |
-| T2 | Private key material leaks via error paths | SepError context field allowlist (`SepError.ts:3-73`) does not include `armoredKey`/`privateKey`. Operation name + keyReferenceId only. | All backend `throw new SepError(...)` sites |
-| T3 | Private key buffer lingers in memory after an op | Every private-material operation wraps Buffer alloc + `zeroBuffer(buf)` in `try/finally`. Docs note string-based material is not zeroable (JS strings immutable) — only Buffers we allocate are cleared. | `vault-backend.ts:98-129`, `:222-266`, `:222-292` |
-| T4 | Cross-tenant key access via TENANT_VAULT backend | `TenantVaultBackend` takes tenantId at construction. `kvPathFor(ref)` throws `TENANT_BOUNDARY_VIOLATION` if `ref.tenantId` ≠ construction tenantId, BEFORE any Vault HTTP call. | `vault-backend.ts:340-356` |
-| T5 | Cross-tenant composite op (both `TENANT_VAULT`, different tenantIds) slips through because backendType matches | Dispatcher compares backend **instances**, not backendType. Each tenantId resolves to its own `TenantVaultBackend`. `dispatchSignAndEncrypt`/`dispatchDecryptAndVerify` throw `CRYPTO_BACKENDS_INCOMPATIBLE` when instances differ. | `key-custody-abstraction.ts:90-150`, test cases at `key-custody-abstraction.test.ts:244-285` |
-| T6 | Key substitution in Vault storage (attacker rewrites armored material) | Two-layer fingerprint check: backend compares stored-fingerprint vs `ref.fingerprint` (catches the naive case); `KeyRetrievalService` parses the armored key and compares extracted fingerprint vs DB row (catches the case where both stored-fingerprint and armored are forged but diverge). | `vault-backend.ts:263-282`, `key-retrieval.service.ts:116-147` |
-| T7 | Algorithm substitution (attacker swaps RSA key for weaker algorithm) | `KeyRetrievalService` extracts algorithm from the armored key and compares to `row.algorithm`. Mismatch → `KEY_FINGERPRINT_MISMATCH` (terminal). Forbidden-algorithm list (`FORBIDDEN_ALGORITHMS`: dsa, elgamal) checked in policy enforcement. | `key-retrieval.service.ts:149-158`, `interfaces.ts:44-65` |
-| T8 | Schema drift or poisoned DB row with unknown backendType | `KeyCustodyAbstraction.backendFor` has a `default:` arm that throws `CRYPTO_BACKEND_UNKNOWN` (terminal). Not a silent `undefined` dereference. | `key-custody-abstraction.ts:82-108`, test `backendType outside the enum` |
-| T9 | Replay of a stolen rotated key (backend rotate returns old material) | `rotate()` writes a new KV v2 version and returns `newBackendRef` pointing at `path#v<N>`. Caller (KeyReferencesService) must persist the new ref in the SAME transaction as the rotation audit. | `vault-backend.ts:287-323`; note: persistence is caller responsibility — integration audit belongs to the processor consuming rotate |
-| T10 | Interface-only backend (ExternalKms/SoftwareLocal) accidentally used in production | Every method on both stubs throws a terminal error (`CRYPTO_BACKEND_NOT_IMPLEMENTED` / `CRYPTO_BACKEND_NOT_AVAILABLE` / `CRYPTO_OPERATION_NOT_SUPPORTED`). Registered in `TERMINAL_ERROR_CODES` — never retried. Conformance suite asserts `terminal=true` on every stub throw. | `stub-backends.ts` (entire file), `conformance.test.ts:177-293` |
-| T11 | Malformed JWT / broken auth flow bypasses tenant guard in data-plane scanner | Scanner runs without user context (`actorType='SYSTEM'`). Cross-tenant listing uses `forSystem()` (raw Prisma client) for the READ path — bypasses RLS intentionally. Mutation path drops back into `forTenant(tenantId, ...)` so incident creation is RLS-scoped. | `key-expiry-scan.processor.ts:154-176`, `incident-writer.service.ts:93-120` |
-| T12 | Scanner spams incidents on every daily run | `IncidentWriterService.existsOpenForSource` checks for an open-like incident at the same severity before creating; scanner calls it per tier. Resolved/closed incidents can re-trigger if the key is still in tier — by design (the reminder should resurface if operator ignored). | `key-expiry-scan.processor.ts:107-115`, test `skips creating a duplicate...` |
+| #   | Threat                                                                                                         | Mitigation                                                                                                                                                                                                                                                                                     | Evidence                                                                                                                             |
+| --- | -------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| T1  | Private key material leaks to logs                                                                             | Backends NEVER log armored private keys. Log only fingerprint prefixes (8 chars). Pino redaction paths cover `*.privateKey`, `*.passphrase`, etc.                                                                                                                                              | `vault-backend.ts:98`, `vault-backend.ts:241`                                                                                        |
+| T2  | Private key material leaks via error paths                                                                     | SepError context field allowlist (`SepError.ts:3-73`) does not include `armoredKey`/`privateKey`. Operation name + keyReferenceId only.                                                                                                                                                        | All backend `throw new SepError(...)` sites                                                                                          |
+| T3  | Private key buffer lingers in memory after an op                                                               | Every private-material operation wraps Buffer alloc + `zeroBuffer(buf)` in `try/finally`. Docs note string-based material is not zeroable (JS strings immutable) — only Buffers we allocate are cleared.                                                                                       | `vault-backend.ts:98-129`, `:222-266`, `:222-292`                                                                                    |
+| T4  | Cross-tenant key access via TENANT_VAULT backend                                                               | `TenantVaultBackend` takes tenantId at construction. `kvPathFor(ref)` throws `TENANT_BOUNDARY_VIOLATION` if `ref.tenantId` ≠ construction tenantId, BEFORE any Vault HTTP call.                                                                                                                | `vault-backend.ts:340-356`                                                                                                           |
+| T5  | Cross-tenant composite op (both `TENANT_VAULT`, different tenantIds) slips through because backendType matches | Dispatcher compares backend **instances**, not backendType. Each tenantId resolves to its own `TenantVaultBackend`. `dispatchSignAndEncrypt`/`dispatchDecryptAndVerify` throw `CRYPTO_BACKENDS_INCOMPATIBLE` when instances differ.                                                            | `key-custody-abstraction.ts:90-150`, test cases at `key-custody-abstraction.test.ts:244-285`                                         |
+| T6  | Key substitution in Vault storage (attacker rewrites armored material)                                         | Two-layer fingerprint check: backend compares stored-fingerprint vs `ref.fingerprint` (catches the naive case); `KeyRetrievalService` parses the armored key and compares extracted fingerprint vs DB row (catches the case where both stored-fingerprint and armored are forged but diverge). | `vault-backend.ts:263-282`, `key-retrieval.service.ts:116-147`                                                                       |
+| T7  | Algorithm substitution (attacker swaps RSA key for weaker algorithm)                                           | `KeyRetrievalService` extracts algorithm from the armored key and compares to `row.algorithm`. Mismatch → `KEY_FINGERPRINT_MISMATCH` (terminal). Forbidden-algorithm list (`FORBIDDEN_ALGORITHMS`: dsa, elgamal) checked in policy enforcement.                                                | `key-retrieval.service.ts:149-158`, `interfaces.ts:44-65`                                                                            |
+| T8  | Schema drift or poisoned DB row with unknown backendType                                                       | `KeyCustodyAbstraction.backendFor` has a `default:` arm that throws `CRYPTO_BACKEND_UNKNOWN` (terminal). Not a silent `undefined` dereference.                                                                                                                                                 | `key-custody-abstraction.ts:82-108`, test `backendType outside the enum`                                                             |
+| T9  | Replay of a stolen rotated key (backend rotate returns old material)                                           | `rotate()` writes a new KV v2 version and returns `newBackendRef` pointing at `path#v<N>`. Caller (KeyReferencesService) must persist the new ref in the SAME transaction as the rotation audit.                                                                                               | `vault-backend.ts:287-323`; note: persistence is caller responsibility — integration audit belongs to the processor consuming rotate |
+| T10 | Interface-only backend (ExternalKms/SoftwareLocal) accidentally used in production                             | Every method on both stubs throws a terminal error (`CRYPTO_BACKEND_NOT_IMPLEMENTED` / `CRYPTO_BACKEND_NOT_AVAILABLE` / `CRYPTO_OPERATION_NOT_SUPPORTED`). Registered in `TERMINAL_ERROR_CODES` — never retried. Conformance suite asserts `terminal=true` on every stub throw.                | `stub-backends.ts` (entire file), `conformance.test.ts:177-293`                                                                      |
+| T11 | Malformed JWT / broken auth flow bypasses tenant guard in data-plane scanner                                   | Scanner runs without user context (`actorType='SYSTEM'`). Cross-tenant listing uses `forSystem()` (raw Prisma client) for the READ path — bypasses RLS intentionally. Mutation path drops back into `forTenant(tenantId, ...)` so incident creation is RLS-scoped.                             | `key-expiry-scan.processor.ts:154-176`, `incident-writer.service.ts:93-120`                                                          |
+| T12 | Scanner spams incidents on every daily run                                                                     | `IncidentWriterService.existsOpenForSource` checks for an open-like incident at the same severity before creating; scanner calls it per tier. Resolved/closed incidents can re-trigger if the key is still in tier — by design (the reminder should resurface if operator ignored).            | `key-expiry-scan.processor.ts:107-115`, test `skips creating a duplicate...`                                                         |
 
 ### Threats considered out of scope for this PR
 
@@ -67,14 +67,14 @@ key-expiry scanner, ADR-0007.
 
 ### Numbers
 
-| Suite | Before | After | Delta |
-|---|---|---|---|
-| `@sep/crypto` unit | 82 | 114 | +32 |
-| `@sep/common` unit | unchanged | unchanged | 0 |
-| `@sep/control-plane` unit | 116 | 116 | 0 |
-| `@sep/data-plane` unit | 67 | 76 | +9 |
-| `@sep/custody-conformance-tests` integration | — | 38 (new) | +38 |
-| **Total** | — | — | **+79** |
+| Suite                                        | Before    | After     | Delta   |
+| -------------------------------------------- | --------- | --------- | ------- |
+| `@sep/crypto` unit                           | 82        | 114       | +32     |
+| `@sep/common` unit                           | unchanged | unchanged | 0       |
+| `@sep/control-plane` unit                    | 116       | 116       | 0       |
+| `@sep/data-plane` unit                       | 67        | 76        | +9      |
+| `@sep/custody-conformance-tests` integration | —         | 38 (new)  | +38     |
+| **Total**                                    | —         | —         | **+79** |
 
 Full test task count across the monorepo: **15** (green).
 Full lint task count: **17** (green).
@@ -128,7 +128,7 @@ exhaustion, transit ops, namespace header.
 - **SIGN_ENCRYPT processor passes the signing key twice**: surfaced
   during fresh-eyes re-read. `crypto.processor.ts:218-226` calls
   `cryptoService.signAndEncrypt(payload, resolvedKey.keyRef,
-  resolvedKey.keyRef, ...)` — signing AND recipient are the same
+resolvedKey.keyRef, ...)` — signing AND recipient are the same
   `KeyRef`. In production, this produces an OpenPGP message signed by
   the partner's signing key and encrypted to that same signing key
   (sign-and-encrypt-to-self), **not to the partner's encryption key**.
@@ -152,6 +152,7 @@ exhaustion, transit ops, namespace header.
 ### Scenario coverage against `docs/03_SECURITY_CRYPTO_SPEC.md` 14 threat scenarios
 
 This PR contributes mitigations to:
+
 - Scenario 3 (wrong partner public key) — T1, T2, T6, T7
 - Scenario 4 (expired key) — T7 (policy enforcement path) + expiry scanner
 - Scenario 7 (secret in logs) — T1, T2
@@ -195,9 +196,9 @@ After merge, the following systems would need coordination:
   keys in Vault but no code to read them. Mitigation: the old M2
   `ArmoredKeyMaterialProvider` stored nothing in Vault; after revert
   the system falls back to the old-shape `KeyReference.backendRef =
-  armored-key-text` path — but ONLY for rows that still have that
+armored-key-text` path — but ONLY for rows that still have that
   format. Rows written under the new regime have `backendRef =
-  "platform/keys/<id>"` which the old provider would fail to parse
+"platform/keys/<id>"` which the old provider would fail to parse
   as armored material.
 - **Incidents written by the scanner**: system-authored incidents
   persist after a code revert. Operators handle them manually.
@@ -234,6 +235,7 @@ dependency.
 ### Safe commits
 
 Commits where a subset revert is safe:
+
 - **`3d4e99c` (expiry scanner)** — can be reverted independently;
   purely additive.
 - **`5ae1797` (conformance suite + CI)** — test-only; can be
@@ -241,6 +243,7 @@ Commits where a subset revert is safe:
 - **`f6b6810` (ADR-0007)** — docs-only.
 
 Commits that must move together:
+
 - **`4ec295b`..`5965aed`** (error codes → dispatcher) — interlocked.
 - **`b96338e`..`2d821c5`** (composite dispatch → CryptoService refactor
   → data-plane swap) — the data-plane swap cannot run without the

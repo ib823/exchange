@@ -29,18 +29,18 @@ future readers will otherwise have to reverse-engineer from the diff:
 are composite operations that require both a signing/decryption key and a
 counterparty public key in simultaneous scope:
 
-| # | Method | Kind | Purpose |
-|---|---|---|---|
-| 1 | `getPublicKey` | single-key | Return armored public key (safe to log fingerprint only) |
-| 2 | `signDetached` | single-key | Produce detached OpenPGP signature |
-| 3 | `signInline` | single-key | Produce inline-signed OpenPGP MESSAGE block |
-| 4 | `verifyDetached` | single-key | Verify detached signature; returns boolean (never throws on mismatch) |
-| 5 | `decrypt` | single-key | Decrypt OpenPGP ciphertext |
-| 6 | `encryptForRecipient` | single-key | Encrypt plaintext for recipient's public key |
-| 7 | `signAndEncrypt` | **composite** | Atomic RFC 9580 sign-then-encrypt |
-| 8 | `decryptAndVerify` | **composite** | Atomic decrypt-then-verify (embedded signature) |
-| 9 | `rotate` | lifecycle | Generate new key material; return new backendRef + fingerprint |
-| 10 | `revoke` | lifecycle | Destroy key material in backend (idempotent) |
+| #   | Method                | Kind          | Purpose                                                               |
+| --- | --------------------- | ------------- | --------------------------------------------------------------------- |
+| 1   | `getPublicKey`        | single-key    | Return armored public key (safe to log fingerprint only)              |
+| 2   | `signDetached`        | single-key    | Produce detached OpenPGP signature                                    |
+| 3   | `signInline`          | single-key    | Produce inline-signed OpenPGP MESSAGE block                           |
+| 4   | `verifyDetached`      | single-key    | Verify detached signature; returns boolean (never throws on mismatch) |
+| 5   | `decrypt`             | single-key    | Decrypt OpenPGP ciphertext                                            |
+| 6   | `encryptForRecipient` | single-key    | Encrypt plaintext for recipient's public key                          |
+| 7   | `signAndEncrypt`      | **composite** | Atomic RFC 9580 sign-then-encrypt                                     |
+| 8   | `decryptAndVerify`    | **composite** | Atomic decrypt-then-verify (embedded signature)                       |
+| 9   | `rotate`              | lifecycle     | Generate new key material; return new backendRef + fingerprint        |
+| 10  | `revoke`              | lifecycle     | Destroy key material in backend (idempotent)                          |
 
 ### Why 10, not 7
 
@@ -156,8 +156,8 @@ cutover:
 
 > If a third RFC 9580 composite operation is added — candidates include
 > `signAndEncryptSymmetric` (symmetric-key recipient), `encryptToMultiple
-> RecipientsWithSignature` (broadcast-sign), `decryptAndVerifyWithFallback
-> KeyList` (multiple possible signer keys) — refactor all three into a
+RecipientsWithSignature` (broadcast-sign), `decryptAndVerifyWithFallback
+KeyList` (multiple possible signer keys) — refactor all three into a
 > single `composite(op)` method taking a tagged-union descriptor at the
 > interface layer AND a single `dispatchComposite(op)` at the dispatcher
 > layer.

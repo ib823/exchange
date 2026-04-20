@@ -88,11 +88,7 @@ export class VaultClient {
     path: string,
     data: T,
   ): Promise<VaultKvV2WriteResponse> {
-    const body = await this.send<VaultKvV2WriteResponse>(
-      'POST',
-      `${mount}/data/${path}`,
-      { data },
-    );
+    const body = await this.send<VaultKvV2WriteResponse>('POST', `${mount}/data/${path}`, { data });
     return body;
   }
 
