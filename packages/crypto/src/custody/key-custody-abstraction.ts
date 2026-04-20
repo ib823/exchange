@@ -15,14 +15,29 @@
  * tenant-boundary checks. Caching keeps the cross-tenant invariant a
  * construction-time property rather than a per-call one.
  *
- * C6b will extend this with a `dispatchComposite(sign, recipient, ...)`
- * helper that enforces the same-backend precondition for
- * `signAndEncrypt`; for now the dispatcher only handles single-ref
- * operations.
+ * Composite ops (sign-then-encrypt): routed through
+ * `dispatchComposite`. The backend contract (`signAndEncrypt`) is
+ * written as a same-backend operation — private signing material and
+ * the recipient public key must be in-scope on the same in-process
+ * openpgp.js invocation. The dispatcher enforces that precondition by
+ * resolving both refs to backend *instances* and refusing a composite
+ * across different instances with `CRYPTO_BACKENDS_INCOMPATIBLE`.
+ *
+ * Instance identity (not just backendType) is the comparison key:
+ * two `TENANT_VAULT` refs for different tenantIds legitimately resolve
+ * to different `TenantVaultBackend` instances (each carries a
+ * per-tenant boundary invariant) and MUST be refused here — otherwise
+ * a composite op could cross the tenant boundary before the backend's
+ * own check fires.
  */
 
 import { SepError, ErrorCode } from '@sep/common';
-import type { IKeyCustodyBackend, KeyReferenceInput } from './i-key-custody-backend';
+import type {
+  IKeyCustodyBackend,
+  KeyReferenceInput,
+  Plaintext,
+  Ciphertext,
+} from './i-key-custody-backend';
 
 /**
  * Factory for a per-tenant backend. The dispatcher asks the factory
@@ -62,6 +77,33 @@ export class KeyCustodyAbstraction {
       default:
         return this.unknownBackend(ref);
     }
+  }
+
+  /**
+   * Dispatch an atomic sign-then-encrypt across two refs. Routes only
+   * when both refs resolve to the *same backend instance* — different
+   * instances are refused with `CRYPTO_BACKENDS_INCOMPATIBLE` even if
+   * they share a backendType, because cross-instance routing would
+   * bypass per-instance invariants (notably tenant boundary checks on
+   * `TenantVaultBackend`).
+   */
+  async dispatchComposite(
+    signingKeyRef: KeyReferenceInput,
+    recipientKeyRef: KeyReferenceInput,
+    plaintext: Plaintext,
+  ): Promise<Ciphertext> {
+    const signingBackend = this.backendFor(signingKeyRef);
+    const recipientBackend = this.backendFor(recipientKeyRef);
+    if (signingBackend !== recipientBackend) {
+      throw new SepError(ErrorCode.CRYPTO_BACKENDS_INCOMPATIBLE, {
+        operation: 'signAndEncrypt',
+        signingKeyReferenceId: signingKeyRef.id,
+        recipientKeyReferenceId: recipientKeyRef.id,
+        reason:
+          'Composite key-custody operations require both keys to live in the same backend instance; cross-backend composites are refused to preserve per-backend invariants (tenant boundary, key custody policy).',
+      });
+    }
+    return signingBackend.signAndEncrypt(signingKeyRef, recipientKeyRef, plaintext);
   }
 
   private resolveTenantBackend(ref: KeyReferenceInput): IKeyCustodyBackend {
