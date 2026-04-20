@@ -125,6 +125,22 @@ exhaustion, transit ops, namespace header.
   changes and e2e fixture rework that would have inflated this
   milestone. Does **not** affect the correctness of the backend
   contract or the delegation path this PR ships.
+- **SIGN_ENCRYPT processor passes the signing key twice**: surfaced
+  during fresh-eyes re-read. `crypto.processor.ts:218-226` calls
+  `cryptoService.signAndEncrypt(payload, resolvedKey.keyRef,
+  resolvedKey.keyRef, ...)` — signing AND recipient are the same
+  `KeyRef`. In production, this produces an OpenPGP message signed by
+  the partner's signing key and encrypted to that same signing key
+  (sign-and-encrypt-to-self), **not to the partner's encryption key**.
+  Git blame (`8d2c49dc`, 2026-04-19) confirms this is a pre-existing
+  M2 bug; this PR neither introduces nor fixes it. The new dispatcher
+  check (`CRYPTO_BACKENDS_INCOMPATIBLE`) passes trivially when the two
+  refs are identical, so the bug is not caught at the dispatcher
+  layer. **Action for the fix-up PR:** the processor must resolve two
+  distinct `KeyReference` rows — the tenant's signing key and the
+  partner profile's recipient encryption key — and pass both to
+  `signAndEncrypt`. Scope overlaps with M3.A5-T08 (partner profile
+  key resolution).
 - **`verify(... detached: true)` quirk**: preserved M2 behaviour of
   treating `payloadRef` as the signature and verifying against an
   empty message. Not a new bug; not fixed here. Flagged in code
