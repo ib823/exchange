@@ -15,13 +15,11 @@
  * tenant-boundary checks. Caching keeps the cross-tenant invariant a
  * construction-time property rather than a per-call one.
  *
- * Composite ops (sign-then-encrypt): routed through
- * `dispatchComposite`. The backend contract (`signAndEncrypt`) is
- * written as a same-backend operation — private signing material and
- * the recipient public key must be in-scope on the same in-process
- * openpgp.js invocation. The dispatcher enforces that precondition by
- * resolving both refs to backend *instances* and refusing a composite
- * across different instances with `CRYPTO_BACKENDS_INCOMPATIBLE`.
+ * Composite ops (RFC 9580 sign-then-encrypt and its inverse
+ * decrypt-then-verify) are routed through `dispatchSignAndEncrypt` /
+ * `dispatchDecryptAndVerify`. Both enforce the same same-backend
+ * precondition: the two refs supplied to the op must resolve to the
+ * same backend *instance*, otherwise `CRYPTO_BACKENDS_INCOMPATIBLE`.
  *
  * Instance identity (not just backendType) is the comparison key:
  * two `TENANT_VAULT` refs for different tenantIds legitimately resolve
@@ -29,6 +27,12 @@
  * per-tenant boundary invariant) and MUST be refused here — otherwise
  * a composite op could cross the tenant boundary before the backend's
  * own check fires.
+ *
+ * Two methods over a tagged-union `dispatchComposite(op)`: each call
+ * site reads cleanly (`dispatcher.dispatchSignAndEncrypt(...)` vs a
+ * polymorphic `.composite({ kind: 'signAndEncrypt', ... })`). If a
+ * third RFC 9580 composite emerges, collapse all three into one
+ * method — see ADR-0007 for the generalization trigger.
  */
 
 import { SepError, ErrorCode } from '@sep/common';
@@ -37,6 +41,7 @@ import type {
   KeyReferenceInput,
   Plaintext,
   Ciphertext,
+  DecryptVerifyResult,
 } from './i-key-custody-backend';
 
 /**
@@ -46,6 +51,9 @@ import type {
  * already carry the tenant boundary invariant.
  */
 export type TenantVaultBackendFactory = (tenantId: string) => IKeyCustodyBackend;
+
+const COMPOSITE_INCOMPATIBLE_REASON =
+  'Composite key-custody operations require both keys to live in the same backend instance; cross-backend composites are refused to preserve per-backend invariants (tenant boundary, key custody policy).';
 
 export interface KeyCustodyAbstractionDeps {
   readonly platformVault: IKeyCustodyBackend;
@@ -87,7 +95,7 @@ export class KeyCustodyAbstraction {
    * bypass per-instance invariants (notably tenant boundary checks on
    * `TenantVaultBackend`).
    */
-  async dispatchComposite(
+  async dispatchSignAndEncrypt(
     signingKeyRef: KeyReferenceInput,
     recipientKeyRef: KeyReferenceInput,
     plaintext: Plaintext,
@@ -99,11 +107,35 @@ export class KeyCustodyAbstraction {
         operation: 'signAndEncrypt',
         signingKeyReferenceId: signingKeyRef.id,
         recipientKeyReferenceId: recipientKeyRef.id,
-        reason:
-          'Composite key-custody operations require both keys to live in the same backend instance; cross-backend composites are refused to preserve per-backend invariants (tenant boundary, key custody policy).',
+        reason: COMPOSITE_INCOMPATIBLE_REASON,
       });
     }
     return signingBackend.signAndEncrypt(signingKeyRef, recipientKeyRef, plaintext);
+  }
+
+  /**
+   * Dispatch an atomic decrypt-then-verify. Symmetric to
+   * `dispatchSignAndEncrypt`: decryption private key + sender public
+   * key must live on the same backend instance. Refuses with
+   * `CRYPTO_BACKENDS_INCOMPATIBLE` otherwise — which keeps a stray
+   * cross-tenant verify from walking past the tenant boundary.
+   */
+  async dispatchDecryptAndVerify(
+    decryptionKeyRef: KeyReferenceInput,
+    senderKeyRef: KeyReferenceInput,
+    ciphertext: Ciphertext,
+  ): Promise<DecryptVerifyResult> {
+    const decryptionBackend = this.backendFor(decryptionKeyRef);
+    const senderBackend = this.backendFor(senderKeyRef);
+    if (decryptionBackend !== senderBackend) {
+      throw new SepError(ErrorCode.CRYPTO_BACKENDS_INCOMPATIBLE, {
+        operation: 'decryptAndVerify',
+        decryptionKeyReferenceId: decryptionKeyRef.id,
+        senderKeyReferenceId: senderKeyRef.id,
+        reason: COMPOSITE_INCOMPATIBLE_REASON,
+      });
+    }
+    return decryptionBackend.decryptAndVerify(decryptionKeyRef, senderKeyRef, ciphertext);
   }
 
   private resolveTenantBackend(ref: KeyReferenceInput): IKeyCustodyBackend {

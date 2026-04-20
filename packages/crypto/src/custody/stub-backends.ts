@@ -1,11 +1,12 @@
 /**
- * Interface-only backends (M3.A5-T04, extended in M3.A5-T05b).
+ * Interface-only backends (M3.A5-T04; composite coverage added in
+ * T05b-pre and T05c).
  *
  * Every IKeyCustodyBackend method throws a typed SepError so dispatch
  * failures surface as fail-closed terminal errors rather than silent
  * drops. The single-ref methods throw CRYPTO_BACKEND_{NOT_IMPLEMENTED,
  * NOT_AVAILABLE} (the backend class is not wired for production at
- * all). The composite `signAndEncrypt` throws
+ * all). The composite ops (`signAndEncrypt`, `decryptAndVerify`) throw
  * CRYPTO_OPERATION_NOT_SUPPORTED instead — a distinct failure mode
  * reserved for backends that are wired but cannot honor an operation
  * class; stubs emit it to make conformance assertions precise.
@@ -22,6 +23,7 @@ import type {
   Ciphertext,
   Plaintext,
   RotationResult,
+  DecryptVerifyResult,
 } from './i-key-custody-backend';
 
 type BackendName = 'EXTERNAL_KMS' | 'SOFTWARE_LOCAL';
@@ -47,23 +49,11 @@ function notAvailable(backend: BackendName, method: string, ref: KeyReferenceInp
   });
 }
 
-function operationNotSupported(
-  backend: BackendName,
-  method: string,
-  signingKeyRef: KeyReferenceInput,
-  recipientKeyRef: KeyReferenceInput,
-): never {
-  throw new SepError(ErrorCode.CRYPTO_OPERATION_NOT_SUPPORTED, {
-    backendType: backend,
-    operation: method,
-    signingKeyReferenceId: signingKeyRef.id,
-    recipientKeyReferenceId: recipientKeyRef.id,
-    reason:
-      backend === 'EXTERNAL_KMS'
-        ? `External KMS cannot hold two key handles in-process for composite ${method}; route this op to a Vault backend`
-        : `Software-local backend is not approved for ${method}; route this op to a Vault backend`,
-  });
-}
+const COMPOSITE_UNSUPPORTED_EXTERNAL_KMS =
+  'External KMS cannot hold two key handles in-process for composite ops; route composite ops to a Vault backend';
+
+const COMPOSITE_UNSUPPORTED_SOFTWARE_LOCAL =
+  'Software-local backend is not approved for composite ops; route composite ops to a Vault backend';
 
 /**
  * External KMS backend — interface-only in M3. Concrete wiring
@@ -95,12 +85,26 @@ export class ExternalKmsBackend implements IKeyCustodyBackend {
     recipientKeyRef: KeyReferenceInput,
     _plaintext: Plaintext,
   ): Promise<Ciphertext> {
-    return operationNotSupported(
-      'EXTERNAL_KMS',
-      'signAndEncrypt',
-      signingKeyRef,
-      recipientKeyRef,
-    );
+    throw new SepError(ErrorCode.CRYPTO_OPERATION_NOT_SUPPORTED, {
+      backendType: 'EXTERNAL_KMS',
+      operation: 'signAndEncrypt',
+      signingKeyReferenceId: signingKeyRef.id,
+      recipientKeyReferenceId: recipientKeyRef.id,
+      reason: COMPOSITE_UNSUPPORTED_EXTERNAL_KMS,
+    });
+  }
+  async decryptAndVerify(
+    decryptionKeyRef: KeyReferenceInput,
+    senderKeyRef: KeyReferenceInput,
+    _ciphertext: Ciphertext,
+  ): Promise<DecryptVerifyResult> {
+    throw new SepError(ErrorCode.CRYPTO_OPERATION_NOT_SUPPORTED, {
+      backendType: 'EXTERNAL_KMS',
+      operation: 'decryptAndVerify',
+      decryptionKeyReferenceId: decryptionKeyRef.id,
+      senderKeyReferenceId: senderKeyRef.id,
+      reason: COMPOSITE_UNSUPPORTED_EXTERNAL_KMS,
+    });
   }
   async rotate(ref: KeyReferenceInput): Promise<RotationResult> {
     return notImplemented('EXTERNAL_KMS', 'rotate', ref);
@@ -141,12 +145,26 @@ export class SoftwareLocalBackend implements IKeyCustodyBackend {
     recipientKeyRef: KeyReferenceInput,
     _plaintext: Plaintext,
   ): Promise<Ciphertext> {
-    return operationNotSupported(
-      'SOFTWARE_LOCAL',
-      'signAndEncrypt',
-      signingKeyRef,
-      recipientKeyRef,
-    );
+    throw new SepError(ErrorCode.CRYPTO_OPERATION_NOT_SUPPORTED, {
+      backendType: 'SOFTWARE_LOCAL',
+      operation: 'signAndEncrypt',
+      signingKeyReferenceId: signingKeyRef.id,
+      recipientKeyReferenceId: recipientKeyRef.id,
+      reason: COMPOSITE_UNSUPPORTED_SOFTWARE_LOCAL,
+    });
+  }
+  async decryptAndVerify(
+    decryptionKeyRef: KeyReferenceInput,
+    senderKeyRef: KeyReferenceInput,
+    _ciphertext: Ciphertext,
+  ): Promise<DecryptVerifyResult> {
+    throw new SepError(ErrorCode.CRYPTO_OPERATION_NOT_SUPPORTED, {
+      backendType: 'SOFTWARE_LOCAL',
+      operation: 'decryptAndVerify',
+      decryptionKeyReferenceId: decryptionKeyRef.id,
+      senderKeyReferenceId: senderKeyRef.id,
+      reason: COMPOSITE_UNSUPPORTED_SOFTWARE_LOCAL,
+    });
   }
   async rotate(ref: KeyReferenceInput): Promise<RotationResult> {
     return notAvailable('SOFTWARE_LOCAL', 'rotate', ref);

@@ -182,6 +182,56 @@ describe('PlatformVaultBackend', () => {
     expect(decrypted.toString()).toBe('secret cargo');
   });
 
+  it('decryptAndVerify round-trip recovers plaintext and reports signatureValid=true', async () => {
+    const signerStored = {
+      armoredPublicKey: fixture.armoredPublicKey,
+      armoredPrivateKey: fixture.armoredPrivateKey,
+      fingerprint: fixture.fingerprint,
+      algorithm: 'ed25519',
+    };
+    const recipientStored = {
+      armoredPublicKey: recipientFixture.armoredPublicKey,
+      armoredPrivateKey: recipientFixture.armoredPrivateKey,
+      fingerprint: recipientFixture.fingerprint,
+      algorithm: 'ed25519',
+    };
+    // Three reads: two for signAndEncrypt, two for decryptAndVerify
+    // (decryptionKey = recipient, senderKey = signer).
+    stubKvRead('platform/keys/signer', signerStored);
+    stubKvRead('platform/keys/recipient', recipientStored);
+    stubKvRead('platform/keys/recipient', recipientStored);
+    stubKvRead('platform/keys/signer', signerStored);
+
+    const backend = new PlatformVaultBackend(makeClient());
+    const signingRef: KeyReferenceInput = {
+      id: 'signer',
+      tenantId: 'tenant-A',
+      backendType: 'PLATFORM_VAULT',
+      backendRef: 'signer',
+      algorithm: 'ed25519',
+      fingerprint: fixture.fingerprint,
+    };
+    const recipientRef: KeyReferenceInput = {
+      id: 'recipient',
+      tenantId: 'tenant-A',
+      backendType: 'PLATFORM_VAULT',
+      backendRef: 'recipient',
+      algorithm: 'ed25519',
+      fingerprint: recipientFixture.fingerprint,
+    };
+
+    const sealed = await backend.signAndEncrypt(
+      signingRef,
+      recipientRef,
+      Buffer.from('inbound ack payload'),
+    );
+    const result = await backend.decryptAndVerify(recipientRef, signingRef, sealed);
+
+    expect(result.plaintext.toString()).toBe('inbound ack payload');
+    expect(result.signatureValid).toBe(true);
+    expect(result.signerKeyId.length).toBeGreaterThan(0);
+  });
+
   it('signAndEncrypt produces a signed ciphertext the recipient can decrypt and verify', async () => {
     // loadMaterial is called twice per signAndEncrypt (once per ref),
     // then once more on the recipient side for decrypt — three stubs.
@@ -332,6 +382,34 @@ describe('TenantVaultBackend', () => {
       expect.objectContaining({
         code: ErrorCode.TENANT_BOUNDARY_VIOLATION,
       }) as unknown as Error,
+    );
+  });
+
+  it('decryptAndVerify refuses when decryption and sender refs carry different tenantIds', async () => {
+    const backend = new TenantVaultBackend(makeClient(), 'tenant-A');
+    const decryptRef: KeyReferenceInput = {
+      id: 'dk',
+      tenantId: 'tenant-A',
+      backendType: 'TENANT_VAULT',
+      backendRef: 'dk',
+      algorithm: 'ed25519',
+      fingerprint: fixture.fingerprint,
+    };
+    const foreignSender: KeyReferenceInput = {
+      id: 'sk',
+      tenantId: 'tenant-B',
+      backendType: 'TENANT_VAULT',
+      backendRef: 'sk',
+      algorithm: 'ed25519',
+      fingerprint: recipientFixture.fingerprint,
+    };
+    // Like the signAndEncrypt pre-flight check, no KV stubs needed:
+    // the tenant-boundary check in kvPathFor fires before any Vault
+    // HTTP call.
+    await expect(
+      backend.decryptAndVerify(decryptRef, foreignSender, 'ARMORED' as never),
+    ).rejects.toThrow(
+      expect.objectContaining({ code: ErrorCode.TENANT_BOUNDARY_VIOLATION }) as unknown as Error,
     );
   });
 

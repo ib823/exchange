@@ -72,6 +72,21 @@ describe('ExternalKmsBackend', () => {
       }),
     });
   });
+
+  it('decryptAndVerify throws CRYPTO_OPERATION_NOT_SUPPORTED (symmetric with signAndEncrypt, role-specific context keys)', async () => {
+    const senderRef: KeyReferenceInput = { ...sampleRef, id: 'key-2' };
+    await expect(
+      backend.decryptAndVerify(sampleRef, senderRef, '' as Ciphertext),
+    ).rejects.toMatchObject({
+      code: ErrorCode.CRYPTO_OPERATION_NOT_SUPPORTED,
+      context: expect.objectContaining({
+        backendType: 'EXTERNAL_KMS',
+        operation: 'decryptAndVerify',
+        decryptionKeyReferenceId: 'key-1',
+        senderKeyReferenceId: 'key-2',
+      }),
+    });
+  });
 });
 
 describe('SoftwareLocalBackend', () => {
@@ -108,6 +123,21 @@ describe('SoftwareLocalBackend', () => {
         operation: 'signAndEncrypt',
         signingKeyReferenceId: 'key-1',
         recipientKeyReferenceId: 'key-2',
+      }),
+    });
+  });
+
+  it('decryptAndVerify throws CRYPTO_OPERATION_NOT_SUPPORTED (symmetric, role-specific context keys)', async () => {
+    const senderRef: KeyReferenceInput = { ...softwareRef, id: 'key-2' };
+    await expect(
+      backend.decryptAndVerify(softwareRef, senderRef, '' as Ciphertext),
+    ).rejects.toMatchObject({
+      code: ErrorCode.CRYPTO_OPERATION_NOT_SUPPORTED,
+      context: expect.objectContaining({
+        backendType: 'SOFTWARE_LOCAL',
+        operation: 'decryptAndVerify',
+        decryptionKeyReferenceId: 'key-1',
+        senderKeyReferenceId: 'key-2',
       }),
     });
   });

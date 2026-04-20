@@ -61,12 +61,32 @@ export interface RotationResult {
 }
 
 /**
- * The 8-operation contract. All backends implement every method;
+ * Output of the composite decrypt-then-verify op. Plaintext is a
+ * Buffer (caller zeroises when done). `signatureValid` is the
+ * openpgp.js verification outcome on any embedded signature in the
+ * ciphertext; false if the ciphertext carried no signature, or if
+ * verification threw.
+ */
+export interface DecryptVerifyResult {
+  readonly plaintext: Plaintext;
+  readonly signatureValid: boolean;
+  readonly signerKeyId: string;
+}
+
+/**
+ * The 9-operation contract. All backends implement every method;
  * interface-only backends throw a typed CRYPTO_BACKEND_* error from
  * each method, never a generic Error. Backends that cannot honor a
  * specific operation class (e.g. cloud KMS that cannot express an
  * in-process composite sign-then-encrypt) throw
  * CRYPTO_OPERATION_NOT_SUPPORTED from that method.
+ *
+ * Composite ops (`signAndEncrypt`, `decryptAndVerify`) require two
+ * keys to be in scope on the same in-process openpgp.js call —
+ * RFC 9580 sign-then-encrypt and its inverse decrypt-then-verify
+ * are atomic at the openpgp.js boundary. Both composites are
+ * dispatched under a same-backend precondition enforced by
+ * KeyCustodyAbstraction.
  */
 export interface IKeyCustodyBackend {
   /** Return the armored public key for this reference. Safe to log fingerprint only. */
@@ -106,6 +126,28 @@ export interface IKeyCustodyBackend {
     recipientKeyRef: KeyReferenceInput,
     plaintext: Plaintext,
   ): Promise<Ciphertext>;
+
+  /**
+   * Atomic decrypt-then-verify. Decrypts an OpenPGP message signed
+   * by `senderKeyRef` and encrypted to `decryptionKeyRef`, returning
+   * the plaintext together with the embedded-signature verification
+   * outcome.
+   *
+   * Called only when both refs resolve to the same backend. Symmetric
+   * to `signAndEncrypt`: the backend loads the decryption private key
+   * + sender public key in-process, performs the composite op via
+   * openpgp.js (decrypt + verify must see both keys in the same call),
+   * zeroises private-material buffers, and returns the result.
+   *
+   * Same-backend precondition is enforced by the dispatcher layer,
+   * NOT here. Backends that cannot honor composite ops throw
+   * CRYPTO_OPERATION_NOT_SUPPORTED.
+   */
+  decryptAndVerify(
+    decryptionKeyRef: KeyReferenceInput,
+    senderKeyRef: KeyReferenceInput,
+    ciphertext: Ciphertext,
+  ): Promise<DecryptVerifyResult>;
 
   /** Rotate the key at ref. Returns the new backendRef + fingerprint for persistence. */
   rotate(ref: KeyReferenceInput): Promise<RotationResult>;

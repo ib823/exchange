@@ -33,6 +33,7 @@ import type {
   Ciphertext,
   Plaintext,
   RotationResult,
+  DecryptVerifyResult,
 } from './i-key-custody-backend';
 import type { VaultClient } from './vault-client';
 
@@ -262,6 +263,83 @@ export abstract class VaultKeyCustodyBackend implements IKeyCustodyBackend {
     } finally {
       if (signingKeyBuf !== null) {
         zeroBuffer(signingKeyBuf);
+      }
+    }
+  }
+
+  async decryptAndVerify(
+    decryptionKeyRef: KeyReferenceInput,
+    senderKeyRef: KeyReferenceInput,
+    ciphertext: Ciphertext,
+  ): Promise<DecryptVerifyResult> {
+    // Same pre-flight as signAndEncrypt: enforce tenant boundary /
+    // path resolution for both refs before any Vault HTTP read.
+    this.kvPathFor(decryptionKeyRef);
+    this.kvPathFor(senderKeyRef);
+
+    const decryptionMaterial = await this.loadMaterial(decryptionKeyRef);
+    const senderMaterial = await this.loadMaterial(senderKeyRef);
+
+    let privateKeyBuf: Buffer | null = null;
+    try {
+      privateKeyBuf = Buffer.from(decryptionMaterial.armoredPrivateKey, 'utf8');
+      const decryptionKey = await openpgp.readPrivateKey({
+        armoredKey: decryptionMaterial.armoredPrivateKey,
+      });
+      const senderKey = await openpgp.readKey({
+        armoredKey: senderMaterial.armoredPublicKey,
+      });
+      const message = await openpgp.readMessage({ armoredMessage: ciphertext });
+      const { data, signatures } = await openpgp.decrypt({
+        message,
+        decryptionKeys: decryptionKey,
+        verificationKeys: senderKey,
+        format: 'binary',
+      });
+
+      let signatureValid = false;
+      let signerKeyId = '';
+      const firstSig = signatures[0];
+      if (firstSig !== undefined) {
+        signerKeyId = firstSig.keyID.toHex();
+        try {
+          await firstSig.verified;
+          signatureValid = true;
+        } catch {
+          signatureValid = false;
+        }
+      }
+
+      const dataBytes = data as unknown as Uint8Array;
+      const plaintext = Buffer.from(dataBytes);
+
+      logger.debug(
+        {
+          decryptionKeyReferenceId: decryptionKeyRef.id,
+          senderKeyReferenceId: senderKeyRef.id,
+          signatureValid,
+        },
+        'decryptAndVerify completed',
+      );
+      return { plaintext, signatureValid, signerKeyId };
+    } catch (err) {
+      if (err instanceof SepError) {
+        throw err;
+      }
+      logger.error(
+        {
+          decryptionKeyReferenceId: decryptionKeyRef.id,
+          senderKeyReferenceId: senderKeyRef.id,
+        },
+        'decryptAndVerify failed',
+      );
+      throw new SepError(ErrorCode.CRYPTO_DECRYPTION_FAILED, {
+        keyReferenceId: decryptionKeyRef.id,
+        operation: 'decryptAndVerify',
+      });
+    } finally {
+      if (privateKeyBuf !== null) {
+        zeroBuffer(privateKeyBuf);
       }
     }
   }

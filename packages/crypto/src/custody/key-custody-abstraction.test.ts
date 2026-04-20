@@ -1,10 +1,12 @@
 /**
  * Exhaustive dispatcher tests for KeyCustodyAbstraction (M3.A5-T05a,
- * extended in M3.A5-T05b-i for dispatchComposite).
+ * extended in T05b-i for dispatchSignAndEncrypt and T05c for
+ * dispatchDecryptAndVerify).
  *
  * Goal: lock down the mapping from backendType → backend instance,
  * and the composite-op precondition that both refs must resolve to
- * the same backend instance (not just the same backendType).
+ * the same backend instance (not just the same backendType), applied
+ * uniformly to sign-then-encrypt and decrypt-then-verify.
  */
 
 /* eslint-disable @typescript-eslint/unbound-method --
@@ -42,6 +44,11 @@ function stubBackend(tag: string): IKeyCustodyBackend {
     decrypt: vi.fn(),
     encryptForRecipient: vi.fn(),
     signAndEncrypt: vi.fn().mockResolvedValue(`sealed:${tag}`),
+    decryptAndVerify: vi.fn().mockResolvedValue({
+      plaintext: Buffer.from(`opened:${tag}`),
+      signatureValid: true,
+      signerKeyId: `signer:${tag}`,
+    }),
     rotate: vi.fn(),
     revoke: vi.fn(),
   } as unknown as IKeyCustodyBackend;
@@ -193,7 +200,7 @@ describe('KeyCustodyAbstraction', () => {
   });
 });
 
-describe('KeyCustodyAbstraction.dispatchComposite', () => {
+describe('KeyCustodyAbstraction.dispatchSignAndEncrypt / dispatchDecryptAndVerify', () => {
   function makeAbs(overrides: {
     platform?: IKeyCustodyBackend;
     externalKms?: IKeyCustodyBackend;
@@ -217,7 +224,7 @@ describe('KeyCustodyAbstraction.dispatchComposite', () => {
     const recipientRef = makeRef({ id: 'r', backendType: 'PLATFORM_VAULT' });
     const plaintext = Buffer.from('payload');
 
-    const result = await abs.dispatchComposite(signRef, recipientRef, plaintext);
+    const result = await abs.dispatchSignAndEncrypt(signRef, recipientRef, plaintext);
 
     expect(platform.signAndEncrypt).toHaveBeenCalledTimes(1);
     expect(platform.signAndEncrypt).toHaveBeenCalledWith(signRef, recipientRef, plaintext);
@@ -235,7 +242,7 @@ describe('KeyCustodyAbstraction.dispatchComposite', () => {
       tenantId: 'tenant-A',
     });
 
-    const result = await abs.dispatchComposite(signRef, recipientRef, Buffer.from('payload'));
+    const result = await abs.dispatchSignAndEncrypt(signRef, recipientRef, Buffer.from('payload'));
 
     expect(factory).toHaveBeenCalledTimes(1);
     expect(factory).toHaveBeenCalledWith('tenant-A');
@@ -261,7 +268,7 @@ describe('KeyCustodyAbstraction.dispatchComposite', () => {
     });
 
     const err = await abs
-      .dispatchComposite(signRef, foreignRecipient, Buffer.from('payload'))
+      .dispatchSignAndEncrypt(signRef, foreignRecipient, Buffer.from('payload'))
       .catch((e: unknown) => e);
 
     expect(err).toBeInstanceOf(SepError);
@@ -288,7 +295,7 @@ describe('KeyCustodyAbstraction.dispatchComposite', () => {
     });
 
     await expect(
-      abs.dispatchComposite(signRef, recipientRef, Buffer.from('p')),
+      abs.dispatchSignAndEncrypt(signRef, recipientRef, Buffer.from('p')),
     ).rejects.toMatchObject({ code: ErrorCode.CRYPTO_BACKENDS_INCOMPATIBLE });
     expect(platform.signAndEncrypt).not.toHaveBeenCalled();
     expect(tenantBackend.signAndEncrypt).not.toHaveBeenCalled();
@@ -302,7 +309,7 @@ describe('KeyCustodyAbstraction.dispatchComposite', () => {
     const recipientRef = makeRef({ id: 'r', backendType: 'EXTERNAL_KMS' });
 
     await expect(
-      abs.dispatchComposite(signRef, recipientRef, Buffer.from('p')),
+      abs.dispatchSignAndEncrypt(signRef, recipientRef, Buffer.from('p')),
     ).rejects.toMatchObject({ code: ErrorCode.CRYPTO_BACKENDS_INCOMPATIBLE });
     // Neither backend's composite is invoked — dispatcher refused
     // before forwarding.
@@ -322,9 +329,134 @@ describe('KeyCustodyAbstraction.dispatchComposite', () => {
     const recipientRef = makeRef({ id: 'r', backendType: 'SOFTWARE_LOCAL' });
 
     await expect(
-      abs.dispatchComposite(signRef, recipientRef, Buffer.from('p')),
+      abs.dispatchSignAndEncrypt(signRef, recipientRef, Buffer.from('p')),
     ).rejects.toMatchObject({ code: ErrorCode.CRYPTO_BACKENDS_INCOMPATIBLE });
     expect(kms.signAndEncrypt).not.toHaveBeenCalled();
     expect(local.signAndEncrypt).not.toHaveBeenCalled();
+  });
+
+  // ── dispatchDecryptAndVerify ───────────────────────────────────
+  // Symmetric coverage to dispatchSignAndEncrypt. The precondition
+  // logic is shared, so these tests assert the second dispatcher
+  // method hits it the same way.
+
+  it('dispatchDecryptAndVerify: same-platform-backend forwards to PlatformVaultBackend.decryptAndVerify', async () => {
+    const platform = stubBackend('platform');
+    const abs = makeAbs({ platform });
+    const decryptRef = makeRef({ id: 'd', backendType: 'PLATFORM_VAULT' });
+    const senderRef = makeRef({ id: 's', backendType: 'PLATFORM_VAULT' });
+    const ciphertext = 'ARMORED' as unknown as Parameters<
+      KeyCustodyAbstraction['dispatchDecryptAndVerify']
+    >[2];
+
+    const result = await abs.dispatchDecryptAndVerify(decryptRef, senderRef, ciphertext);
+
+    expect(platform.decryptAndVerify).toHaveBeenCalledTimes(1);
+    expect(platform.decryptAndVerify).toHaveBeenCalledWith(decryptRef, senderRef, ciphertext);
+    expect(result.signerKeyId).toBe('signer:platform');
+    expect(result.signatureValid).toBe(true);
+  });
+
+  it('dispatchDecryptAndVerify: same-tenant-backend forwards via cached Tenant instance', async () => {
+    const tenantBackend = stubBackend('tenant-A');
+    const factory = vi.fn().mockReturnValue(tenantBackend);
+    const abs = makeAbs({ tenantFactory: factory });
+    const decryptRef = makeRef({ id: 'd', backendType: 'TENANT_VAULT', tenantId: 'tenant-A' });
+    const senderRef = makeRef({ id: 's', backendType: 'TENANT_VAULT', tenantId: 'tenant-A' });
+
+    await abs.dispatchDecryptAndVerify(
+      decryptRef,
+      senderRef,
+      '' as unknown as Parameters<KeyCustodyAbstraction['dispatchDecryptAndVerify']>[2],
+    );
+
+    expect(factory).toHaveBeenCalledTimes(1);
+    expect(tenantBackend.decryptAndVerify).toHaveBeenCalledTimes(1);
+  });
+
+  it('dispatchDecryptAndVerify: different-tenant-same-class refuses with CRYPTO_BACKENDS_INCOMPATIBLE', async () => {
+    const factory = vi
+      .fn()
+      .mockImplementation((id: string): IKeyCustodyBackend => stubBackend(`tenant-${id}`));
+    const abs = makeAbs({ tenantFactory: factory });
+    const decryptRef = makeRef({ id: 'd', backendType: 'TENANT_VAULT', tenantId: 'tenant-A' });
+    const foreignSender = makeRef({ id: 's', backendType: 'TENANT_VAULT', tenantId: 'tenant-B' });
+
+    const err = await abs
+      .dispatchDecryptAndVerify(
+        decryptRef,
+        foreignSender,
+        '' as unknown as Parameters<KeyCustodyAbstraction['dispatchDecryptAndVerify']>[2],
+      )
+      .catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(SepError);
+    expect((err as SepError).code).toBe(ErrorCode.CRYPTO_BACKENDS_INCOMPATIBLE);
+    expect((err as SepError).context).toMatchObject({
+      operation: 'decryptAndVerify',
+      decryptionKeyReferenceId: 'd',
+      senderKeyReferenceId: 's',
+    });
+  });
+
+  it('dispatchDecryptAndVerify: platform-vs-tenant refuses with CRYPTO_BACKENDS_INCOMPATIBLE', async () => {
+    const platform = stubBackend('platform');
+    const tenantBackend = stubBackend('tenant-A');
+    const abs = makeAbs({
+      platform,
+      tenantFactory: (): IKeyCustodyBackend => tenantBackend,
+    });
+    const decryptRef = makeRef({ id: 'd', backendType: 'PLATFORM_VAULT' });
+    const senderRef = makeRef({
+      id: 's',
+      backendType: 'TENANT_VAULT',
+      tenantId: 'tenant-A',
+    });
+
+    await expect(
+      abs.dispatchDecryptAndVerify(
+        decryptRef,
+        senderRef,
+        '' as unknown as Parameters<KeyCustodyAbstraction['dispatchDecryptAndVerify']>[2],
+      ),
+    ).rejects.toMatchObject({ code: ErrorCode.CRYPTO_BACKENDS_INCOMPATIBLE });
+    expect(platform.decryptAndVerify).not.toHaveBeenCalled();
+    expect(tenantBackend.decryptAndVerify).not.toHaveBeenCalled();
+  });
+
+  it('dispatchDecryptAndVerify: vault-vs-kms refuses with CRYPTO_BACKENDS_INCOMPATIBLE', async () => {
+    const platform = stubBackend('platform');
+    const kms = stubBackend('kms');
+    const abs = makeAbs({ platform, externalKms: kms });
+    const decryptRef = makeRef({ id: 'd', backendType: 'PLATFORM_VAULT' });
+    const senderRef = makeRef({ id: 's', backendType: 'EXTERNAL_KMS' });
+
+    await expect(
+      abs.dispatchDecryptAndVerify(
+        decryptRef,
+        senderRef,
+        '' as unknown as Parameters<KeyCustodyAbstraction['dispatchDecryptAndVerify']>[2],
+      ),
+    ).rejects.toMatchObject({ code: ErrorCode.CRYPTO_BACKENDS_INCOMPATIBLE });
+    expect(platform.decryptAndVerify).not.toHaveBeenCalled();
+    expect(kms.decryptAndVerify).not.toHaveBeenCalled();
+  });
+
+  it('dispatchDecryptAndVerify: kms-vs-softwarelocal refuses with CRYPTO_BACKENDS_INCOMPATIBLE', async () => {
+    const kms = stubBackend('kms');
+    const local = stubBackend('local');
+    const abs = makeAbs({ externalKms: kms, softwareLocal: local });
+    const decryptRef = makeRef({ id: 'd', backendType: 'EXTERNAL_KMS' });
+    const senderRef = makeRef({ id: 's', backendType: 'SOFTWARE_LOCAL' });
+
+    await expect(
+      abs.dispatchDecryptAndVerify(
+        decryptRef,
+        senderRef,
+        '' as unknown as Parameters<KeyCustodyAbstraction['dispatchDecryptAndVerify']>[2],
+      ),
+    ).rejects.toMatchObject({ code: ErrorCode.CRYPTO_BACKENDS_INCOMPATIBLE });
+    expect(kms.decryptAndVerify).not.toHaveBeenCalled();
+    expect(local.decryptAndVerify).not.toHaveBeenCalled();
   });
 });
