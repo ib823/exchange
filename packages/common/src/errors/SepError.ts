@@ -36,6 +36,8 @@ export interface SepErrorContext {
   readonly keyState?: string;
   readonly keyUsage?: string;
   readonly usage?: string;
+  readonly expectedUsage?: string;
+  readonly actualUsage?: readonly string[];
   readonly algorithm?: string;
   readonly allowedAlgorithms?: string[];
   readonly cipher?: string;
@@ -171,6 +173,8 @@ export class SepError extends Error {
         'Composite key-custody operation requires both references to resolve to the same backend',
       [ErrorCode.CRYPTO_OPERATION_NOT_SUPPORTED]:
         'Key custody backend does not support this operation',
+      [ErrorCode.CRYPTO_KEY_PURPOSE_MISMATCH]:
+        'Key reference does not carry the usage required for this composite operation',
     };
     return messages[code] ?? `Platform error: ${code}`;
   }

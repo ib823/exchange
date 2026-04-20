@@ -528,5 +528,6 @@ function toKeyReferenceInput(keyRef: KeyRef): KeyReferenceInput {
     backendRef: keyRef.backendRef,
     algorithm: keyRef.algorithm,
     fingerprint: keyRef.fingerprint,
+    usage: keyRef.allowedUsages,
   };
 }

@@ -24,7 +24,7 @@ import { SepError, ErrorCode } from '@sep/common';
 import { createLogger } from '@sep/observability';
 import type { KeyRef } from './interfaces';
 import type { KeyCustodyAbstraction } from './custody/key-custody-abstraction';
-import type { KeyReferenceInput } from './custody/i-key-custody-backend';
+import type { KeyReferenceInput, KeyUsage } from './custody/i-key-custody-backend';
 import type { KeyBackendType } from './custody/key-reference-input';
 
 const logger = createLogger({ service: 'crypto', module: 'key-retrieval' });
@@ -85,6 +85,7 @@ export class KeyRetrievalService {
       backendRef: row.backendRef,
       algorithm: row.algorithm,
       fingerprint: row.fingerprint,
+      usage: row.usage as readonly KeyUsage[],
     };
 
     let armoredKey: string;

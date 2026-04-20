@@ -59,6 +59,10 @@ function makeRef(overrides: Partial<KeyReferenceInput> = {}): KeyReferenceInput 
     backendRef: 'platform/keys/key-1',
     algorithm: 'rsa-4096',
     fingerprint: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+    // Default usage covers all four operations so existing
+    // non-composite tests keep passing. Purpose-guard tests override
+    // this to narrow to SIGN / ENCRYPT / VERIFY / DECRYPT as needed.
+    usage: ['SIGN', 'ENCRYPT', 'VERIFY', 'DECRYPT'],
     ...overrides,
   };
 }
@@ -456,5 +460,99 @@ describe('KeyCustodyAbstraction.dispatchSignAndEncrypt / dispatchDecryptAndVerif
     ).rejects.toMatchObject({ code: ErrorCode.CRYPTO_BACKENDS_INCOMPATIBLE });
     expect(kms.decryptAndVerify).not.toHaveBeenCalled();
     expect(local.decryptAndVerify).not.toHaveBeenCalled();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+// Purpose-guard tests (Review Item 1).
+// The dispatcher fails closed with CRYPTO_KEY_PURPOSE_MISMATCH when
+// a composite op is invoked with a ref whose `usage` list does not
+// carry the required role. Catches the production-symptom of a
+// caller forwarding the same KeyReference as both roles (e.g. a
+// signing key as an encryption recipient).
+// ─────────────────────────────────────────────────────────────────
+
+describe('KeyCustodyAbstraction purpose guards', () => {
+  function makeAbs(): KeyCustodyAbstraction {
+    return new KeyCustodyAbstraction({
+      platformVault: stubBackend('platform'),
+      tenantVaultFactory: (): IKeyCustodyBackend => stubBackend('tenant'),
+      externalKms: stubBackend('kms'),
+      softwareLocal: stubBackend('local'),
+    });
+  }
+
+  it('dispatchSignAndEncrypt rejects two SIGN-only refs (no ENCRYPT on the recipient)', async () => {
+    const abs = makeAbs();
+    const signRef = makeRef({ id: 's', usage: ['SIGN'] });
+    const badRecipient = makeRef({ id: 'r', usage: ['SIGN'] });
+
+    const err = await abs
+      .dispatchSignAndEncrypt(signRef, badRecipient, Buffer.from('p'))
+      .catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(SepError);
+    expect((err as SepError).code).toBe(ErrorCode.CRYPTO_KEY_PURPOSE_MISMATCH);
+    expect((err as SepError).context).toMatchObject({
+      operation: 'signAndEncrypt',
+      keyReferenceId: 'r',
+      expectedUsage: 'ENCRYPT',
+      actualUsage: ['SIGN'],
+    });
+  });
+
+  it('dispatchSignAndEncrypt rejects two ENCRYPT-only refs (no SIGN on the signing side)', async () => {
+    const abs = makeAbs();
+    const badSigner = makeRef({ id: 's', usage: ['ENCRYPT'] });
+    const recipient = makeRef({ id: 'r', usage: ['ENCRYPT'] });
+
+    await expect(
+      abs.dispatchSignAndEncrypt(badSigner, recipient, Buffer.from('p')),
+    ).rejects.toMatchObject({
+      code: ErrorCode.CRYPTO_KEY_PURPOSE_MISMATCH,
+      context: expect.objectContaining({
+        operation: 'signAndEncrypt',
+        keyReferenceId: 's',
+        expectedUsage: 'SIGN',
+      }) as unknown,
+    });
+  });
+
+  it('dispatchDecryptAndVerify rejects reversed-purpose refs (SIGN where DECRYPT expected)', async () => {
+    const abs = makeAbs();
+    const wrongDecrypt = makeRef({ id: 'd', usage: ['SIGN'] });
+    const senderRef = makeRef({ id: 's', usage: ['VERIFY'] });
+
+    await expect(
+      abs.dispatchDecryptAndVerify(
+        wrongDecrypt,
+        senderRef,
+        '' as unknown as Parameters<KeyCustodyAbstraction['dispatchDecryptAndVerify']>[2],
+      ),
+    ).rejects.toMatchObject({
+      code: ErrorCode.CRYPTO_KEY_PURPOSE_MISMATCH,
+      context: expect.objectContaining({
+        operation: 'decryptAndVerify',
+        keyReferenceId: 'd',
+        expectedUsage: 'DECRYPT',
+      }) as unknown,
+    });
+  });
+
+  it('correct purposes pass through to the backend (SIGN + ENCRYPT for composite encrypt)', async () => {
+    const platform = stubBackend('platform');
+    const abs = new KeyCustodyAbstraction({
+      platformVault: platform,
+      tenantVaultFactory: (): IKeyCustodyBackend => stubBackend('tenant'),
+      externalKms: stubBackend('kms'),
+      softwareLocal: stubBackend('local'),
+    });
+    const signRef = makeRef({ id: 's', usage: ['SIGN'] });
+    const recipientRef = makeRef({ id: 'r', usage: ['ENCRYPT'] });
+
+    const result = await abs.dispatchSignAndEncrypt(signRef, recipientRef, Buffer.from('p'));
+
+    expect(platform.signAndEncrypt).toHaveBeenCalledTimes(1);
+    expect(result).toBe('sealed:platform');
   });
 });

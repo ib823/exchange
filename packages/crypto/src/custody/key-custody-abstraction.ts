@@ -42,6 +42,7 @@ import type {
   Plaintext,
   Ciphertext,
   DecryptVerifyResult,
+  KeyUsage,
 } from './i-key-custody-backend';
 
 /**
@@ -100,6 +101,20 @@ export class KeyCustodyAbstraction {
     recipientKeyRef: KeyReferenceInput,
     plaintext: Plaintext,
   ): Promise<Ciphertext> {
+    // Purpose guard (Item 1 review response): fail closed when the
+    // caller passed the wrong-role key. The production symptom caught
+    // here is the data-plane processor bug at crypto.processor.ts:218-226
+    // that forwards the same KeyReference as both the signing key and the
+    // encryption recipient — a production-key signing material typically
+    // has `usage: ['SIGN']` and will fail the recipient check, producing
+    // a terminal CRYPTO_KEY_PURPOSE_MISMATCH instead of a sign-to-self
+    // ciphertext the partner cannot decrypt. The permissive-list shape of
+    // `usage` means a key explicitly authorised for both SIGN and ENCRYPT
+    // passes; fully closing that loophole requires M3.A5-T08 processor
+    // resolution of two distinct KeyReference rows.
+    requireUsage(signingKeyRef, 'SIGN', 'signAndEncrypt');
+    requireUsage(recipientKeyRef, 'ENCRYPT', 'signAndEncrypt');
+
     const signingBackend = this.backendFor(signingKeyRef);
     const recipientBackend = this.backendFor(recipientKeyRef);
     if (signingBackend !== recipientBackend) {
@@ -125,6 +140,13 @@ export class KeyCustodyAbstraction {
     senderKeyRef: KeyReferenceInput,
     ciphertext: Ciphertext,
   ): Promise<DecryptVerifyResult> {
+    // Symmetric purpose guard: the decryption key must be our own
+    // DECRYPT-authorised private key; the sender key must be a
+    // VERIFY-authorised public key. Fails closed with terminal
+    // CRYPTO_KEY_PURPOSE_MISMATCH on wrong-role usage.
+    requireUsage(decryptionKeyRef, 'DECRYPT', 'decryptAndVerify');
+    requireUsage(senderKeyRef, 'VERIFY', 'decryptAndVerify');
+
     const decryptionBackend = this.backendFor(decryptionKeyRef);
     const senderBackend = this.backendFor(senderKeyRef);
     if (decryptionBackend !== senderBackend) {
@@ -160,6 +182,36 @@ export class KeyCustodyAbstraction {
       keyReferenceId: ref.id,
       reason:
         'backendType is not one of PLATFORM_VAULT, TENANT_VAULT, EXTERNAL_KMS, SOFTWARE_LOCAL',
+    });
+  }
+}
+
+/**
+ * Composite-op purpose guard. Asserts that `ref.usage` includes the
+ * role required for the op (e.g. SIGN for the signing side of
+ * signAndEncrypt, ENCRYPT for the recipient side). Throws terminal
+ * `CRYPTO_KEY_PURPOSE_MISMATCH` on mismatch; context carries the
+ * expected usage and the actual usage list for audit correlation.
+ *
+ * This is a cheap guard, not an authorisation policy — it catches the
+ * common production bug of passing the wrong-role key into a composite
+ * op (e.g. a tenant signing key as the partner encryption recipient).
+ * It does NOT catch the pathological case where one key carries both
+ * SIGN and ENCRYPT in its usage array; that's a testing anti-pattern
+ * and fully closing it requires resolving two distinct KeyReference
+ * rows at the call site (M3.A5-T08).
+ */
+function requireUsage(
+  ref: KeyReferenceInput,
+  expected: KeyUsage,
+  operation: 'signAndEncrypt' | 'decryptAndVerify',
+): void {
+  if (!ref.usage.includes(expected)) {
+    throw new SepError(ErrorCode.CRYPTO_KEY_PURPOSE_MISMATCH, {
+      operation,
+      keyReferenceId: ref.id,
+      expectedUsage: expected,
+      actualUsage: ref.usage,
     });
   }
 }

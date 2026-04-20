@@ -49,11 +49,26 @@ const mockTenantClient = {
   $executeRawUnsafe: vi.fn().mockResolvedValue(undefined),
 };
 
+// Call counters exposed to tests so the scanner's RLS-scoping
+// invariant can be asserted explicitly: the cross-tenant READ uses
+// forSystem(); every MUTATION must drop back into forTenant() so
+// incident rows are RLS-scoped.
+const forSystemCalls = vi.fn();
+const forTenantCalls = vi.fn();
+
 vi.mock('@sep/db', () => ({
   DatabaseService: vi.fn().mockImplementation(() => ({
-    forSystem: () => mockForSystemClient,
-    forTenant: <T>(_tid: string, fn: (db: typeof mockTenantClient) => Promise<T>): Promise<T> =>
-      fn(mockTenantClient),
+    forSystem: () => {
+      forSystemCalls();
+      return mockForSystemClient;
+    },
+    forTenant: <T>(
+      tenantId: string,
+      fn: (db: typeof mockTenantClient) => Promise<T>,
+    ): Promise<T> => {
+      forTenantCalls(tenantId);
+      return fn(mockTenantClient);
+    },
   })),
 }));
 
@@ -234,5 +249,49 @@ describe('KeyExpiryScanProcessor', () => {
       }),
       select: expect.any(Object),
     });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  // RLS scoping invariant (Review Item 7).
+  // The cross-tenant READ uses forSystem(); every MUTATION must drop
+  // back into forTenant() so incident rows are RLS-scoped. A future
+  // refactor that substitutes the system client for the write path
+  // would fail this test.
+  // ─────────────────────────────────────────────────────────────
+
+  it('read path uses forSystem, write path always uses forTenant (RLS scoping invariant)', async () => {
+    mockKeyReferenceFindMany.mockResolvedValueOnce([
+      { id: 'k-1', tenantId: 't-1', name: 'k', expiresAt: daysFromNow(3) },
+      { id: 'k-2', tenantId: 't-2', name: 'k', expiresAt: daysFromNow(15) },
+    ]);
+    mockIncident.findFirst.mockResolvedValue(null);
+
+    await processor.process(makeJob());
+
+    // Exactly one forSystem() call: the cross-tenant key listing.
+    expect(forSystemCalls).toHaveBeenCalledTimes(1);
+
+    // forTenant() called at least once per incident write. Each key
+    // writes an incident under IncidentWriterService, which calls
+    // existsOpenForSource (forTenant) + create (forTenant) =
+    // 2 forTenant calls per key. 2 keys → 4 forTenant calls.
+    expect(forTenantCalls).toHaveBeenCalledTimes(4);
+
+    // Verify tenant isolation: every forTenant call was scoped to
+    // the key's own tenantId. No cross-tenant write attempts.
+    const tenantsUsed = forTenantCalls.mock.calls.map((call: any[]) => call[0]);
+    expect(tenantsUsed).toEqual(['t-1', 't-1', 't-2', 't-2']);
+  });
+
+  it('forSystem client exposes no incident model (accidental system-client write would fail)', () => {
+    // Defence-in-depth: if a future refactor accidentally substitutes
+    // the system client for the tenant client on the write path, the
+    // substitution itself fails at runtime because the system-client
+    // mock mirrors the real forSystem() shape — no incident accessor.
+    // The test documents the invariant explicitly so a mock change
+    // that quietly adds `incident: {...}` to mockForSystemClient
+    // can't land without this assertion failing first.
+    expect((mockForSystemClient as Record<string, unknown>).incident).toBeUndefined();
+    expect((mockForSystemClient as Record<string, unknown>).auditEvent).toBeUndefined();
   });
 });

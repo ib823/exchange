@@ -1,0 +1,23 @@
+# Build artifacts
+**/dist/**
+**/build/**
+**/.next/**
+**/.turbo/**
+**/*.tsbuildinfo
+
+# Coverage reports — generated
+coverage
+**/coverage
+**/coverage/**
+
+# Lock files
+pnpm-lock.yaml
+
+# node_modules
+node_modules/
+**/node_modules/
+
+# Prisma generated client
+**/prisma/client/
+coverage/
+**/coverage-final.json

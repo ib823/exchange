@@ -10,6 +10,7 @@ const sampleRef: KeyReferenceInput = {
   backendRef: 'arn:aws:kms:us-east-1:...',
   algorithm: 'rsa-4096',
   fingerprint: 'abc',
+  usage: ['SIGN', 'ENCRYPT', 'VERIFY', 'DECRYPT'],
 };
 
 describe('ExternalKmsBackend', () => {

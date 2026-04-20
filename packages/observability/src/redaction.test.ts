@@ -46,4 +46,31 @@ describe('Redaction configuration', () => {
     expect(isRedactedField('passphrase')).toBe(true);
     expect(isRedactedField('payload')).toBe(true);
   });
+
+  // Review Item 3 — explicit assertion that Vault auth material is
+  // covered by the redaction list. isRedactedField collapses the
+  // '*.headers["x-vault-token"]' wildcard to the bare field name for
+  // the purpose of the check; here we assert both the top-level and
+  // wildcard forms are present in REDACTED_PATHS.
+  describe('Vault auth header redaction', () => {
+    const vaultAuthPaths = [
+      'req.headers["x-vault-token"]',
+      'req.headers["x-vault-namespace"]',
+      '*.headers.authorization',
+      '*.headers["x-vault-token"]',
+      '*.headers["x-vault-namespace"]',
+      'headers.authorization',
+      'headers["x-vault-token"]',
+      'headers["x-vault-namespace"]',
+    ];
+    it.each(vaultAuthPaths)('path "%s" is in REDACTED_PATHS', (path) => {
+      expect(REDACTED_PATHS).toContain(path);
+    });
+
+    it('covers the bare x-vault-token and vaultToken field names', () => {
+      expect(isRedactedField('vaultToken')).toBe(true);
+      expect(isRedactedField('VAULT_TOKEN')).toBe(true);
+      expect(isRedactedField('authorization')).toBe(true);
+    });
+  });
 });

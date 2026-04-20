@@ -164,6 +164,17 @@ beforeAll(async () => {
 }, 60_000);
 
 // ── Ref factories ─────────────────────────────────────────────────
+// Conformance refs use the full usage list so non-composite assertions
+// pass the purpose guard trivially. The dispatcher-purpose tests live
+// in the unit suite at key-custody-abstraction.test.ts where usage is
+// narrowed explicitly.
+const FULL_USAGE: readonly ('ENCRYPT' | 'DECRYPT' | 'SIGN' | 'VERIFY')[] = [
+  'ENCRYPT',
+  'DECRYPT',
+  'SIGN',
+  'VERIFY',
+];
+
 function makePlatformRef(id: string, fingerprint: string): KeyReferenceInput {
   return {
     id,
@@ -172,6 +183,7 @@ function makePlatformRef(id: string, fingerprint: string): KeyReferenceInput {
     backendRef: id,
     algorithm: 'ed25519',
     fingerprint,
+    usage: FULL_USAGE,
   };
 }
 
@@ -183,6 +195,7 @@ function makeTenantRef(tenantId: string, id: string, fingerprint: string): KeyRe
     backendRef: id,
     algorithm: 'ed25519',
     fingerprint,
+    usage: FULL_USAGE,
   };
 }
 
@@ -197,6 +210,7 @@ function makeStubRef(
     backendRef: id,
     algorithm: 'rsa-4096',
     fingerprint: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+    usage: FULL_USAGE,
   };
 }
 

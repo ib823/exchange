@@ -39,6 +39,14 @@ export type Plaintext = Buffer;
  * Minimum KeyReference shape the backend needs. Mirrors the Prisma
  * KeyReference model without pulling the DB type into the crypto
  * package (crypto must stay framework-free).
+ *
+ * `usage` is the authorised operation list copied from the DB row.
+ * It is not used by the backend itself (backends don't enforce
+ * authorisation) — the dispatcher layer reads it for composite-op
+ * purpose guards. See KeyCustodyAbstraction.dispatchSignAndEncrypt
+ * for the check that fires CRYPTO_KEY_PURPOSE_MISMATCH when a
+ * caller passes the wrong-role key (e.g. a signing key as the
+ * encryption recipient).
  */
 export interface KeyReferenceInput {
   readonly id: string;
@@ -47,7 +55,19 @@ export interface KeyReferenceInput {
   readonly backendRef: string;
   readonly algorithm: string;
   readonly fingerprint: string;
+  readonly usage: readonly KeyUsage[];
 }
+
+/**
+ * Authorised operations for a key. Mirrors the values the platform
+ * writes into `KeyReference.usage: String[]` — ENCRYPT for encryption
+ * recipients, DECRYPT for our own decryption private keys, SIGN for
+ * our own signing private keys, VERIFY for partner verification
+ * public keys. A real production key has exactly one of
+ * {SIGN, ENCRYPT} on the private-key side; the array form is kept for
+ * schema compatibility and does not imply multi-purpose is approved.
+ */
+export type KeyUsage = 'ENCRYPT' | 'DECRYPT' | 'SIGN' | 'VERIFY';
 
 /**
  * Rotation produces a new backend reference (Vault key version bump,

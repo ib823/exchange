@@ -94,6 +94,7 @@ describe('PlatformVaultBackend', () => {
       backendRef: 'key-1',
       algorithm: 'ed25519',
       fingerprint: fixture.fingerprint,
+      usage: ['SIGN', 'ENCRYPT', 'VERIFY', 'DECRYPT'],
     };
     const pub = await backend.getPublicKey(ref);
     expect(pub).toContain('BEGIN PGP PUBLIC KEY');
@@ -118,6 +119,7 @@ describe('PlatformVaultBackend', () => {
       backendRef: 'key-1',
       algorithm: 'ed25519',
       fingerprint: fixture.fingerprint,
+      usage: ['SIGN', 'ENCRYPT', 'VERIFY', 'DECRYPT'],
     };
     const payload = Buffer.from('hello world');
     const sig = await backend.signDetached(ref, payload);
@@ -145,6 +147,7 @@ describe('PlatformVaultBackend', () => {
       backendRef: 'key-1',
       algorithm: 'ed25519',
       fingerprint: fixture.fingerprint,
+      usage: ['SIGN', 'ENCRYPT', 'VERIFY', 'DECRYPT'],
     };
     const sig = await backend.signDetached(ref, Buffer.from('hello world'));
     const verified = await backend.verifyDetached(ref, Buffer.from('hello EVE'), sig);
@@ -169,6 +172,7 @@ describe('PlatformVaultBackend', () => {
       backendRef: 'key-1',
       algorithm: 'ed25519',
       fingerprint: fixture.fingerprint,
+      usage: ['SIGN', 'ENCRYPT', 'VERIFY', 'DECRYPT'],
     };
     const plaintext = Buffer.from('secret cargo');
     const ct = await backend.encryptForRecipient(ref, plaintext);
@@ -194,6 +198,7 @@ describe('PlatformVaultBackend', () => {
       backendRef: 'key-1',
       algorithm: 'ed25519',
       fingerprint: fixture.fingerprint,
+      usage: ['SIGN', 'ENCRYPT', 'VERIFY', 'DECRYPT'],
     };
     const signed = await backend.signInline(ref, Buffer.from('inline signed payload'));
 
@@ -243,6 +248,7 @@ describe('PlatformVaultBackend', () => {
       backendRef: 'signer',
       algorithm: 'ed25519',
       fingerprint: fixture.fingerprint,
+      usage: ['SIGN', 'ENCRYPT', 'VERIFY', 'DECRYPT'],
     };
     const recipientRef: KeyReferenceInput = {
       id: 'recipient',
@@ -251,6 +257,7 @@ describe('PlatformVaultBackend', () => {
       backendRef: 'recipient',
       algorithm: 'ed25519',
       fingerprint: recipientFixture.fingerprint,
+      usage: ['SIGN', 'ENCRYPT', 'VERIFY', 'DECRYPT'],
     };
 
     const sealed = await backend.signAndEncrypt(
@@ -292,6 +299,7 @@ describe('PlatformVaultBackend', () => {
       backendRef: 'signer',
       algorithm: 'ed25519',
       fingerprint: fixture.fingerprint,
+      usage: ['SIGN', 'ENCRYPT', 'VERIFY', 'DECRYPT'],
     };
     const recipientRef: KeyReferenceInput = {
       id: 'recipient',
@@ -300,6 +308,7 @@ describe('PlatformVaultBackend', () => {
       backendRef: 'recipient',
       algorithm: 'ed25519',
       fingerprint: recipientFixture.fingerprint,
+      usage: ['SIGN', 'ENCRYPT', 'VERIFY', 'DECRYPT'],
     };
     const plaintext = Buffer.from('atomic composite cargo');
     const sealed = await backend.signAndEncrypt(signingRef, recipientRef, plaintext);
@@ -327,6 +336,7 @@ describe('PlatformVaultBackend', () => {
       backendRef: 'key-1',
       algorithm: 'ed25519',
       fingerprint: fixture.fingerprint,
+      usage: ['SIGN', 'ENCRYPT', 'VERIFY', 'DECRYPT'],
     };
     await expect(backend.getPublicKey(ref)).rejects.toThrow(
       expect.objectContaining({ code: ErrorCode.KEY_FINGERPRINT_MISMATCH }) as unknown as Error,
@@ -351,6 +361,7 @@ describe('PlatformVaultBackend', () => {
       backendRef: 'key-1',
       algorithm: 'ed25519',
       fingerprint: fixture.fingerprint,
+      usage: ['SIGN', 'ENCRYPT', 'VERIFY', 'DECRYPT'],
     });
     expect(destroyed).toBe(true);
   });
@@ -371,6 +382,7 @@ describe('PlatformVaultBackend', () => {
       backendRef: 'key-1',
       algorithm: 'ed25519',
       fingerprint: fixture.fingerprint,
+      usage: ['SIGN', 'ENCRYPT', 'VERIFY', 'DECRYPT'],
     });
 
     expect(result.newBackendRef).toBe('platform/keys/key-1#v2');
@@ -396,6 +408,7 @@ describe('TenantVaultBackend', () => {
       backendRef: 'k1',
       algorithm: 'ed25519',
       fingerprint: fixture.fingerprint,
+      usage: ['SIGN', 'ENCRYPT', 'VERIFY', 'DECRYPT'],
     });
     expect(pub).toContain('BEGIN PGP PUBLIC KEY');
   });
@@ -410,6 +423,7 @@ describe('TenantVaultBackend', () => {
         backendRef: 'k1',
         algorithm: 'ed25519',
         fingerprint: fixture.fingerprint,
+        usage: ['SIGN', 'ENCRYPT', 'VERIFY', 'DECRYPT'],
       }),
     ).rejects.toThrow(
       expect.objectContaining({
@@ -427,6 +441,7 @@ describe('TenantVaultBackend', () => {
       backendRef: 'dk',
       algorithm: 'ed25519',
       fingerprint: fixture.fingerprint,
+      usage: ['SIGN', 'ENCRYPT', 'VERIFY', 'DECRYPT'],
     };
     const foreignSender: KeyReferenceInput = {
       id: 'sk',
@@ -435,6 +450,7 @@ describe('TenantVaultBackend', () => {
       backendRef: 'sk',
       algorithm: 'ed25519',
       fingerprint: recipientFixture.fingerprint,
+      usage: ['SIGN', 'ENCRYPT', 'VERIFY', 'DECRYPT'],
     };
     // Like the signAndEncrypt pre-flight check, no KV stubs needed:
     // the tenant-boundary check in kvPathFor fires before any Vault
@@ -455,6 +471,7 @@ describe('TenantVaultBackend', () => {
       backendRef: 'sig',
       algorithm: 'ed25519',
       fingerprint: fixture.fingerprint,
+      usage: ['SIGN', 'ENCRYPT', 'VERIFY', 'DECRYPT'],
     };
     const foreignRecipient: KeyReferenceInput = {
       id: 'rcp',
@@ -463,6 +480,7 @@ describe('TenantVaultBackend', () => {
       backendRef: 'rcp',
       algorithm: 'ed25519',
       fingerprint: recipientFixture.fingerprint,
+      usage: ['SIGN', 'ENCRYPT', 'VERIFY', 'DECRYPT'],
     };
     // No KV stubs — the tenant check in kvPathFor fires before
     // loadMaterial makes any HTTP call.

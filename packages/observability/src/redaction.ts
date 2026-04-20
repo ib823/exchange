@@ -79,7 +79,19 @@ export const REDACTED_PATHS: string[] = [
   // HTTP request/response headers
   'req.headers.authorization',
   'req.headers["x-api-key"]',
+  'req.headers["x-vault-token"]',
+  'req.headers["x-vault-namespace"]',
   'res.headers["set-cookie"]',
+
+  // Vault auth material — the undici Vault client puts the root/
+  // AppRole token in X-Vault-Token and optionally a namespace in
+  // X-Vault-Namespace. Both must never appear in log output.
+  '*.headers.authorization',
+  '*.headers["x-vault-token"]',
+  '*.headers["x-vault-namespace"]',
+  'headers.authorization',
+  'headers["x-vault-token"]',
+  'headers["x-vault-namespace"]',
 
   // Error context that might carry sensitive data
   'err.context.passphrase',
