@@ -1,21 +1,52 @@
 /**
- * Concrete ICryptoService implementation using openpgp.js v5.
+ * ICryptoService implementation that delegates all private-key work
+ * to an IKeyCustodyBackend resolved through KeyCustodyAbstraction.
  *
- * All operations:
- * 1. Enforce algorithm policy BEFORE any crypto operation
- * 2. Use streaming APIs where openpgp.js supports them
- * 3. Record operation metadata for CryptoOperationRecord persistence
- * 4. Never log key material, passphrases, or payload content
+ * Responsibilities that remain here:
+ *  - Enforce CryptoAlgorithmPolicy on every operation that takes a
+ *    KeyRef (forbidden algorithms, expiry, state, environment)
+ *  - Build KeyReferenceInput from KeyRef for backend routing
+ *  - Choose detached vs inline sign/verify variants on the backend
+ *  - Route composite ops (signAndEncrypt, verifyAndDecrypt) through
+ *    the dispatcher's same-backend precondition checks
+ *  - Produce CryptoOperationMeta for audit persistence
  *
- * Sign-then-encrypt ordering is enforced: EFAIL mitigations require
- * signing before encryption (never encrypt-then-sign).
+ * Responsibilities delegated to the backend:
+ *  - Key material load from Vault KV v2 (private and public)
+ *  - openpgp.js calls with private material (sign, decrypt, composite)
+ *  - Zeroisation of private-material buffers
+ *
+ * Public-key-only verify (inline/clearsigned path) is done here using
+ * `backend.getPublicKey(...)` as the source of armored public material —
+ * no private key crosses the backend boundary for verify.
+ *
+ * Sign-then-encrypt ordering is non-negotiable (EFAIL mitigations). The
+ * composite backend implementation enforces this; the CryptoService
+ * layer only picks the correct dispatcher entry point.
+ *
+ * Known carry-over M2 quirks preserved in this refactor:
+ *  - `EncryptResult.encryptedPayloadRef` (and sibling fields) returns a
+ *    synthetic `encrypted/<id>/<opid>` path string, not the actual
+ *    ciphertext. The data-plane processor currently stores the path
+ *    string as if it were content (crypto.processor.ts:174-179 and
+ *    :462) — this is a real pipeline bug tagged for follow-up.
+ *  - `verify(payloadRef, ..., { detached: true })` treats payloadRef as
+ *    the armored signature and verifies against an empty message —
+ *    preserved semantics, flagged for API cleanup.
  */
 
-import * as openpgp from 'openpgp';
 import { randomUUID } from 'crypto';
+import * as openpgp from 'openpgp';
 import { SepError, ErrorCode } from '@sep/common';
 import { createLogger } from '@sep/observability';
 import { enforcePolicy } from './policy';
+import { KeyCustodyAbstraction } from './custody/key-custody-abstraction';
+import type {
+  KeyReferenceInput,
+  Ciphertext,
+  Signature,
+  Plaintext,
+} from './custody/i-key-custody-backend';
 import type {
   ICryptoService,
   CryptoAlgorithmPolicy,
@@ -37,6 +68,8 @@ import type {
 const logger = createLogger({ service: 'crypto', module: 'crypto-service' });
 
 export class CryptoService implements ICryptoService {
+  constructor(private readonly keyCustody: KeyCustodyAbstraction) {}
+
   async encrypt(
     payloadRef: string,
     recipientKey: KeyRef,
@@ -55,15 +88,11 @@ export class CryptoService implements ICryptoService {
     );
 
     try {
-      const publicKey = await this.readPublicKey(recipientKey.backendRef);
-      const message = await openpgp.createMessage({ text: payloadRef });
+      const ref = toKeyReferenceInput(recipientKey);
+      const backend = this.keyCustody.backendFor(ref);
+      const plaintext: Plaintext = Buffer.from(payloadRef, 'utf8');
+      const output = await backend.encryptForRecipient(ref, plaintext);
 
-      const encrypted = await openpgp.encrypt({
-        message,
-        encryptionKeys: publicKey,
-      });
-
-      const output = String(encrypted);
       const encryptedPayloadRef = `encrypted/${recipientKey.keyReferenceId}/${operationId}`;
       const meta = this.buildMeta(
         operationId,
@@ -104,15 +133,10 @@ export class CryptoService implements ICryptoService {
     const operationId = randomUUID();
 
     try {
-      const privateKey = await this.readPrivateKey(privateKeyRef.backendRef);
-      const message = await openpgp.readMessage({ armoredMessage: encryptedPayloadRef });
+      const ref = toKeyReferenceInput(privateKeyRef);
+      const backend = this.keyCustody.backendFor(ref);
+      const plaintext = await backend.decrypt(ref, encryptedPayloadRef as Ciphertext);
 
-      const { data } = await openpgp.decrypt({
-        message,
-        decryptionKeys: privateKey,
-      });
-
-      const output = String(data);
       const decryptedPayloadRef = `decrypted/${privateKeyRef.keyReferenceId}/${operationId}`;
       const meta = this.buildMeta(
         operationId,
@@ -120,7 +144,7 @@ export class CryptoService implements ICryptoService {
         privateKeyRef,
         start,
         encryptedPayloadRef.length,
-        output.length,
+        plaintext.length,
       );
 
       logger.info(
@@ -162,44 +186,37 @@ export class CryptoService implements ICryptoService {
     );
 
     try {
-      const privateKey = await this.readPrivateKey(signingKeyRef.backendRef);
-      const message = await openpgp.createMessage({ text: payloadRef });
+      const ref = toKeyReferenceInput(signingKeyRef);
+      const backend = this.keyCustody.backendFor(ref);
+      const payload = Buffer.from(payloadRef, 'utf8');
 
       if (options.detached) {
-        const signature = await openpgp.sign({
-          message,
-          signingKeys: privateKey,
-          detached: true,
-        });
-
-        const sigStr = String(signature);
-        const signedPayloadRef = payloadRef; // original payload unchanged for detached
+        const signature = await backend.signDetached(ref, payload);
         const detachedSignatureRef = `signatures/${signingKeyRef.keyReferenceId}/${operationId}`;
         const meta = this.buildMeta(
           operationId,
           'SIGN',
           signingKeyRef,
           start,
-          payloadRef.length,
-          sigStr.length,
+          payload.length,
+          signature.length,
         );
-
-        return { signedPayloadRef, detachedSignatureRef, meta };
+        return {
+          // Detached: payload is unchanged; signature lives at detachedSignatureRef
+          signedPayloadRef: payloadRef,
+          detachedSignatureRef,
+          meta,
+        };
       }
 
-      const signed = await openpgp.sign({
-        message,
-        signingKeys: privateKey,
-      });
-
-      const output = String(signed);
+      const output = await backend.signInline(ref, payload);
       const signedPayloadRef = `signed/${signingKeyRef.keyReferenceId}/${operationId}`;
       const meta = this.buildMeta(
         operationId,
         'SIGN',
         signingKeyRef,
         start,
-        payloadRef.length,
+        payload.length,
         output.length,
       );
 
@@ -233,29 +250,20 @@ export class CryptoService implements ICryptoService {
   ): Promise<VerifyResult> {
     const start = Date.now();
     const operationId = randomUUID();
+    const ref = toKeyReferenceInput(senderPublicKeyRef);
 
     try {
-      const publicKey = await this.readPublicKey(senderPublicKeyRef.backendRef);
-
       if (options.detached) {
-        const signature = await openpgp.readSignature({ armoredSignature: payloadRef });
-        const message = await openpgp.createMessage({ text: '' });
-
-        const verifyResult = await openpgp.verify({
-          message,
-          signature,
-          verificationKeys: publicKey,
-        });
-
-        let sigVerified = false;
-        if (verifyResult.signatures[0]) {
-          try {
-            await verifyResult.signatures[0].verified;
-            sigVerified = true;
-          } catch {
-            sigVerified = false;
-          }
-        }
+        // M2 carry-over quirk: detached verify here treats payloadRef as
+        // the armored signature and verifies against an empty message.
+        // Preserved verbatim; the true detached-verify API would take
+        // both payload and signature.
+        const backend = this.keyCustody.backendFor(ref);
+        const sigVerified = await backend.verifyDetached(
+          ref,
+          Buffer.alloc(0),
+          payloadRef as Signature,
+        );
 
         const meta = this.buildMeta(
           operationId,
@@ -267,13 +275,18 @@ export class CryptoService implements ICryptoService {
         );
         return {
           verified: sigVerified,
-          signerKeyFingerprint: publicKey.getFingerprint(),
+          signerKeyFingerprint: senderPublicKeyRef.fingerprint,
           signedAt: new Date(),
           meta,
         };
       }
 
-      // Inline/clearsigned verification
+      // Inline / clear-signed verification — public-key-only op. Fetch
+      // armored public material from the backend and run openpgp.verify
+      // locally. No private material crosses the backend boundary.
+      const backend = this.keyCustody.backendFor(ref);
+      const armoredPub = await backend.getPublicKey(ref);
+      const publicKey = await openpgp.readKey({ armoredKey: armoredPub });
       const message = await openpgp.readCleartextMessage({ cleartextMessage: payloadRef });
 
       const verifyResult = await openpgp.verify({
@@ -282,9 +295,10 @@ export class CryptoService implements ICryptoService {
       });
 
       let isVerified = false;
-      if (verifyResult.signatures[0]) {
+      const firstSig = verifyResult.signatures[0];
+      if (firstSig) {
         try {
-          await verifyResult.signatures[0].verified;
+          await firstSig.verified;
           isVerified = true;
         } catch {
           isVerified = false;
@@ -312,7 +326,7 @@ export class CryptoService implements ICryptoService {
 
       return {
         verified: isVerified,
-        signerKeyFingerprint: publicKey.getFingerprint(),
+        signerKeyFingerprint: senderPublicKeyRef.fingerprint,
         signedAt: new Date(),
         meta,
       };
@@ -344,7 +358,10 @@ export class CryptoService implements ICryptoService {
     _encryptOptions: EncryptOptions,
     policy: CryptoAlgorithmPolicy,
   ): Promise<SignEncryptResult> {
-    // Sign FIRST, then encrypt — EFAIL mitigation, ordering is non-negotiable
+    // Sign-then-encrypt ordering is enforced by the composite backend
+    // method itself (openpgp.encrypt with both encryptionKeys and
+    // signingKeys). Policy enforcement still runs up-front on both
+    // keys so a forbidden algorithm never reaches the backend.
     enforcePolicy(
       policy,
       signingKeyRef,
@@ -364,20 +381,16 @@ export class CryptoService implements ICryptoService {
     const operationId = randomUUID();
 
     try {
-      const privateKey = await this.readPrivateKey(signingKeyRef.backendRef);
-      const publicKey = await this.readPublicKey(recipientKey.backendRef);
-      const message = await openpgp.createMessage({ text: payloadRef });
+      const signingRef = toKeyReferenceInput(signingKeyRef);
+      const recipientRef = toKeyReferenceInput(recipientKey);
+      const plaintext: Plaintext = Buffer.from(payloadRef, 'utf8');
+      const output = await this.keyCustody.dispatchSignAndEncrypt(
+        signingRef,
+        recipientRef,
+        plaintext,
+      );
 
-      // Combined sign + encrypt in correct order
-      const encrypted = await openpgp.encrypt({
-        message,
-        encryptionKeys: publicKey,
-        signingKeys: privateKey,
-      });
-
-      const output = String(encrypted);
       const securedPayloadRef = `secured/${operationId}`;
-
       const signMeta = this.buildMeta(
         operationId + '-sign',
         'SIGN',
@@ -420,38 +433,29 @@ export class CryptoService implements ICryptoService {
     const operationId = randomUUID();
 
     try {
-      const privateKey = await this.readPrivateKey(privateKeyRef.backendRef);
-      const message = await openpgp.readMessage({ armoredMessage: securedPayloadRef });
+      const privateRef = toKeyReferenceInput(privateKeyRef);
 
-      const decryptParams: {
-        message: typeof message;
-        decryptionKeys: typeof privateKey;
-        verificationKeys?: openpgp.Key[];
-      } = {
-        message,
-        decryptionKeys: privateKey,
-      };
+      let plaintext: Plaintext;
+      let verificationResult: 'PASSED' | 'FAILED' | 'SKIPPED';
 
       if (senderPublicKeyRef !== null) {
-        decryptParams.verificationKeys = [await this.readPublicKey(senderPublicKeyRef.backendRef)];
+        // Composite: decrypt + embedded-signature verify. Dispatcher
+        // enforces both refs resolve to the same backend instance.
+        const senderRef = toKeyReferenceInput(senderPublicKeyRef);
+        const result = await this.keyCustody.dispatchDecryptAndVerify(
+          privateRef,
+          senderRef,
+          securedPayloadRef as Ciphertext,
+        );
+        plaintext = result.plaintext;
+        verificationResult = result.signatureValid ? 'PASSED' : 'FAILED';
+      } else {
+        // No sender key → decrypt only, verify skipped.
+        const backend = this.keyCustody.backendFor(privateRef);
+        plaintext = await backend.decrypt(privateRef, securedPayloadRef as Ciphertext);
+        verificationResult = 'SKIPPED';
       }
 
-      const { data, signatures } = await openpgp.decrypt(
-        decryptParams as Parameters<typeof openpgp.decrypt>[0],
-      );
-
-      let verificationResult: 'PASSED' | 'FAILED' | 'SKIPPED' = 'SKIPPED';
-      if (senderPublicKeyRef !== null && signatures.length > 0) {
-        try {
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- length check above guarantees index 0 exists
-          await signatures[0]!.verified;
-          verificationResult = 'PASSED';
-        } catch {
-          verificationResult = 'FAILED';
-        }
-      }
-
-      const output = String(data);
       const decryptedPayloadRef = `decrypted/${privateKeyRef.keyReferenceId}/${operationId}`;
       const decryptMeta = this.buildMeta(
         operationId + '-decrypt',
@@ -459,7 +463,7 @@ export class CryptoService implements ICryptoService {
         privateKeyRef,
         start,
         securedPayloadRef.length,
-        output.length,
+        plaintext.length,
       );
 
       logger.info(
@@ -474,7 +478,7 @@ export class CryptoService implements ICryptoService {
           'VERIFY',
           senderPublicKeyRef,
           start,
-          output.length,
+          plaintext.length,
           0,
         );
       }
@@ -492,14 +496,6 @@ export class CryptoService implements ICryptoService {
   }
 
   // ── Private helpers ─────────────────────────────────────────────
-
-  private async readPublicKey(armoredKey: string): Promise<openpgp.Key> {
-    return openpgp.readKey({ armoredKey });
-  }
-
-  private async readPrivateKey(armoredKey: string): Promise<openpgp.PrivateKey> {
-    return openpgp.readPrivateKey({ armoredKey });
-  }
 
   private buildMeta(
     operationId: string,
@@ -522,4 +518,15 @@ export class CryptoService implements ICryptoService {
       performedAt: new Date(),
     };
   }
+}
+
+function toKeyReferenceInput(keyRef: KeyRef): KeyReferenceInput {
+  return {
+    id: keyRef.keyReferenceId,
+    tenantId: keyRef.tenantId,
+    backendType: keyRef.backendType,
+    backendRef: keyRef.backendRef,
+    algorithm: keyRef.algorithm,
+    fingerprint: keyRef.fingerprint,
+  };
 }

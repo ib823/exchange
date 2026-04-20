@@ -126,8 +126,11 @@ export class KeyRetrievalService {
 
     const keyRef: KeyRef = {
       keyReferenceId: row.id,
+      tenantId: row.tenantId,
+      backendType: row.backendType as KeyRef['backendType'],
       backendRef: row.backendRef,
       algorithm: row.algorithm,
+      fingerprint: row.fingerprint,
       state: row.state as KeyRef['state'],
       allowedUsages: row.usage as KeyRef['allowedUsages'],
       revokedAt: row.revokedAt,

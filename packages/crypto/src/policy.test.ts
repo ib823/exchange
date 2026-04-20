@@ -6,8 +6,11 @@ import { ErrorCode } from '@sep/common';
 function makeKeyRef(overrides: Partial<KeyRef> = {}): KeyRef {
   return {
     keyReferenceId: 'key-001',
+    tenantId: 'tenant-A',
+    backendType: 'PLATFORM_VAULT',
     backendRef: 'secret/sep/keys/key-001',
     algorithm: 'rsa4096',
+    fingerprint: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
     state: 'ACTIVE',
     allowedUsages: ['ENCRYPT', 'DECRYPT', 'SIGN', 'VERIFY'],
     revokedAt: null,

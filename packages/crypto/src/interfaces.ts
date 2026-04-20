@@ -75,14 +75,30 @@ export const DEFAULT_ALGORITHM_POLICY: CryptoAlgorithmPolicy = {
 };
 
 // ── Key material references ────────────────────────────────────────────────────
-/** A reference to a key stored in the key backend — never the key itself */
+/**
+ * A reference to a key stored in the key backend — never the key itself.
+ *
+ * Carries enough structure for the CryptoService dispatcher to route to
+ * the right backend instance without a DB roundtrip: `tenantId` selects
+ * the TenantVaultBackend instance, `backendType` picks the backend class,
+ * `fingerprint` is pinned so a key substitution on the backend is caught
+ * before a crypto op runs. Callers (data-plane processors) populate these
+ * fields from the `KeyReference` row in the same query that resolves the
+ * key.
+ */
 export interface KeyRef {
   /** Key ID from key_references table */
   keyReferenceId: string;
+  /** Tenant that owns this key — must match the caller's tenant context */
+  tenantId: string;
+  /** Which backend class owns the material (Prisma KeyBackendType enum mirror) */
+  backendType: 'PLATFORM_VAULT' | 'TENANT_VAULT' | 'EXTERNAL_KMS' | 'SOFTWARE_LOCAL';
   /** Backend reference (Vault path, KMS key ID) — used internally only */
   backendRef: string;
   /** Algorithm hint — used to select correct openpgp options */
   algorithm: string;
+  /** Pinned public-key fingerprint for backend-load verification */
+  fingerprint: string;
   /** Key lifecycle state — must be ACTIVE for any crypto operation */
   state:
     | 'DRAFT'

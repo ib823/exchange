@@ -12,6 +12,14 @@ vi.mock('@sep/common', async () => {
     ...actual,
     getConfig: () => ({
       audit: { hashSecret: 'test-hash-secret-minimum-32-characters' },
+      // vault block consumed by services/key-custody-factory.ts
+      vault: {
+        addr: 'http://vault.test:8200',
+        token: 'test-token',
+        kvMount: 'kv',
+        transitMount: 'transit',
+        namespace: 'sep/',
+      },
     }),
   };
 });
@@ -26,6 +34,17 @@ vi.mock('@sep/crypto', () => ({
     resolveKey: vi.fn(),
   })),
   DEFAULT_ALGORITHM_POLICY: { allowedAlgorithms: ['rsa'] },
+  // Exports consumed by services/key-custody-factory.ts. CryptoService
+  // is mocked above so the KeyCustodyAbstraction it receives is never
+  // touched; these stubs exist only so the factory constructors don't
+  // throw during Processor setup.
+  VaultClient: vi.fn(),
+  KeyCustodyAbstraction: vi.fn(),
+  PlatformVaultBackend: vi.fn(),
+  TenantVaultBackend: vi.fn(),
+  ExternalKmsBackend: vi.fn(),
+  SoftwareLocalBackend: vi.fn(),
+  DEFAULT_VAULT_CLIENT_CONFIG: { requestTimeoutMs: 5_000, maxRetries: 3, initialBackoffMs: 100 },
 }));
 
 vi.mock('../services/armored-key-provider', () => ({
