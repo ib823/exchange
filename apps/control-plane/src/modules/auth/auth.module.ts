@@ -3,6 +3,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { getConfig } from '@sep/common';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
+import { LoginService } from './login.service';
 import { MfaSecretVaultService } from './mfa-secret-vault.service';
 import { MfaService } from './mfa.service';
 import { MfaController } from './mfa.controller';
@@ -21,8 +22,8 @@ const cfg = getConfig();
       verifyOptions: { algorithms: ['HS256'] },
     }),
   ],
-  providers: [AuthService, MfaSecretVaultService, MfaService],
+  providers: [AuthService, LoginService, MfaSecretVaultService, MfaService],
   controllers: [AuthController, MfaController],
-  exports: [AuthService, MfaSecretVaultService, MfaService],
+  exports: [AuthService, LoginService, MfaSecretVaultService, MfaService],
 })
 export class AuthModule {}

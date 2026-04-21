@@ -123,11 +123,7 @@ export class MfaService {
    * Phase 2: confirm the user can produce a valid TOTP code. On
    * success, activate MFA and issue 10 recovery codes.
    */
-  async activate(
-    userId: string,
-    tenantId: string,
-    totpCode: string,
-  ): Promise<MfaActivateResult> {
+  async activate(userId: string, tenantId: string, totpCode: string): Promise<MfaActivateResult> {
     return this.database.forTenant(tenantId, async (db) => {
       const user = await db.user.findUnique({
         where: { id: userId },

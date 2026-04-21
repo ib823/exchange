@@ -18,7 +18,9 @@ vi.mock('@sep/observability', () => ({
 
 function makeVault(overrides: Partial<VaultClient> = {}): VaultClient {
   return {
-    kvWrite: vi.fn().mockResolvedValue({ data: { version: 1, created_time: new Date().toISOString() } }),
+    kvWrite: vi
+      .fn()
+      .mockResolvedValue({ data: { version: 1, created_time: new Date().toISOString() } }),
     kvRead: vi.fn(),
     kvDestroyAllVersions: vi.fn().mockResolvedValue(undefined),
     ...overrides,
@@ -99,9 +101,9 @@ describe('MfaSecretVaultService', () => {
         kvRead: vi.fn().mockRejectedValue(new Error('not found')),
       });
       service = new MfaSecretVaultService(vault);
-      await expect(
-        service.retrieveSecret('platform/mfa-secrets/user-001'),
-      ).rejects.toMatchObject({ code: ErrorCode.KEY_BACKEND_UNAVAILABLE });
+      await expect(service.retrieveSecret('platform/mfa-secrets/user-001')).rejects.toMatchObject({
+        code: ErrorCode.KEY_BACKEND_UNAVAILABLE,
+      });
     });
   });
 
