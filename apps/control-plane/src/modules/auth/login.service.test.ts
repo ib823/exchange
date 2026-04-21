@@ -45,12 +45,10 @@ const mockAuthService = {
 };
 
 const mockRefreshTokenService = {
-  issue: vi
-    .fn()
-    .mockResolvedValue({
-      token: 'refresh-token-raw',
-      expiresAt: new Date(Date.now() + 86_400_000),
-    }),
+  issue: vi.fn().mockResolvedValue({
+    token: 'refresh-token-raw',
+    expiresAt: new Date(Date.now() + 86_400_000),
+  }),
 };
 
 vi.mock('@node-rs/argon2', () => ({
