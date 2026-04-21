@@ -26,6 +26,7 @@
     "@nestjs/throttler": "6.5.0",
     "@node-rs/argon2": "2.0.2",
     "@sep/common": "workspace:*",
+    "@sep/crypto": "workspace:*",
     "@sep/db": "workspace:*",
     "@sep/observability": "workspace:*",
     "@sep/partner-profiles": "workspace:*",

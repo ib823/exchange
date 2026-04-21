@@ -8,6 +8,8 @@
  * - Honour the approved algorithm policy — reject non-compliant profiles
  */
 
+import type { KeyUsage } from './custody/i-key-custody-backend';
+
 // ── Policy ─────────────────────────────────────────────────────────────────────
 export interface CryptoAlgorithmPolicy {
   /** Approved public-key algorithms e.g. ['rsa', 'ecdh'] */
@@ -75,14 +77,30 @@ export const DEFAULT_ALGORITHM_POLICY: CryptoAlgorithmPolicy = {
 };
 
 // ── Key material references ────────────────────────────────────────────────────
-/** A reference to a key stored in the key backend — never the key itself */
+/**
+ * A reference to a key stored in the key backend — never the key itself.
+ *
+ * Carries enough structure for the CryptoService dispatcher to route to
+ * the right backend instance without a DB roundtrip: `tenantId` selects
+ * the TenantVaultBackend instance, `backendType` picks the backend class,
+ * `fingerprint` is pinned so a key substitution on the backend is caught
+ * before a crypto op runs. Callers (data-plane processors) populate these
+ * fields from the `KeyReference` row in the same query that resolves the
+ * key.
+ */
 export interface KeyRef {
   /** Key ID from key_references table */
   keyReferenceId: string;
+  /** Tenant that owns this key — must match the caller's tenant context */
+  tenantId: string;
+  /** Which backend class owns the material (Prisma KeyBackendType enum mirror) */
+  backendType: 'PLATFORM_VAULT' | 'TENANT_VAULT' | 'EXTERNAL_KMS' | 'SOFTWARE_LOCAL';
   /** Backend reference (Vault path, KMS key ID) — used internally only */
   backendRef: string;
   /** Algorithm hint — used to select correct openpgp options */
   algorithm: string;
+  /** Pinned public-key fingerprint for backend-load verification */
+  fingerprint: string;
   /** Key lifecycle state — must be ACTIVE for any crypto operation */
   state:
     | 'DRAFT'
@@ -96,8 +114,22 @@ export interface KeyRef {
     | 'SUSPENDED'
     | 'COMPROMISED'
     | 'DESTROYED';
-  /** Operations this key is authorised for */
-  allowedUsages: Array<'ENCRYPT' | 'DECRYPT' | 'SIGN' | 'VERIFY'>;
+  /**
+   * Operations this key is authorised for.
+   *
+   * Vocabulary is the M3.A5 crypto-layer `KeyUsage` union — four
+   * values (`ENCRYPT | DECRYPT | SIGN | VERIFY`). The Prisma
+   * `KeyUsage` enum in `@sep/db` is wider: it also defines `WRAP`
+   * and `UNWRAP` for future key-wrapping flows the platform does
+   * not exercise today. `KeyRetrievalService.resolveKey` casts the
+   * six-value DB array into this four-value type — rows storing
+   * `WRAP` / `UNWRAP` silently drop those values at the crypto
+   * boundary. The vocabulary should be unified (either by dropping
+   * `WRAP`/`UNWRAP` from the Prisma enum or by widening KeyUsage
+   * here); see "Deferred follow-up items" in the PR body for the
+   * tracking pointer.
+   */
+  allowedUsages: readonly KeyUsage[];
   /** Revocation timestamp — if set, key must not be used */
   revokedAt: Date | null;
   /** Expiry — checked before any operation */

@@ -73,6 +73,18 @@ export const keyExpiryGauge = new Gauge({
   registers: [registry],
 });
 
+/**
+ * Fires once per (key, tier) the first time the expiry scanner raises
+ * an incident for it. Tier label is the threshold in days (7, 30, 90),
+ * severity label is the Incident severity assigned at that tier.
+ */
+export const keyExpiryWarningCounter = new Counter({
+  name: 'sep_key_expiry_warnings_total',
+  help: 'Key expiry warnings raised by the expiry scanner, bucketed by tier and severity',
+  labelNames: ['tier_days', 'severity', 'tenant_id'],
+  registers: [registry],
+});
+
 // ── RBAC metrics ──────────────────────────────────────────────────────────────
 export const rbacDeniedCounter = new Counter({
   name: 'sep_rbac_denied_total',

@@ -24,10 +24,12 @@
     "@aws-sdk/client-kms": "3.1031.0",
     "@sep/common": "workspace:*",
     "@sep/observability": "workspace:*",
-    "openpgp": "5.11.3"
+    "openpgp": "5.11.3",
+    "undici": "7.25.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
+    "msw": "2.13.4",
     "tsup": "^8.0.1",
     "typescript": "5.9.3",
     "vitest": "3.2.4",

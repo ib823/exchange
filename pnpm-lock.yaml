@@ -101,6 +101,9 @@ importers:
       '@sep/common':
         specifier: workspace:*
         version: link:../../packages/common
+      '@sep/crypto':
+        specifier: workspace:*
+        version: link:../../packages/crypto
       '@sep/db':
         specifier: workspace:*
         version: link:../../packages/db
@@ -417,6 +420,9 @@ importers:
       openpgp:
         specifier: 5.11.3
         version: 5.11.3
+      undici:
+        specifier: 7.25.0
+        version: 7.25.0
     devDependencies:
       '@types/node':
         specifier: ^20.11.0
@@ -433,6 +439,9 @@ importers:
       eslint-config-prettier:
         specifier: ^9.1.0
         version: 9.1.2(eslint@8.57.1)
+      msw:
+        specifier: 2.13.4
+        version: 2.13.4(@types/node@20.19.39)(typescript@5.9.3)
       tsup:
         specifier: ^8.0.1
         version: 8.5.1(jiti@1.21.7)(postcss@8.5.9)(typescript@5.9.3)(yaml@2.8.3)
@@ -623,6 +632,43 @@ importers:
       tsup:
         specifier: ^8.0.1
         version: 8.5.1(jiti@1.21.7)(postcss@8.5.9)(typescript@5.9.3)(yaml@2.8.3)
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(@types/node@20.19.39)(msw@2.13.4(@types/node@20.19.39)(typescript@5.9.3))(terser@5.46.1)
+
+  tests/integration/custody-conformance:
+    dependencies:
+      '@sep/common':
+        specifier: workspace:*
+        version: link:../../../packages/common
+      '@sep/crypto':
+        specifier: workspace:*
+        version: link:../../../packages/crypto
+      openpgp:
+        specifier: 5.11.3
+        version: 5.11.3
+      undici:
+        specifier: 7.25.0
+        version: 7.25.0
+    devDependencies:
+      '@types/node':
+        specifier: ^20.11.0
+        version: 20.19.39
+      '@typescript-eslint/eslint-plugin':
+        specifier: ^7.0.0
+        version: 7.18.0(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3)
+      '@typescript-eslint/parser':
+        specifier: ^7.0.0
+        version: 7.18.0(eslint@8.57.1)(typescript@5.9.3)
+      eslint:
+        specifier: ^8.57.0
+        version: 8.57.1
+      eslint-config-prettier:
+        specifier: ^9.1.0
+        version: 9.1.2(eslint@8.57.1)
       typescript:
         specifier: 5.9.3
         version: 5.9.3

@@ -12,6 +12,14 @@ vi.mock('@sep/common', async () => {
     ...actual,
     getConfig: () => ({
       audit: { hashSecret: 'test-hash-secret-minimum-32-characters' },
+      // vault block consumed by services/key-custody-factory.ts
+      vault: {
+        addr: 'http://vault.test:8200',
+        token: 'test-token',
+        kvMount: 'kv',
+        transitMount: 'transit',
+        namespace: 'sep/',
+      },
     }),
   };
 });
@@ -26,10 +34,17 @@ vi.mock('@sep/crypto', () => ({
     resolveKey: vi.fn(),
   })),
   DEFAULT_ALGORITHM_POLICY: { allowedAlgorithms: ['rsa'] },
-}));
-
-vi.mock('../services/armored-key-provider', () => ({
-  ArmoredKeyMaterialProvider: vi.fn(),
+  // Exports consumed by services/key-custody-factory.ts. CryptoService
+  // is mocked above so the KeyCustodyAbstraction it receives is never
+  // touched; these stubs exist only so the factory constructors don't
+  // throw during Processor setup.
+  VaultClient: vi.fn(),
+  KeyCustodyAbstraction: vi.fn(),
+  PlatformVaultBackend: vi.fn(),
+  TenantVaultBackend: vi.fn(),
+  ExternalKmsBackend: vi.fn(),
+  SoftwareLocalBackend: vi.fn(),
+  DEFAULT_VAULT_CLIENT_CONFIG: { requestTimeoutMs: 5_000, maxRetries: 3, initialBackoffMs: 100 },
 }));
 
 const mockObjectStorage = {
@@ -289,11 +304,12 @@ describe('InboundProcessor', () => {
     });
 
     // The processor constructs its own crypto/key services internally.
-    // With ArmoredKeyMaterialProvider mocked, the key resolution will fail
-    // before reaching decrypt. But the key point is that DECRYPT mode
-    // should never produce ACK_RECEIVED. We test this through the NONE-mode
-    // code path where verificationResult stays SKIPPED but messageSecurityMode
-    // is checked in the quarantine gate.
+    // The @sep/crypto mock replaces CryptoService and KeyRetrievalService
+    // with vi.fn mocks, so actual Vault wiring is bypassed. The point
+    // here is that DECRYPT mode should never produce ACK_RECEIVED;
+    // verified via the NONE-mode code path where verificationResult
+    // stays SKIPPED but messageSecurityMode is checked in the
+    // quarantine gate.
 
     // For this unit test, we verify the structural check: if somehow
     // verificationResult is SKIPPED with a non-NONE mode, it quarantines.
