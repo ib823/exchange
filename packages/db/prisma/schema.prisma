@@ -335,10 +335,25 @@ model RecoveryCode {
 // tenantId denormalized from creation for RLS single-column predicate.
 
 model RefreshToken {
-  id               String    @id @default(cuid())
-  tenantId         String
-  userId           String
-  tokenHash        String    @unique // argon2id of raw token
+  id       String @id @default(cuid())
+  tenantId String
+  userId   String
+  // M3.A4-T05: HMAC-SHA256 of the raw 256-bit token (NOT argon2id).
+  // The original schema comment said "argon2id of raw token" — that
+  // was the wrong choice for this column. Argon2id embeds a random
+  // salt so it produces a different hash each time; unique-index
+  // lookup by tokenHash is impossible. It is also designed to be
+  // slow to defend against offline brute-force of low-entropy
+  // passwords — not applicable to a 256-bit cryptographically-
+  // random token, which is brute-force infeasible regardless of the
+  // hash function's speed. HMAC-SHA256 is deterministic (unique-
+  // index lookup works) and cheap (no per-request slowdown), with
+  // identical resistance to offline attack against this input
+  // entropy. The HMAC key is loaded from Vault at control-plane
+  // boot (platform/auth/refresh-hmac-key); see M3.A4-T05 commit
+  // body for the full rationale. Keep this column on HMAC-SHA256 —
+  // do NOT "fix" it back to argon2id.
+  tokenHash        String    @unique
   issuedAt         DateTime  @default(now())
   expiresAt        DateTime
   usedAt           DateTime?
