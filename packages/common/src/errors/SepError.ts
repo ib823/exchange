@@ -77,6 +77,7 @@ export interface SepErrorContext {
   readonly field?: string;
   readonly issues?: ReadonlyArray<{ path: string; message: string }>;
   readonly backendType?: string;
+  readonly transportProtocol?: string;
 }
 
 export interface SepErrorJson {

@@ -42,6 +42,22 @@ const crossTenantActor = {
   email: 'eng@other.local',
 };
 
+// Minimal valid nested SFTP config — matches the shape the HTTP
+// CREATE flow writes (CreatePartnerProfileSchema in @sep/schemas)
+// and that the seed fixture uses. M3.A6's read-time validator
+// (parsePartnerProfileConfig) asserts `config.sftp` is present for
+// SFTP profiles.
+const validSftpConfig = {
+  sftp: {
+    host: 'sftp.bank.example',
+    port: 22,
+    username: 'sep-client',
+    hostKeyFingerprint: 'SHA256:abc123',
+    uploadPath: '/upload',
+    downloadPath: '/download',
+  },
+};
+
 const baseProfile = {
   id: 'profile-1',
   tenantId: 'tenant-1',
@@ -55,7 +71,7 @@ const baseProfile = {
   payloadContractRef: null,
   retryPolicyRef: null,
   keyPolicyRef: null,
-  config: {},
+  config: validSftpConfig,
   notes: null,
   effectiveDate: null,
   expiryDate: null,
@@ -118,6 +134,22 @@ describe('PartnerProfilesService', () => {
       await expect(service.findById('profile-missing', actor)).rejects.toThrow(
         'Partner profile not found',
       );
+    });
+
+    // M3.A6 NEW-04 — read-time config validation fails closed.
+    it('throws PARTNER_CONFIG_INVALID when SFTP profile has no sftp sub-object', async () => {
+      const malformed = { ...baseProfile, config: {} };
+      mockDb.partnerProfile.findUnique.mockResolvedValue(malformed);
+      await expect(service.findById('profile-1', actor)).rejects.toThrow('PARTNER_CONFIG_INVALID');
+    });
+
+    it('throws PARTNER_CONFIG_INVALID when nested sftp.host is empty', async () => {
+      const malformed = {
+        ...baseProfile,
+        config: { sftp: { ...validSftpConfig.sftp, host: '' } },
+      };
+      mockDb.partnerProfile.findUnique.mockResolvedValue(malformed);
+      await expect(service.findById('profile-1', actor)).rejects.toThrow('PARTNER_CONFIG_INVALID');
     });
   });
 
