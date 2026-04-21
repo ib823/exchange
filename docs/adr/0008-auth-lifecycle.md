@@ -258,8 +258,9 @@ rollback defeated the persistence of the new counter value.
 **Fix:** `LoginService.validatePassword` now runs three separate
 `forTenant` calls: Step 1 (read), Step 2 (failure UPDATE, only on
 wrong password — auto-commits before throw), Step 3 (success UPDATE
-+ token issuance). The atomic-CASE property survives; the commit
-boundary moves to the correct place.
+
+- token issuance). The atomic-CASE property survives; the commit
+  boundary moves to the correct place.
 
 **Detected by:** M3.A4-T06 Scenario 1 (15 parallel wrong-password
 → counter=10). First run showed counter=0, which is only possible

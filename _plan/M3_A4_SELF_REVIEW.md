@@ -293,13 +293,12 @@ have shipped both.
 with a dedicated `vitest.integration.config.ts` and a `test:integration`
 script. The unit runner excludes `**/*.integration.test.ts`; the
 integration runner opts in via `DATABASE_URL + RUNTIME_DATABASE_URL
-+ REDIS_URL` env vars (skipIf when missing). Rationale: the sibling
-`tests/integration/rls-negative-tests` pattern only works for
-library packages that expose a compiled `dist/` (it imports from
-`@sep/db`); reusing that layout for an integration suite that needs
+
+- REDIS_URL`env vars (skipIf when missing). Rationale: the sibling`tests/integration/rls-negative-tests`pattern only works for
+library packages that expose a compiled`dist/`(it imports from`@sep/db`); reusing that layout for an integration suite that needs
 `@sep/control-plane`'s NestJS services hits tsconfig rootDir issues
-because Nest apps don't expose a public TS API. Keeping the tests
-in-package sidesteps that cleanly.
+  because Nest apps don't expose a public TS API. Keeping the tests
+  in-package sidesteps that cleanly.
 
 **Scenarios shipped:**
 
@@ -386,13 +385,13 @@ issue TBD; logged in this doc in case it surfaces again.
    which endpoint the attacker hits).
 3. Load user's unconsumed `RecoveryCode` rows (argon2id-hashed).
 4. Walk them with `argon2Verify` until match or exhaustion.
-5a. Match: mark that code `usedAt`, reset Redis failure counter,
-    reset `failedLoginAttempts`, issue access + refresh tokens.
-5b. No match: INCR Redis counter
-    `sep:mfa-recovery-failures:<userId>` (TTL 30 min on first
-    failure), apply 1s delay at count=1, 5s at count=2, lock user
-    for 30 min at count=3. Throw `AUTH_RECOVERY_CODE_INVALID` or
-    `AUTH_ACCOUNT_LOCKED`.
+   5a. Match: mark that code `usedAt`, reset Redis failure counter,
+   reset `failedLoginAttempts`, issue access + refresh tokens.
+   5b. No match: INCR Redis counter
+   `sep:mfa-recovery-failures:<userId>` (TTL 30 min on first
+   failure), apply 1s delay at count=1, 5s at count=2, lock user
+   for 30 min at count=3. Throw `AUTH_RECOVERY_CODE_INVALID` or
+   `AUTH_ACCOUNT_LOCKED`.
 
 **Brute-force budget:** 3 guesses per 30-min sliding window. Recovery
 codes are 40 bits of entropy (8 base32 chars); 3 random guesses
@@ -433,11 +432,11 @@ a password match. Tighter budget is warranted.
 
 ### Updated test coverage
 
-| Suite                                    | Before | After | Delta |
-| ---------------------------------------- | ------ | ----- | ----- |
-| `@sep/control-plane` unit                | 135    | 157   | +22   |
-| `@sep/control-plane` integration (new)   | —      | 3     | +3    |
-| **Total unit + integration**             | 135    | 160   | +25   |
+| Suite                                  | Before | After | Delta |
+| -------------------------------------- | ------ | ----- | ----- |
+| `@sep/control-plane` unit              | 135    | 157   | +22   |
+| `@sep/control-plane` integration (new) | —      | 3     | +3    |
+| **Total unit + integration**           | 135    | 160   | +25   |
 
 All three originally-deferred gaps are now closed. No gaps remain
 beyond issue #36 (JWT secret rotation) which was deferred at session

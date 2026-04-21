@@ -56,7 +56,10 @@ const mockChallengeStore = {
 const mockRefreshTokenService = {
   issue: vi
     .fn()
-    .mockResolvedValue({ token: 'refresh-token-raw', expiresAt: new Date(Date.now() + 86_400_000) }),
+    .mockResolvedValue({
+      token: 'refresh-token-raw',
+      expiresAt: new Date(Date.now() + 86_400_000),
+    }),
 };
 
 // Minimal ioredis shim — only the ops MfaRecoverService uses.

@@ -41,15 +41,16 @@ const mockJwt = {
 };
 
 const mockAuthService = {
-  issueToken: vi
-    .fn()
-    .mockReturnValue({ accessToken: 'access-token', expiresIn: '15m' }),
+  issueToken: vi.fn().mockReturnValue({ accessToken: 'access-token', expiresIn: '15m' }),
 };
 
 const mockRefreshTokenService = {
   issue: vi
     .fn()
-    .mockResolvedValue({ token: 'refresh-token-raw', expiresAt: new Date(Date.now() + 86_400_000) }),
+    .mockResolvedValue({
+      token: 'refresh-token-raw',
+      expiresAt: new Date(Date.now() + 86_400_000),
+    }),
 };
 
 vi.mock('@node-rs/argon2', () => ({

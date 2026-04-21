@@ -37,7 +37,9 @@ const RecoverSchema = z.object({
   // enrollment; a case-insensitive compare would require normalising
   // before the argon2 walk, and users who copy-paste typically
   // preserve case.
-  recoveryCode: z.string().regex(/^[A-Z0-9]{8}$/, 'Recovery code must be 8 upper-case base32 chars'),
+  recoveryCode: z
+    .string()
+    .regex(/^[A-Z0-9]{8}$/, 'Recovery code must be 8 upper-case base32 chars'),
 });
 class RecoverDto extends createZodDto(RecoverSchema) {}
 
@@ -124,7 +126,10 @@ export class MfaController {
   @ApiOperation({
     summary: 'Complete MFA with a one-time recovery code (TOTP device lost / unavailable)',
   })
-  @ApiResponse({ status: 200, description: 'Access + refresh tokens issued; recovery code consumed' })
+  @ApiResponse({
+    status: 200,
+    description: 'Access + refresh tokens issued; recovery code consumed',
+  })
   @ApiResponse({
     status: 401,
     description:
