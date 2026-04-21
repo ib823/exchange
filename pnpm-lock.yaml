@@ -760,6 +760,46 @@ importers:
         specifier: 3.2.4
         version: 3.2.4(@types/node@20.19.39)(msw@2.13.4(@types/node@20.19.39)(typescript@5.9.3))(terser@5.46.1)
 
+  tests/simulators:
+    dependencies:
+      fastify:
+        specifier: 5.8.5
+        version: 5.8.5
+      ssh2:
+        specifier: 1.17.0
+        version: 1.17.0
+    devDependencies:
+      '@types/node':
+        specifier: ^20.11.0
+        version: 20.19.39
+      '@types/ssh2':
+        specifier: 1.15.4
+        version: 1.15.4
+      '@types/ssh2-sftp-client':
+        specifier: 9.0.4
+        version: 9.0.4
+      '@typescript-eslint/eslint-plugin':
+        specifier: ^7.0.0
+        version: 7.18.0(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3)
+      '@typescript-eslint/parser':
+        specifier: ^7.0.0
+        version: 7.18.0(eslint@8.57.1)(typescript@5.9.3)
+      eslint:
+        specifier: ^8.57.0
+        version: 8.57.1
+      eslint-config-prettier:
+        specifier: ^9.1.0
+        version: 9.1.2(eslint@8.57.1)
+      ssh2-sftp-client:
+        specifier: 12.0.0
+        version: 12.0.0
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(@types/node@20.19.39)(msw@2.13.4(@types/node@20.19.39)(typescript@5.9.3))(terser@5.46.1)
+
 packages:
 
   '@alloc/quick-lru@5.2.0':
@@ -3203,6 +3243,9 @@ packages:
   '@types/set-cookie-parser@2.4.10':
     resolution: {integrity: sha512-GGmQVGpQWUe5qglJozEjZV/5dyxbOOZ0LHe/lqyWssB88Y4svNfst0uqBVscdDeIKl5Jy5+aPSvy7mI9tYRguw==}
 
+  '@types/ssh2-sftp-client@9.0.4':
+    resolution: {integrity: sha512-gnIn56MTB9W3A3hPL/1sHI23t8YwcE3eVYa1O2XjT9vaqimFdtNHxyQiy5Y78+ociQTKazMSD8YyMEO4QjNMrg==}
+
   '@types/ssh2-sftp-client@9.0.6':
     resolution: {integrity: sha512-4+KvXO/V77y9VjI2op2T8+RCGI/GXQAwR0q5Qkj/EJ5YSeyKszqZP6F8i3H3txYoBqjc7sgorqyvBP3+w1EHyg==}
 
@@ -3211,6 +3254,9 @@ packages:
 
   '@types/ssh2@0.5.52':
     resolution: {integrity: sha512-lbLLlXxdCZOSJMCInKH2+9V/77ET2J6NPQHpFI0kda61Dd1KglJs+fPQBchizmzYSOJBgdTajhPqBO1xxLywvg==}
+
+  '@types/ssh2@1.15.4':
+    resolution: {integrity: sha512-9JTQgVBWSgq6mAen6PVnrAmty1lqgCMvpfN+1Ck5WRUsyMYPa6qd50/vMJ0y1zkGpOEgLzm8m8Dx/Y5vRouLaA==}
 
   '@types/ssh2@1.15.5':
     resolution: {integrity: sha512-N1ASjp/nXH3ovBHddRJpli4ozpk6UdDYIX4RJWFa9L1YKnzdhTlVmiGHm4DZnj/jLbqZpes4aeR30EFGQtvhQQ==}
@@ -6089,6 +6135,10 @@ packages:
 
   ssh-remote-port-forward@1.0.4:
     resolution: {integrity: sha512-x0LV1eVDwjf1gmG7TTnfqIzf+3VPRz7vrNIjX6oYLbeCrf/PeVY6hkT68Mg+q02qXxQhrLjB0jfgvhevoCRmLQ==}
+
+  ssh2-sftp-client@12.0.0:
+    resolution: {integrity: sha512-k+ocDsx6N2eDwQlIRwJFa0I1bkQpFPhIc+cv1iplaQaIPXFt9YM1ZnXCJOW4OILS5dzE+12OlhYIF5g0AzgVfg==}
+    engines: {node: '>=18.20.4'}
 
   ssh2-sftp-client@9.1.0:
     resolution: {integrity: sha512-Hzdr9OE6GxZjcmyM9tgBSIFVyrHAp9c6U2Y4yBkmYOHoQvZ7pIm27dmltvcmRfxcWiIcg8HBvG5iAikDf+ZuzQ==}
@@ -9499,13 +9549,13 @@ snapshots:
   '@types/docker-modem@3.0.6':
     dependencies:
       '@types/node': 20.19.39
-      '@types/ssh2': 1.15.5
+      '@types/ssh2': 1.15.4
 
   '@types/dockerode@4.0.1':
     dependencies:
       '@types/docker-modem': 3.0.6
       '@types/node': 20.19.39
-      '@types/ssh2': 1.15.5
+      '@types/ssh2': 1.15.4
 
   '@types/eslint-scope@3.7.7':
     dependencies:
@@ -9582,6 +9632,10 @@ snapshots:
     dependencies:
       '@types/node': 20.19.39
 
+  '@types/ssh2-sftp-client@9.0.4':
+    dependencies:
+      '@types/ssh2': 1.15.4
+
   '@types/ssh2-sftp-client@9.0.6':
     dependencies:
       '@types/ssh2': 1.15.5
@@ -9594,6 +9648,10 @@ snapshots:
     dependencies:
       '@types/node': 20.19.39
       '@types/ssh2-streams': 0.1.13
+
+  '@types/ssh2@1.15.4':
+    dependencies:
+      '@types/node': 18.19.130
 
   '@types/ssh2@1.15.5':
     dependencies:
@@ -12866,6 +12924,11 @@ snapshots:
   ssh-remote-port-forward@1.0.4:
     dependencies:
       '@types/ssh2': 0.5.52
+      ssh2: 1.17.0
+
+  ssh2-sftp-client@12.0.0:
+    dependencies:
+      concat-stream: 2.0.0
       ssh2: 1.17.0
 
   ssh2-sftp-client@9.1.0:
