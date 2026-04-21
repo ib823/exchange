@@ -1,12 +1,26 @@
 /**
  * Refresh token rotation + strict replay detection (M3.A4-T05).
  *
+ * Token format:
+ *   `<tenantId>.<base64url(32-byte random)>`
+ *   Example: `cabcdef1234567890abcdef.xvY3kQ...`
+ *
+ * The tenantId prefix is not a secret — the caller already knows
+ * their tenant from login. It lets refresh() route the lookup via
+ * forTenant(tenantId, ...) instead of needing a privileged cross-
+ * tenant SELECT. The runtime DB role (sep_app) has RLS forced, so a
+ * bare `forSystem().refreshToken.findUnique(...)` would return null
+ * (RLS filter evaluates tenantId = NULL). Embedding the tenantId in
+ * the token envelope keeps the lookup inside the normal tenant-
+ * scoped path.
+ *
  * Token lifecycle:
- *   issue — generate 256-bit random, hmac it, persist row, return
- *           the raw token to the caller. Raw token never touches
- *           the DB.
- *   refresh — lookup by hmac, validate state, mark usedAt, issue
- *             a new token with replacedById pointing at the old.
+ *   issue — generate 256-bit random, build `<tenantId>.<raw>`, hmac
+ *           the whole token, persist row, return the envelope to
+ *           the caller. Raw bytes never touch the DB.
+ *   refresh — parse tenantId prefix, look up by hmac inside
+ *             forTenant, validate state, mark usedAt, issue a new
+ *             token with replacedById pointing at the old.
  *   replay — if a token with usedAt != null is presented, this
  *            is a replay: the caller presented a token that was
  *            already exchanged. Revoke the entire chain (the
@@ -39,6 +53,7 @@ import { Injectable, Inject, UnauthorizedException } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import { DatabaseService, type Prisma } from '@sep/db';
 import { SepError, ErrorCode } from '@sep/common';
+import { CuidSchema } from '@sep/schemas';
 import { createLogger } from '@sep/observability';
 import { REFRESH_HMAC_KEY, hmacToken } from './refresh-hmac-key.provider';
 
@@ -46,6 +61,7 @@ const logger = createLogger({ service: 'control-plane', module: 'refresh-token' 
 
 const REFRESH_TOKEN_BYTES = 32; // 256 bits
 const REFRESH_TOKEN_TTL_DAYS = 30;
+const TOKEN_SEPARATOR = '.';
 
 export interface IssuedRefreshToken {
   /** The raw token — return to caller, never persist. */
@@ -77,7 +93,8 @@ export class RefreshTokenService {
     tenantId: string,
     userId: string,
   ): Promise<IssuedRefreshToken> {
-    const token = this.generateRawToken();
+    const rawBytes = this.generateRawBytes();
+    const token = `${tenantId}${TOKEN_SEPARATOR}${rawBytes}`;
     const tokenHash = hmacToken(token, this.hmacKey);
     const expiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_DAYS * 86_400_000);
     await tx.refreshToken.create({
@@ -98,24 +115,36 @@ export class RefreshTokenService {
    * directions is revoked, and the caller is forced to re-login.
    */
   async refresh(rawToken: string): Promise<RefreshResult> {
+    // Parse the `<tenantId>.<rawBytes>` envelope. Malformed or
+    // non-cuid tenantIds fail the same shape as "token not found"
+    // so an attacker probing with junk strings gets the same
+    // AUTH_REFRESH_TOKEN_INVALID response as one probing with
+    // well-formed but unregistered tokens.
+    const tenantId = this.extractTenantId(rawToken);
+    if (tenantId === null) {
+      throw new UnauthorizedException(
+        new SepError(
+          ErrorCode.AUTH_REFRESH_TOKEN_INVALID,
+          {},
+          'Refresh token not recognised',
+        ).toClientJson(),
+      );
+    }
+
     const tokenHash = hmacToken(rawToken, this.hmacKey);
-    // Cross-tenant lookup is necessary here — the caller presents
-    // only the raw token; we don't know the tenant until we find
-    // the row. This is the one auth path that legitimately uses
-    // forSystem(); every mutation inside the subsequent switch
-    // drops into forTenant() for RLS scoping.
-    const systemDb = this.database.forSystem();
-    const row = await systemDb.refreshToken.findUnique({
-      where: { tokenHash },
-      select: {
-        id: true,
-        tenantId: true,
-        userId: true,
-        expiresAt: true,
-        usedAt: true,
-        revokedAt: true,
-      },
-    });
+    const row = await this.database.forTenant(tenantId, async (tx) =>
+      tx.refreshToken.findUnique({
+        where: { tokenHash },
+        select: {
+          id: true,
+          tenantId: true,
+          userId: true,
+          expiresAt: true,
+          usedAt: true,
+          revokedAt: true,
+        },
+      }),
+    );
 
     if (row === null) {
       throw new UnauthorizedException(
@@ -193,9 +222,8 @@ export class RefreshTokenService {
    * detection.
    *
    * Runs inside forTenant(tenantId, ...) so RLS is enforced. The
-   * caller supplies `tenantId` from the presented row, which we
-   * already read via forSystem() and know to be the row's true
-   * tenant — so this is not a cross-tenant escalation.
+   * caller supplies `tenantId` from the presented row, which is the
+   * row's true tenant — so this is not a cross-tenant escalation.
    */
   private async revokeChain(tenantId: string, rootTokenId: string): Promise<void> {
     await this.database.forTenant(tenantId, async (tx) => {
@@ -248,7 +276,25 @@ export class RefreshTokenService {
     });
   }
 
-  private generateRawToken(): string {
+  private generateRawBytes(): string {
     return randomBytes(REFRESH_TOKEN_BYTES).toString('base64url');
+  }
+
+  /**
+   * Parse the `<tenantId>.<rawBytes>` envelope; return null on
+   * malformed input (shape mismatch, non-cuid prefix, empty bytes).
+   * Shape failures map to AUTH_REFRESH_TOKEN_INVALID so an attacker
+   * cannot distinguish "malformed" from "unknown" responses.
+   */
+  private extractTenantId(rawToken: string): string | null {
+    const sepIndex = rawToken.indexOf(TOKEN_SEPARATOR);
+    if (sepIndex <= 0 || sepIndex === rawToken.length - 1) {
+      return null;
+    }
+    const candidate = rawToken.slice(0, sepIndex);
+    if (!CuidSchema.safeParse(candidate).success) {
+      return null;
+    }
+    return candidate;
   }
 }

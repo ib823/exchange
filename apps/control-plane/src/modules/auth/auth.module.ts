@@ -12,6 +12,7 @@ import { MfaService } from './mfa.service';
 import { MfaController } from './mfa.controller';
 import { MfaChallengeStore, REDIS_CLIENT } from './mfa-challenge-store.service';
 import { MfaVerifyService } from './mfa-verify.service';
+import { MfaRecoverService } from './mfa-recover.service';
 import { REFRESH_HMAC_KEY, loadRefreshHmacKey } from './refresh-hmac-key.provider';
 import { RefreshTokenService } from './refresh-token.service';
 
@@ -36,6 +37,7 @@ const cfg = getConfig();
     MfaService,
     MfaChallengeStore,
     MfaVerifyService,
+    MfaRecoverService,
     RefreshTokenService,
     {
       provide: REDIS_CLIENT,
@@ -62,6 +64,7 @@ const cfg = getConfig();
     MfaSecretVaultService,
     MfaService,
     MfaVerifyService,
+    MfaRecoverService,
     RefreshTokenService,
   ],
 })

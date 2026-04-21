@@ -13,10 +13,21 @@
  *   CASE expressions deriving the new values from the pre-image of
  *   failedLoginAttempts + lastFailedAt. No read-check-write decomp.
  *   Parallel wrong-password requests against the same row all land
- *   on the same transaction; Postgres serialises row-level locks
- *   under UPDATE, so the 10th concurrent attempt sees the counter
- *   at 9 and transitions to 10 atomically — never two parallel
+ *   on the row-level lock Postgres takes under UPDATE; serialised
+ *   execution means the 10th concurrent attempt sees the counter at
+ *   9 and transitions to 10 atomically — never two parallel
  *   "counter was 9, set to 10" races that both issue a token.
+ *
+ * Transaction boundary — why THREE forTenant calls, not one:
+ *   If the failed-login UPDATE and the subsequent `throw` shared a
+ *   transaction, the throw would roll back the UPDATE and the
+ *   counter would never increment. The fix is to run the bookkeeping
+ *   UPDATE in its OWN forTenant (auto-commits on callback return),
+ *   THEN throw AUTH_INVALID_CREDENTIALS. Step 1 (user lookup),
+ *   Step 2 (failed-login UPDATE, only on invalid pw), and Step 3
+ *   (success update + token issuance) are therefore three separate
+ *   transactions. Caught by M3.A4-T06 integration test —
+ *   mock-based unit tests cannot surface this.
  *
  * Error discipline:
  *   - Wrong email AND wrong password both return AUTH_INVALID_CREDENTIALS
@@ -52,6 +63,7 @@ import { DatabaseService, type Prisma } from '@sep/db';
 import { SepError, ErrorCode, getConfig } from '@sep/common';
 import { createLogger } from '@sep/observability';
 import { AuthService, type AuthTokens, type TokenPayload } from './auth.service';
+import { RefreshTokenService, type IssuedRefreshToken } from './refresh-token.service';
 
 const logger = createLogger({ service: 'control-plane', module: 'login' });
 
@@ -65,7 +77,12 @@ export interface MfaChallengeToken {
   readonly expiresIn: string;
 }
 
-export type LoginResult = AuthTokens | MfaChallengeToken;
+/** Access token + refresh envelope returned on no-MFA password success. */
+export interface AuthTokensWithRefresh extends AuthTokens {
+  readonly refreshToken: IssuedRefreshToken;
+}
+
+export type LoginResult = AuthTokensWithRefresh | MfaChallengeToken;
 
 export function isMfaChallenge(result: LoginResult): result is MfaChallengeToken {
   return 'mfaChallengeToken' in result;
@@ -82,11 +99,17 @@ export class LoginService {
     private readonly database: DatabaseService,
     private readonly jwtService: JwtService,
     private readonly authService: AuthService,
+    private readonly refreshTokenService: RefreshTokenService,
   ) {}
 
   async validatePassword(tenantId: string, email: string, password: string): Promise<LoginResult> {
-    return this.database.forTenant(tenantId, async (tx) => {
-      const user = await tx.user.findUnique({
+    // Step 1 (read-only): look up the user under RLS. A ready-to-throw
+    // exception is accumulated rather than thrown immediately so that
+    // any bookkeeping write (the failed-login UPDATE) can be committed
+    // in its own tx afterwards — throwing inside forTenant would
+    // roll back the UPDATE and defeat the lockout counter.
+    const user = await this.database.forTenant(tenantId, async (tx) =>
+      tx.user.findUnique({
         where: { tenantId_email: { tenantId, email } },
         select: {
           id: true,
@@ -98,49 +121,62 @@ export class LoginService {
           lockedUntil: true,
           roleAssignments: { select: { role: true }, take: 1 },
         },
-      });
+      }),
+    );
 
-      // User not found OR has no password hash: indistinguishable
-      // response to the caller. Lockout counter NOT incremented —
-      // nothing to key it on without a user row.
-      if (user?.passwordHash === null || user?.passwordHash === undefined) {
-        logger.info({ tenantId }, 'Login failed: no user or no password set');
-        throw new UnauthorizedException(
-          new SepError(
-            ErrorCode.AUTH_INVALID_CREDENTIALS,
-            {},
-            'Invalid email or password',
-          ).toClientJson(),
-        );
-      }
+    // User not found OR has no password hash: indistinguishable
+    // response to the caller. Lockout counter NOT incremented —
+    // nothing to key it on without a user row.
+    if (user?.passwordHash === null || user?.passwordHash === undefined) {
+      logger.info({ tenantId }, 'Login failed: no user or no password set');
+      throw new UnauthorizedException(
+        new SepError(
+          ErrorCode.AUTH_INVALID_CREDENTIALS,
+          {},
+          'Invalid email or password',
+        ).toClientJson(),
+      );
+    }
 
-      // Locked accounts short-circuit before password check. Keeps
-      // the atomic UPDATE simple (no "already locked" branch) and
-      // gives the user a distinct error code so they know to wait.
-      if (user.lockedUntil !== null && user.lockedUntil > new Date()) {
-        throw new UnauthorizedException(
-          new SepError(
-            ErrorCode.AUTH_ACCOUNT_LOCKED,
-            { lockedUntil: user.lockedUntil.toISOString() },
-            `Account is temporarily locked until ${user.lockedUntil.toISOString()}`,
-          ).toClientJson(),
-        );
-      }
+    // Locked accounts short-circuit before password check. Keeps
+    // the atomic UPDATE simple (no "already locked" branch) and
+    // gives the user a distinct error code so they know to wait.
+    if (user.lockedUntil !== null && user.lockedUntil > new Date()) {
+      throw new UnauthorizedException(
+        new SepError(
+          ErrorCode.AUTH_ACCOUNT_LOCKED,
+          { lockedUntil: user.lockedUntil.toISOString() },
+          `Account is temporarily locked until ${user.lockedUntil.toISOString()}`,
+        ).toClientJson(),
+      );
+    }
 
-      const valid = await argon2Verify(user.passwordHash, password);
+    const valid = await argon2Verify(user.passwordHash, password);
 
-      if (!valid) {
-        await this.applyFailedLoginUpdate(tx, user.id);
-        throw new UnauthorizedException(
-          new SepError(
-            ErrorCode.AUTH_INVALID_CREDENTIALS,
-            {},
-            'Invalid email or password',
-          ).toClientJson(),
-        );
-      }
+    // Step 2 (bookkeeping write): the failed-login UPDATE must commit
+    // even though we're about to throw AUTH_INVALID_CREDENTIALS. Running
+    // it inside Step 1's forTenant + throwing would roll it back — so
+    // we open a FRESH forTenant here. The UPDATE auto-commits when
+    // this callback returns, then we throw.
+    if (!valid) {
+      await this.database.forTenant(user.tenantId, (tx) =>
+        this.applyFailedLoginUpdate(tx, user.id),
+      );
+      throw new UnauthorizedException(
+        new SepError(
+          ErrorCode.AUTH_INVALID_CREDENTIALS,
+          {},
+          'Invalid email or password',
+        ).toClientJson(),
+      );
+    }
 
-      // Success path: clear counter/lock, record login timestamp.
+    // Step 3 (success write): clear counter/lock, record login
+    // timestamp, and (for the no-MFA path) mint a refresh token in
+    // the SAME transaction so the refresh row is visible the instant
+    // the caller gets back the raw token. The MFA branch defers
+    // refresh issuance to MfaVerifyService after successful TOTP.
+    return this.database.forTenant(user.tenantId, async (tx) => {
       await tx.user.update({
         where: { id: user.id },
         data: { failedLoginAttempts: 0, lockedUntil: null, lastLoginAt: new Date() },
@@ -157,7 +193,9 @@ export class LoginService {
         role,
         email: user.email,
       };
-      return this.authService.issueToken(payload);
+      const accessTokens = this.authService.issueToken(payload);
+      const refreshToken = await this.refreshTokenService.issue(tx, user.tenantId, user.id);
+      return { ...accessTokens, refreshToken };
     });
   }
 

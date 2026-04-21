@@ -134,7 +134,11 @@ describe('MfaService', () => {
         data: { mfaEnrolledAt: expect.any(Date) },
       });
       expect(mockRecoveryCode.createMany).toHaveBeenCalledTimes(1);
-      const insertedRows = mockRecoveryCode.createMany.mock.calls[0][0].data;
+      const firstCreateManyCall = mockRecoveryCode.createMany.mock.calls[0];
+      if (firstCreateManyCall === undefined) {
+        throw new Error('expected createMany to have been called');
+      }
+      const insertedRows = firstCreateManyCall[0].data;
       expect(insertedRows).toHaveLength(10);
       // Each inserted row carries an argon2-hashed codeHash
       for (const row of insertedRows) {

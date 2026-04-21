@@ -46,6 +46,12 @@ const mockAuthService = {
     .mockReturnValue({ accessToken: 'access-token', expiresIn: '15m' }),
 };
 
+const mockRefreshTokenService = {
+  issue: vi
+    .fn()
+    .mockResolvedValue({ token: 'refresh-token-raw', expiresAt: new Date(Date.now() + 86_400_000) }),
+};
+
 vi.mock('@node-rs/argon2', () => ({
   verify: vi.fn(),
 }));
@@ -58,8 +64,17 @@ describe('LoginService', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    service = new LoginService(mockDb as any, mockJwt as any, mockAuthService as any);
+    service = new LoginService(
+      mockDb as any,
+      mockJwt as any,
+      mockAuthService as any,
+      mockRefreshTokenService as any,
+    );
     mockTx.$queryRaw.mockResolvedValue([{ failedLoginAttempts: 1, lockedUntil: null }]);
+    mockRefreshTokenService.issue.mockResolvedValue({
+      token: 'refresh-token-raw',
+      expiresAt: new Date(Date.now() + 86_400_000),
+    });
   });
 
   it('returns AUTH_INVALID_CREDENTIALS when user not found', async () => {
@@ -118,7 +133,7 @@ describe('LoginService', () => {
     expect(mockTx.$queryRaw).toHaveBeenCalledTimes(1);
   });
 
-  it('issues access token on correct password with no MFA', async () => {
+  it('issues access + refresh tokens on correct password with no MFA', async () => {
     mockUser.findUnique.mockResolvedValue({
       id: 'u-1',
       tenantId: 't-1',
@@ -130,8 +145,16 @@ describe('LoginService', () => {
     });
     (argon2Verify as any).mockResolvedValue(true);
 
-    const result = await service.validatePassword('t-1', 'a@b.com', 'correct');
-    expect(result).toEqual({ accessToken: 'access-token', expiresIn: '15m' });
+    const result = (await service.validatePassword('t-1', 'a@b.com', 'correct')) as {
+      accessToken: string;
+      expiresIn: string;
+      refreshToken: { token: string; expiresAt: Date };
+    };
+    expect(result.accessToken).toBe('access-token');
+    expect(result.expiresIn).toBe('15m');
+    expect(result.refreshToken.token).toBe('refresh-token-raw');
+    expect(result.refreshToken.expiresAt).toBeInstanceOf(Date);
+    expect(mockRefreshTokenService.issue).toHaveBeenCalledWith(mockTx, 't-1', 'u-1');
     expect(mockUser.update).toHaveBeenCalledWith({
       where: { id: 'u-1' },
       data: expect.objectContaining({ failedLoginAttempts: 0, lockedUntil: null }),

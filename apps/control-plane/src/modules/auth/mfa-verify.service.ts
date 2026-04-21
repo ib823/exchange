@@ -28,6 +28,7 @@ import { createLogger } from '@sep/observability';
 import { AuthService, type AuthTokens, type TokenPayload } from './auth.service';
 import { MfaChallengeStore } from './mfa-challenge-store.service';
 import { MfaSecretVaultService } from './mfa-secret-vault.service';
+import { RefreshTokenService, type IssuedRefreshToken } from './refresh-token.service';
 
 const logger = createLogger({ service: 'control-plane', module: 'mfa-verify' });
 
@@ -48,9 +49,13 @@ export class MfaVerifyService {
     private readonly authService: AuthService,
     private readonly challengeStore: MfaChallengeStore,
     private readonly mfaVault: MfaSecretVaultService,
+    private readonly refreshTokenService: RefreshTokenService,
   ) {}
 
-  async verify(challengeToken: string, totpCode: string): Promise<AuthTokens> {
+  async verify(
+    challengeToken: string,
+    totpCode: string,
+  ): Promise<AuthTokens & { readonly refreshToken: IssuedRefreshToken }> {
     const cfg = getConfig();
     let payload: MfaChallengeJwtPayload;
     try {
@@ -148,11 +153,14 @@ export class MfaVerifyService {
         email: user.email,
       };
 
+      const accessTokens = this.authService.issueToken(tokenPayload);
+      const refreshToken = await this.refreshTokenService.issue(tx, user.tenantId, user.id);
+
       logger.info(
         { userId: user.id, tenantId: user.tenantId },
-        'MFA challenge completed, access token issued',
+        'MFA challenge completed, access + refresh tokens issued',
       );
-      return this.authService.issueToken(tokenPayload);
+      return { ...accessTokens, refreshToken };
     });
   }
 }
