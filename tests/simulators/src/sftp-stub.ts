@@ -20,7 +20,12 @@
  *   await sftp.close();
  */
 
-import { Server as Ssh2Server, utils as ssh2Utils, type AuthContext, type ServerChannel } from 'ssh2';
+import {
+  Server as Ssh2Server,
+  utils as ssh2Utils,
+  type AuthContext,
+  type ServerChannel,
+} from 'ssh2';
 
 export interface SftpStub {
   /** Listening port — pass to the connector as host port. */
@@ -46,47 +51,44 @@ export async function startSftpStub(): Promise<SftpStub> {
   const hostKey = generateHostKey();
 
   return new Promise<SftpStub>((resolve, reject) => {
-    const server = new Ssh2Server(
-      { hostKeys: [hostKey] },
-      (client) => {
-        client.on('authentication', (ctx: AuthContext) => ctx.accept());
-        client.on('ready', () => {
-          client.on('session', (accept) => {
-            const session = accept();
-            session.on('sftp', (acceptSftp) => {
-              const sftp = acceptSftp();
-              const openHandles = new Map<number, { path: string; chunks: Buffer[] }>();
-              let nextHandle = 1;
-              sftp.on('OPEN', (reqid, filename) => {
-                const handle = nextHandle;
-                nextHandle += 1;
-                openHandles.set(handle, { path: filename, chunks: [] });
-                const buf = Buffer.alloc(4);
-                buf.writeUInt32BE(handle, 0);
-                sftp.handle(reqid, buf);
-              });
-              sftp.on('WRITE', (reqid, handleBuf, _offset, data) => {
-                const handle = handleBuf.readUInt32BE(0);
-                const entry = openHandles.get(handle);
-                if (entry !== undefined) {
-                  entry.chunks.push(Buffer.from(data));
-                }
-                sftp.status(reqid, 0 /* OK */);
-              });
-              sftp.on('CLOSE', (reqid, handleBuf) => {
-                const handle = handleBuf.readUInt32BE(0);
-                const entry = openHandles.get(handle);
-                if (entry !== undefined) {
-                  uploads.set(entry.path, Buffer.concat(entry.chunks));
-                  openHandles.delete(handle);
-                }
-                sftp.status(reqid, 0);
-              });
+    const server = new Ssh2Server({ hostKeys: [hostKey] }, (client) => {
+      client.on('authentication', (ctx: AuthContext) => ctx.accept());
+      client.on('ready', () => {
+        client.on('session', (accept) => {
+          const session = accept();
+          session.on('sftp', (acceptSftp) => {
+            const sftp = acceptSftp();
+            const openHandles = new Map<number, { path: string; chunks: Buffer[] }>();
+            let nextHandle = 1;
+            sftp.on('OPEN', (reqid, filename) => {
+              const handle = nextHandle;
+              nextHandle += 1;
+              openHandles.set(handle, { path: filename, chunks: [] });
+              const buf = Buffer.alloc(4);
+              buf.writeUInt32BE(handle, 0);
+              sftp.handle(reqid, buf);
+            });
+            sftp.on('WRITE', (reqid, handleBuf, _offset, data) => {
+              const handle = handleBuf.readUInt32BE(0);
+              const entry = openHandles.get(handle);
+              if (entry !== undefined) {
+                entry.chunks.push(Buffer.from(data));
+              }
+              sftp.status(reqid, 0 /* OK */);
+            });
+            sftp.on('CLOSE', (reqid, handleBuf) => {
+              const handle = handleBuf.readUInt32BE(0);
+              const entry = openHandles.get(handle);
+              if (entry !== undefined) {
+                uploads.set(entry.path, Buffer.concat(entry.chunks));
+                openHandles.delete(handle);
+              }
+              sftp.status(reqid, 0);
             });
           });
         });
-      },
-    );
+      });
+    });
     server.listen(0, '127.0.0.1', () => {
       const address = server.address();
       if (address === null || typeof address === 'string') {

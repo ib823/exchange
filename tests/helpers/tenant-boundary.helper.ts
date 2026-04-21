@@ -68,8 +68,6 @@ export async function assertTenantBoundaryEnforced(
   const body = attackerResponse.body as SepErrorResponseBody;
   const code = body.error?.code;
   if (code !== 'TENANT_BOUNDARY_VIOLATION' && code !== 'RBAC_INSUFFICIENT_ROLE') {
-    throw new Error(
-      `Expected TENANT_BOUNDARY_VIOLATION error code, got: ${code ?? 'none'}`,
-    );
+    throw new Error(`Expected TENANT_BOUNDARY_VIOLATION error code, got: ${code ?? 'none'}`);
   }
 }

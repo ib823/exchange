@@ -800,6 +800,76 @@ importers:
         specifier: 3.2.4
         version: 3.2.4(@types/node@20.19.39)(msw@2.13.4(@types/node@20.19.39)(typescript@5.9.3))(terser@5.46.1)
 
+  tests/threat-scenarios:
+    dependencies:
+      '@nestjs/common':
+        specifier: 11.1.18
+        version: 11.1.18(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/core':
+        specifier: 11.1.18
+        version: 11.1.18(@nestjs/common@11.1.18(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/jwt':
+        specifier: 11.0.2
+        version: 11.0.2(@nestjs/common@11.1.18(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))
+      '@nestjs/platform-fastify':
+        specifier: 11.1.18
+        version: 11.1.18(@nestjs/common@11.1.18(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.18(@nestjs/common@11.1.18(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2))
+      '@nestjs/testing':
+        specifier: ^11.1.18
+        version: 11.1.18(@nestjs/common@11.1.18(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.18(@nestjs/common@11.1.18(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2))
+      '@node-rs/argon2':
+        specifier: 2.0.2
+        version: 2.0.2
+      '@prisma/client':
+        specifier: 5.22.0
+        version: 5.22.0(prisma@5.22.0)
+      '@sep/common':
+        specifier: workspace:*
+        version: link:../../packages/common
+      '@sep/crypto':
+        specifier: workspace:*
+        version: link:../../packages/crypto
+      '@sep/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@sep/schemas':
+        specifier: workspace:*
+        version: link:../../packages/schemas
+      '@sep/simulators':
+        specifier: workspace:*
+        version: link:../simulators
+      ioredis:
+        specifier: 5.4.1
+        version: 5.4.1
+      jsonwebtoken:
+        specifier: 9.0.2
+        version: 9.0.2
+    devDependencies:
+      '@types/jsonwebtoken':
+        specifier: 9.0.10
+        version: 9.0.10
+      '@types/node':
+        specifier: ^20.11.0
+        version: 20.19.39
+      '@typescript-eslint/eslint-plugin':
+        specifier: ^7.0.0
+        version: 7.18.0(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3)
+      '@typescript-eslint/parser':
+        specifier: ^7.0.0
+        version: 7.18.0(eslint@8.57.1)(typescript@5.9.3)
+      eslint:
+        specifier: ^8.57.0
+        version: 8.57.1
+      eslint-config-prettier:
+        specifier: ^9.1.0
+        version: 9.1.2(eslint@8.57.1)
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(@types/node@20.19.39)(msw@2.13.4(@types/node@20.19.39)(typescript@5.9.3))(terser@5.46.1)
+
 packages:
 
   '@alloc/quick-lru@5.2.0':
