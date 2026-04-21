@@ -92,8 +92,26 @@ const ConfigSchema = z.object({
   }),
 
   rateLimit: z.object({
+    // Default throttler — per-API-key (or per-IP for anon). Plan §5
+    // M3.A7-T02: 1000 req/min per authenticated caller.
     ttlMs: z.coerce.number().int().positive().default(60_000),
-    maxPerWindow: z.coerce.number().int().positive().default(100),
+    maxPerWindow: z.coerce.number().int().positive().default(1_000),
+    // Per-endpoint overrides (M3.A7-T02). Login + MFA-verify get
+    // tighter quotas because they're high-value auth flows.
+    authLoginTtlMs: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(15 * 60_000), // 15 minutes
+    authLoginLimit: z.coerce.number().int().positive().default(5),
+    mfaVerifyTtlMs: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(5 * 60_000), // 5 minutes
+    mfaVerifyLimit: z.coerce.number().int().positive().default(3),
+    // Historical: submission-max per window (used by the submission
+    // service rate-limit probe, separate from tenant daily quota in T03).
     submissionMax: z.coerce.number().int().positive().default(50),
   }),
 
@@ -223,6 +241,10 @@ function loadConfig(): AppConfig {
     rateLimit: {
       ttlMs: process.env['RATE_LIMIT_TTL_MS'],
       maxPerWindow: process.env['RATE_LIMIT_MAX_PER_WINDOW'],
+      authLoginTtlMs: process.env['RATE_LIMIT_AUTH_LOGIN_TTL_MS'],
+      authLoginLimit: process.env['RATE_LIMIT_AUTH_LOGIN_LIMIT'],
+      mfaVerifyTtlMs: process.env['RATE_LIMIT_MFA_VERIFY_TTL_MS'],
+      mfaVerifyLimit: process.env['RATE_LIMIT_MFA_VERIFY_LIMIT'],
       submissionMax: process.env['RATE_LIMIT_SUBMISSION_MAX'],
     },
     webhook: {
