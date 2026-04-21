@@ -20,6 +20,7 @@ export interface SepErrorContext {
   readonly operation?: string;
   readonly action?: string;
   readonly expiresAt?: string;
+  readonly lockedUntil?: string;
   readonly initiatorId?: string;
   readonly actorId?: string;
   readonly approverId?: string;

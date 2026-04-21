@@ -7,6 +7,11 @@ export default defineConfig({
     globals: true,
 
     environment: 'node',
+    // Integration tests (*.integration.test.ts) run in a separate vitest
+    // config (vitest.integration.config.ts) with env-var gating for real
+    // Postgres / Redis. Exclude from the default unit run so `pnpm test`
+    // stays offline-safe.
+    exclude: ['**/node_modules/**', '**/dist/**', '**/*.integration.test.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

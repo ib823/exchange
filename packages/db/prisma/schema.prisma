@@ -245,6 +245,7 @@ model Tenant {
   deliveryAttempts        DeliveryAttempt[]
   webhookDeliveryAttempts WebhookDeliveryAttempt[]
   refreshTokens           RefreshToken[]
+  recoveryCodes           RecoveryCode[]
 
   @@index([status])
   @@map("tenants")
@@ -263,12 +264,44 @@ model User {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
+  // ── M3.A4 auth-lifecycle fields ─────────────────────────────────
+  // passwordHash: argon2id hash of the user's password. Null until the
+  // user sets one (status=PENDING_VERIFICATION or invite-flow users).
+  passwordHash String?
+
+  // mfaSecretRef: Vault KV-v2 path holding the TOTP shared secret.
+  // Format: `platform/mfa-secrets/<userId>` when set. Never the secret
+  // itself — only the reference. Null until MFA is activated.
+  mfaSecretRef String?
+
+  // mfaEnrolledAt: set when the user completes the enroll→activate
+  // round-trip. Null means MFA is not yet active, even if
+  // mfaSecretRef is populated (enrolled but not confirmed).
+  mfaEnrolledAt DateTime?
+
+  // failedLoginAttempts: counts wrong-password attempts in the active
+  // 30-minute window starting at lastFailedAt. Reset to 0 on
+  // successful login. Threshold: 10 → account locked.
+  failedLoginAttempts Int @default(0)
+
+  // lastFailedAt: anchors the 30-minute window used to decide whether
+  // failedLoginAttempts represents recent activity. A failed attempt
+  // more than 30 minutes after lastFailedAt restarts the window at 1.
+  lastFailedAt DateTime?
+
+  // lockedUntil: set by the atomic lockout UPDATE when
+  // failedLoginAttempts crosses threshold within the window. Any
+  // login attempt before this timestamp is refused without
+  // incrementing the counter further.
+  lockedUntil DateTime?
+
   tenant             Tenant           @relation(fields: [tenantId], references: [id])
   roleAssignments    RoleAssignment[]
   // Named relations for Approval — uses only User.id, not compound key
   initiatedApprovals Approval[]       @relation("ApprovalInitiator")
   grantedApprovals   Approval[]       @relation("ApprovalApprover")
   refreshTokens      RefreshToken[]
+  recoveryCodes      RecoveryCode[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -276,15 +309,51 @@ model User {
   @@map("users")
 }
 
+// ── Recovery codes — M3.A4-T02 ─────────────────────────────────────
+// One-time backup codes issued at MFA enrollment. Each code is
+// argon2id-hashed at generation time and verified on presentation.
+// "One-time" enforced by usedAt — a verified code is marked used and
+// cannot be presented again.
+model RecoveryCode {
+  id       String    @id @default(cuid())
+  tenantId String
+  userId   String
+  codeHash String // argon2id hash of the raw code (user-memorable short code)
+  usedAt   DateTime?
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([tenantId])
+  @@index([userId])
+  @@map("recovery_codes")
+}
+
 // ── Refresh Token — M3.A1-T03, consumed by M3.A4 auth lifecycle ───────────────
 // Stored as argon2id hash of the raw token; raw value is never at rest.
 // tenantId denormalized from creation for RLS single-column predicate.
 
 model RefreshToken {
-  id               String    @id @default(cuid())
-  tenantId         String
-  userId           String
-  tokenHash        String    @unique // argon2id of raw token
+  id       String @id @default(cuid())
+  tenantId String
+  userId   String
+  // M3.A4-T05: HMAC-SHA256 of the raw 256-bit token (NOT argon2id).
+  // The original schema comment said "argon2id of raw token" — that
+  // was the wrong choice for this column. Argon2id embeds a random
+  // salt so it produces a different hash each time; unique-index
+  // lookup by tokenHash is impossible. It is also designed to be
+  // slow to defend against offline brute-force of low-entropy
+  // passwords — not applicable to a 256-bit cryptographically-
+  // random token, which is brute-force infeasible regardless of the
+  // hash function's speed. HMAC-SHA256 is deterministic (unique-
+  // index lookup works) and cheap (no per-request slowdown), with
+  // identical resistance to offline attack against this input
+  // entropy. The HMAC key is loaded from Vault at control-plane
+  // boot (platform/auth/refresh-hmac-key); see M3.A4-T05 commit
+  // body for the full rationale. Keep this column on HMAC-SHA256 —
+  // do NOT "fix" it back to argon2id.
+  tokenHash        String    @unique
   issuedAt         DateTime  @default(now())
   expiresAt        DateTime
   usedAt           DateTime?
