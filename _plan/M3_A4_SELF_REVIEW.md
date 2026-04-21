@@ -275,3 +275,184 @@ are real. Reviewer should decide:
 - Hold for the follow-ups before merge.
 
 I'll defer to reviewer judgment.
+
+---
+
+## 6. Close-out addendum (post-review)
+
+Reviewer response: "Hold. Complete all three gaps in this PR before
+merge. None of the three are deferrable." All three gaps now closed
+as additive commits on the same branch. Integration tests surfaced
+two real production bugs (details below). Unit tests alone would
+have shipped both.
+
+### Gap #1 — T06 integration suite — CLOSED
+
+**Landing path chosen:** in-package integration tests under
+`apps/control-plane/src/modules/auth/auth-lifecycle.integration.test.ts`
+with a dedicated `vitest.integration.config.ts` and a `test:integration`
+script. The unit runner excludes `**/*.integration.test.ts`; the
+integration runner opts in via `DATABASE_URL + RUNTIME_DATABASE_URL
++ REDIS_URL` env vars (skipIf when missing). Rationale: the sibling
+`tests/integration/rls-negative-tests` pattern only works for
+library packages that expose a compiled `dist/` (it imports from
+`@sep/db`); reusing that layout for an integration suite that needs
+`@sep/control-plane`'s NestJS services hits tsconfig rootDir issues
+because Nest apps don't expose a public TS API. Keeping the tests
+in-package sidesteps that cleanly.
+
+**Scenarios shipped:**
+
+1. **Concurrent wrong-password lockout** — 15 parallel
+   `validatePassword(tenantId, email, WRONG)` calls end with
+   `failedLoginAttempts = 10` exactly and `lockedUntil` set. Asserts
+   ADR-0008's atomic-CASE-UPDATE guarantee against Postgres's real
+   row-level lock.
+2. **Refresh token chain revocation on replay** — issue A, rotate
+   A→B, rotate B→C, then re-present A. All three rows end with
+   `revokedAt != null` and `revocationReason = 'replay-detected'`.
+   Replay detection is registered as terminal (`AUTH_REFRESH_TOKEN_REPLAY`
+   ∈ `TERMINAL_ERROR_CODES`).
+3. **Redis SET NX EX atomicity** — 20 parallel
+   `MfaChallengeStore.consume(sameChallengeId)` calls return
+   exactly 1 winner + 19 `already-consumed` losers. Asserts
+   ADR-0008's Redis single-use-claim guarantee.
+4. **Cross-tenant RLS on refresh_tokens** — already owned by
+   `tests/integration/rls-negative-tests/refresh-tokens.rls-negative.test.ts`
+   (M3.A1-T06). Not duplicated here.
+
+**Commands:**
+
+```
+pnpm --filter @sep/control-plane test:unit        # 157 tests, no infra
+pnpm --filter @sep/control-plane test:integration # 3 tests, needs Postgres+Redis
+```
+
+### Two production bugs the integration suite surfaced
+
+Both were shipped in the original M3.A4 PR and invisible under
+unit tests. Both fixed as part of this Gap #1 close-out.
+
+**Bug 1 — Failed-login UPDATE was rolling back with its own throw.**
+
+The original `LoginService.validatePassword` ran
+`applyFailedLoginUpdate(tx, ...)` and then `throw AUTH_INVALID_CREDENTIALS`
+inside the SAME `forTenant(...)` transaction. Prisma's `$transaction`
+rolls back on callback throw, so the UPDATE reverted — the lockout
+counter NEVER incremented. Unit tests missed this because they
+mocked `forTenant` as an identity wrapper that returns whatever
+the callback returns; the rollback semantics don't exist in that
+mock.
+
+**Fix:** three-phase control flow — read under `forTenant` A, fail-
+path UPDATE under `forTenant` B (auto-commits on return), throw.
+Success path UPDATE + token issuance under `forTenant` C. Each tx
+commits independently. `login.service.ts` header comment block now
+documents the "three forTenant calls, not one" rationale so a future
+refactor doesn't collapse it back.
+
+**Bug 2 — `forSystem()` is NOT a BYPASSRLS client.**
+
+The original `RefreshTokenService.refresh()` used
+`this.database.forSystem().refreshToken.findUnique({where:{tokenHash}})`
+to look up the presented token across tenants. But `DatabaseService`'s
+`forSystem()` returns the RUNTIME client, which connects as `sep_app`
+— a role with `rolbypassrls = false`. Without `app.current_tenant_id`
+set, the RLS policy `tenantId = NULLIF(current_setting(...), '')`
+evaluates `tenantId = NULL`, so findUnique returned 0 rows for every
+legitimate refresh attempt. Production would have broken every
+refresh call.
+
+**Fix:** token envelope is now `<tenantId>.<base64url(32-byte
+random)>`. The tenantId prefix is not sensitive (the caller already
+knows their tenant). `RefreshTokenService.refresh()` parses it,
+validates the cuid shape (malformed → AUTH_REFRESH_TOKEN_INVALID,
+same shape as "unknown token" to prevent discrimination), and uses
+`forTenant(tenantId, ...)` for the lookup. No privileged client
+required. `tokenHash` now HMACs the full envelope; storage shape
+unchanged (still a 64-char hex digest in the same unique index).
+
+The broader architectural observation — `forSystem()` is misnamed
+if BYPASSRLS was intended — is a separate follow-up. Filed as
+issue TBD; logged in this doc in case it surfaces again.
+
+### Gap #2 — Recovery code verification endpoint — CLOSED
+
+`POST /auth/mfa/recover` shipped. Flow:
+
+1. Verify challenge JWT (same HS256 + issuer + typ checks as TOTP verify).
+2. Consume challengeId via `MfaChallengeStore` (same single-use
+   semantics as TOTP path — challenge is burned regardless of
+   which endpoint the attacker hits).
+3. Load user's unconsumed `RecoveryCode` rows (argon2id-hashed).
+4. Walk them with `argon2Verify` until match or exhaustion.
+5a. Match: mark that code `usedAt`, reset Redis failure counter,
+    reset `failedLoginAttempts`, issue access + refresh tokens.
+5b. No match: INCR Redis counter
+    `sep:mfa-recovery-failures:<userId>` (TTL 30 min on first
+    failure), apply 1s delay at count=1, 5s at count=2, lock user
+    for 30 min at count=3. Throw `AUTH_RECOVERY_CODE_INVALID` or
+    `AUTH_ACCOUNT_LOCKED`.
+
+**Brute-force budget:** 3 guesses per 30-min sliding window. Recovery
+codes are 40 bits of entropy (8 base32 chars); 3 random guesses
+against a specific user's code set (≤10 codes) is ~3 × 10 / 2^40 ≈
+2.7e-11 probability of hitting. Delays discourage casual serial
+guessing without slowing legitimate users.
+
+**Why threshold 3, not 10 (matching password lockout):** a
+successful recovery code bypasses MFA entirely — higher-value than
+a password match. Tighter budget is warranted.
+
+**Unit tests:** 8 cases in `mfa-recover.service.test.ts`:
+
+- Bad JWT → AUTH_MFA_CHALLENGE_INVALID; challenge NOT consumed
+- Wrong `typ` claim → AUTH_MFA_CHALLENGE_INVALID; challenge NOT consumed
+- Replayed challenge → AUTH_MFA_CHALLENGE_CONSUMED
+- User MFA state cleared since challenge → AUTH_MFA_CHALLENGE_INVALID
+- User already locked → AUTH_ACCOUNT_LOCKED; argon2 NOT called
+- First wrong code → counter INCR, 1s delay, AUTH_RECOVERY_CODE_INVALID
+- Third wrong code → user.lockedUntil set, counter cleared, AUTH_ACCOUNT_LOCKED
+- Matching code → code consumed, counter cleared, access + refresh tokens returned
+
+### Gap #3 — Refresh token issuance wired into login + MFA — CLOSED
+
+- `LoginService.validatePassword` no-MFA branch now issues a refresh
+  token INSIDE the success-path `forTenant` tx and returns
+  `{ accessToken, expiresIn, refreshToken }`. MFA branch unchanged
+  (challenge-only response).
+- `MfaVerifyService.verify` now issues a refresh token in the
+  TOTP-success forTenant tx and returns
+  `{ accessToken, expiresIn, refreshToken }`.
+- `MfaRecoverService.recover` (new) also returns
+  `{ accessToken, expiresIn, refreshToken }` on success.
+- Both controllers' response types updated. The login response's
+  `LoginResult` discriminated union changed from
+  `AuthTokens | MfaChallengeToken` to
+  `AuthTokensWithRefresh | MfaChallengeToken`.
+
+### Updated test coverage
+
+| Suite                                    | Before | After | Delta |
+| ---------------------------------------- | ------ | ----- | ----- |
+| `@sep/control-plane` unit                | 135    | 157   | +22   |
+| `@sep/control-plane` integration (new)   | —      | 3     | +3    |
+| **Total unit + integration**             | 135    | 160   | +25   |
+
+All three originally-deferred gaps are now closed. No gaps remain
+beyond issue #36 (JWT secret rotation) which was deferred at session
+start by pre-agreement.
+
+### Updated sign-off
+
+- [x] Gap #1 closed — T06 integration suite shipped (3 scenarios + the
+      M3.A1-T06 cross-tenant RLS already in place). Two production
+      bugs surfaced and fixed.
+- [x] Gap #2 closed — `POST /auth/mfa/recover` shipped with brute-
+      force mitigation and 8 unit tests.
+- [x] Gap #3 closed — refresh token issuance wired into login + MFA
+      verify + MFA recover success paths.
+- [x] Gap #4 (JWT secret rotation, issue #36) — unchanged, remains
+      deferred per session-start agreement.
+
+**Ready to merge.** No known gaps beyond the pre-agreed issue #36.

@@ -236,3 +236,99 @@ Creates new issue (#36) for JWT secret rotation.
   fail-closed boot
 - `apps/control-plane/src/modules/auth/mfa-challenge-store.service.ts` —
   Redis SET NX EX single-use
+
+## Addendum — T06 integration-surfaced bugs + two corrections (2026-04-21)
+
+Writing the T06 integration suite surfaced two production bugs that
+mocked unit tests missed. Both are fixed; this addendum records
+what changed and why, so a future reader hitting the same shape
+doesn't re-derive the answer.
+
+### Correction — failed-login UPDATE runs in its own transaction
+
+**Original decision text:** "The lockout counter + lockedUntil
+update runs in ONE SQL statement with CASE expressions".
+
+**Bug:** Running the UPDATE and the `throw AUTH_INVALID_CREDENTIALS`
+inside the SAME Prisma `$transaction` callback made the throw roll
+back the UPDATE. The counter never incremented. The atomic-CASE
+property was correct for concurrency, but the enclosing-transaction
+rollback defeated the persistence of the new counter value.
+
+**Fix:** `LoginService.validatePassword` now runs three separate
+`forTenant` calls: Step 1 (read), Step 2 (failure UPDATE, only on
+wrong password — auto-commits before throw), Step 3 (success UPDATE
++ token issuance). The atomic-CASE property survives; the commit
+boundary moves to the correct place.
+
+**Detected by:** M3.A4-T06 Scenario 1 (15 parallel wrong-password
+→ counter=10). First run showed counter=0, which is only possible
+if the UPDATE never committed.
+
+### Correction — refresh tokens carry a tenantId prefix
+
+**Original decision text:** "The `refresh_tokens.tokenHash` column
+is computed as `HMAC-SHA256(rawToken, key)`".
+
+**Bug:** `RefreshTokenService.refresh` used
+`this.database.forSystem().refreshToken.findUnique({where:{tokenHash}})`
+expecting `forSystem()` to bypass RLS. But the runtime `forSystem()`
+returns a client connected as `sep_app`, which has `rolbypassrls =
+false`. Without `app.current_tenant_id` set, the RLS policy on
+refresh_tokens evaluates `tenantId = NULL` and returns 0 rows for
+every legitimate refresh attempt.
+
+**Fix:** The raw token is now a two-part envelope:
+
+```
+<tenantId>.<base64url(32-byte random)>
+```
+
+The tenantId prefix is not a secret (the caller knows their tenant
+from login). `refresh()` parses the prefix, validates the cuid
+shape (malformed → AUTH_REFRESH_TOKEN_INVALID, same shape as
+"unknown token"), and uses `forTenant(tenantId, ...)` for the
+lookup. No privileged client required.
+
+**Security implications of revealing tenantId in the token:**
+
+- An attacker who captures a refresh token already has access to
+  everything that token grants — knowing the tenant adds nothing.
+- An attacker probing with arbitrary strings sees a uniform
+  AUTH_REFRESH_TOKEN_INVALID response shape whether the prefix
+  is well-formed-but-unregistered, malformed, or non-cuid.
+- The 256-bit random suffix is unchanged — cryptographic entropy
+  of the token is preserved.
+
+**tokenHash shape:** HMAC-SHA256 of the FULL envelope. Storage
+format unchanged (64-char hex digest in `refresh_tokens.tokenHash`
+unique index). Migration compatibility: M3.A4 is not yet merged,
+so no tokens exist in production to migrate.
+
+**Detected by:** M3.A4-T06 Scenario 2 (chain revocation). First
+run threw AUTH_REFRESH_TOKEN_INVALID on the first rotate A→B
+because findUnique returned null.
+
+### Decision — recovery-code verification (retroactive)
+
+`POST /auth/mfa/recover` ships in this PR. Rationale:
+
+- Same JWT challenge token as `/auth/mfa/verify`.
+- Same Redis single-use claim (challenge is burned on
+  presentation regardless of which endpoint).
+- Walks the `RecoveryCode` rows for the user, argon2Verify each
+  until match.
+- Brute-force cap: 3 per-user failures per 30 min sliding window
+  (stored in Redis at `sep:mfa-recovery-failures:<userId>`), with
+  1s / 5s / lockout delay schedule. Tighter than the password
+  lockout (10 threshold) because a successful recovery code
+  bypasses MFA entirely — higher-value target.
+
+### Note — `forSystem()` is not a BYPASSRLS client
+
+The misdiagnosed original implementation assumed `forSystem()` on
+`DatabaseService` returned a privileged client. It does not — it
+returns the runtime client (sep_app role, RLS forced). This ADR
+records the observation; a cleaner rename or the addition of a
+distinct `forSystemBypassRls(fn)` helper is out of scope for M3.A4
+and will be filed as a separate issue.
