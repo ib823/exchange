@@ -56,7 +56,7 @@ export function enforcePolicy(
       keyReferenceId: keyRef.keyReferenceId,
       violatedRule: 'usage',
       intendedUsage,
-      allowedUsages: keyRef.allowedUsages,
+      allowedUsages: [...keyRef.allowedUsages],
     });
   }
 

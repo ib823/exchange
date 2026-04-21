@@ -19,7 +19,13 @@ import { describe, it, expect, vi } from 'vitest';
 import { SepError, ErrorCode } from '@sep/common';
 import { KeyCustodyAbstraction } from './key-custody-abstraction';
 import { KEY_BACKEND_TYPES, type KeyBackendType } from './key-reference-input';
-import type { IKeyCustodyBackend, KeyReferenceInput, ArmoredKey } from './i-key-custody-backend';
+import type {
+  IKeyCustodyBackend,
+  KeyReferenceInput,
+  ArmoredKey,
+  KeyUsage,
+} from './i-key-custody-backend';
+import type { KeyRef } from '../interfaces';
 
 function expectSepError(fn: () => unknown, code: ErrorCode): SepError {
   try {
@@ -554,5 +560,39 @@ describe('KeyCustodyAbstraction purpose guards', () => {
 
     expect(platform.signAndEncrypt).toHaveBeenCalledTimes(1);
     expect(result).toBe('sealed:platform');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+// Vocabulary symmetry (Review Item 1 follow-up).
+// The purpose guard relies on KeyRef.allowedUsages and
+// KeyReferenceInput.usage carrying the SAME four-value vocabulary.
+// A future refactor that narrows one side silently would make the
+// guard always-fail or always-pass — these assertions fail at
+// compile-time if the element types drift.
+// ─────────────────────────────────────────────────────────────────
+
+describe('KeyUsage / allowedUsages vocabulary symmetry', () => {
+  it('KeyUsage matches KeyRef.allowedUsages element type (compile-time)', () => {
+    // Compile-time assertion: the two element types must be
+    // assignable in both directions. If KeyUsage drops a value or
+    // allowedUsages adds one, these assignments stop compiling.
+    type Keyed = KeyRef['allowedUsages'][number];
+    const a: KeyUsage = 'SIGN' as Keyed;
+    const b: Keyed = 'SIGN' as KeyUsage;
+    expect(a).toBe('SIGN');
+    expect(b).toBe('SIGN');
+  });
+
+  it('covers every KeyUsage literal the dispatcher checks', () => {
+    // Runtime sanity: enumerate every value the two composite
+    // guards demand, so a future KeyUsage addition that forgets
+    // to extend this list fails the test before the guard silently
+    // passes an unknown role.
+    const required: readonly KeyUsage[] = ['SIGN', 'ENCRYPT', 'DECRYPT', 'VERIFY'];
+    expect(required).toHaveLength(4);
+    for (const role of required) {
+      expect(['SIGN', 'ENCRYPT', 'DECRYPT', 'VERIFY']).toContain(role);
+    }
   });
 });

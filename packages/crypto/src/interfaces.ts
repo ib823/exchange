@@ -8,6 +8,8 @@
  * - Honour the approved algorithm policy — reject non-compliant profiles
  */
 
+import type { KeyUsage } from './custody/i-key-custody-backend';
+
 // ── Policy ─────────────────────────────────────────────────────────────────────
 export interface CryptoAlgorithmPolicy {
   /** Approved public-key algorithms e.g. ['rsa', 'ecdh'] */
@@ -112,8 +114,22 @@ export interface KeyRef {
     | 'SUSPENDED'
     | 'COMPROMISED'
     | 'DESTROYED';
-  /** Operations this key is authorised for */
-  allowedUsages: Array<'ENCRYPT' | 'DECRYPT' | 'SIGN' | 'VERIFY'>;
+  /**
+   * Operations this key is authorised for.
+   *
+   * Vocabulary is the M3.A5 crypto-layer `KeyUsage` union — four
+   * values (`ENCRYPT | DECRYPT | SIGN | VERIFY`). The Prisma
+   * `KeyUsage` enum in `@sep/db` is wider: it also defines `WRAP`
+   * and `UNWRAP` for future key-wrapping flows the platform does
+   * not exercise today. `KeyRetrievalService.resolveKey` casts the
+   * six-value DB array into this four-value type — rows storing
+   * `WRAP` / `UNWRAP` silently drop those values at the crypto
+   * boundary. The vocabulary should be unified (either by dropping
+   * `WRAP`/`UNWRAP` from the Prisma enum or by widening KeyUsage
+   * here); see "Deferred follow-up items" in the PR body for the
+   * tracking pointer.
+   */
+  allowedUsages: readonly KeyUsage[];
   /** Revocation timestamp — if set, key must not be used */
   revokedAt: Date | null;
   /** Expiry — checked before any operation */
