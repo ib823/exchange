@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { SubmissionsService } from './submissions.service';
 import { AuditService } from '../audit/audit.service';
+import { SubmissionQuotaService } from './submission-quota.service';
 import { DatabaseService } from '@sep/db';
 
 const mockDb = {
@@ -11,6 +12,14 @@ const mockDb = {
     count: vi.fn(),
     update: vi.fn(),
   },
+  tenant: {
+    findUnique: vi.fn().mockResolvedValue({ serviceTier: 'STANDARD' }),
+  },
+};
+
+const mockQuota = {
+  charge: vi.fn().mockResolvedValue(undefined),
+  currentCount: vi.fn().mockResolvedValue(0),
 };
 
 vi.mock('@sep/db', async () => {
@@ -70,7 +79,11 @@ describe('SubmissionsService', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    service = new SubmissionsService(mockAudit as unknown as AuditService, mockDatabaseService);
+    service = new SubmissionsService(
+      mockAudit as unknown as AuditService,
+      mockDatabaseService,
+      mockQuota as unknown as SubmissionQuotaService,
+    );
   });
 
   describe('create', () => {

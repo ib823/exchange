@@ -10,8 +10,11 @@
 import { Controller, Post, Body, HttpCode, Request } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { createZodDto } from 'nestjs-zod';
+import { Throttle } from '@nestjs/throttler';
 import { z } from 'zod';
+import { getConfig } from '@sep/common';
 import { Public } from '../../common/guards/jwt-auth.guard';
+import { THROTTLER_NAMES } from '../../common/throttler-config';
 import { MfaService, type MfaEnrollResult, type MfaActivateResult } from './mfa.service';
 import { MfaVerifyService } from './mfa-verify.service';
 import { MfaRecoverService } from './mfa-recover.service';
@@ -99,6 +102,12 @@ export class MfaController {
    * access token — the challenge token is the bridging credential.
    */
   @Public()
+  @Throttle({
+    [THROTTLER_NAMES.mfaVerify]: {
+      limit: getConfig().rateLimit.mfaVerifyLimit,
+      ttl: getConfig().rateLimit.mfaVerifyTtlMs,
+    },
+  })
   @Post('verify')
   @HttpCode(200)
   @ApiOperation({ summary: 'Complete MFA challenge — exchange challenge + TOTP for access token' })

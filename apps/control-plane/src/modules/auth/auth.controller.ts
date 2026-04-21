@@ -1,13 +1,17 @@
 import { Controller, Post, Headers, Body, HttpCode, UnauthorizedException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { createZodDto } from 'nestjs-zod';
+import { Throttle } from '@nestjs/throttler';
 import { z } from 'zod';
 import { Public } from '../../common/guards/jwt-auth.guard';
+import { THROTTLER_NAMES } from '../../common/throttler-config';
 import { AuthService, type AuthTokens, type TokenPayload } from './auth.service';
 import { LoginService, type LoginResult } from './login.service';
 import { RefreshTokenService, type IssuedRefreshToken } from './refresh-token.service';
 import { DatabaseService } from '@sep/db';
-import { SepError, ErrorCode } from '@sep/common';
+import { SepError, ErrorCode, getConfig } from '@sep/common';
+
+const cfg = getConfig();
 
 const LoginSchema = z.object({
   tenantId: z.string().min(1),
@@ -61,6 +65,12 @@ export class AuthController {
    * returns 401 `AUTH_ACCOUNT_LOCKED` with the unlock timestamp.
    */
   @Public()
+  @Throttle({
+    [THROTTLER_NAMES.authLogin]: {
+      limit: cfg.rateLimit.authLoginLimit,
+      ttl: cfg.rateLimit.authLoginTtlMs,
+    },
+  })
   @Post('login')
   @HttpCode(200)
   @ApiOperation({ summary: 'Password login with MFA branching and lockout policy (10/30/30)' })
