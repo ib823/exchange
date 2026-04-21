@@ -92,6 +92,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
     if (code === 'APPROVAL_REQUIRED') {
       return 202;
     }
+    if (code === 'RATE_LIMIT_EXCEEDED' || code === 'TENANT_QUOTA_EXCEEDED') {
+      return 429;
+    }
     if (code.startsWith('VALIDATION_') || code.startsWith('POLICY_')) {
       return 422;
     }
