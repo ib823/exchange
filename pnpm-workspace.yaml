@@ -2,3 +2,6 @@ packages:
   - 'apps/*'
   - 'packages/*'
   - 'tests/integration/*'
+  - 'tests/helpers'
+  - 'tests/simulators'
+  - 'tests/threat-scenarios'
