@@ -2,7 +2,12 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService, Prisma, type PartnerProfileStatus } from '@sep/db';
 import { SepError, ErrorCode } from '@sep/common';
 import { AuditService } from '../audit/audit.service';
-import type { CreatePartnerProfileDto, UpdatePartnerProfileDto } from '@sep/schemas';
+import {
+  parsePartnerProfileConfig,
+  type CreatePartnerProfileDto,
+  type TransportProtocol,
+  type UpdatePartnerProfileDto,
+} from '@sep/schemas';
 import type { TokenPayload } from '../auth/auth.service';
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
@@ -87,9 +92,16 @@ export class PartnerProfilesService {
   }
 
   async findById(id: string, actor: TokenPayload): Promise<PartnerProfileRow> {
-    return this.database.forTenant(actor.tenantId, (db) =>
+    const row = await this.database.forTenant(actor.tenantId, (db) =>
       this.assertTenantOwnership(db, id, actor.tenantId),
     );
+    // M3.A6 NEW-04: fail-closed on malformed config at read time.
+    // parsePartnerProfileConfig throws SepError(PARTNER_CONFIG_INVALID)
+    // with an `issues` array describing each validation failure. The
+    // row is still returned on success — we don't rewrite `config`,
+    // we just gate the caller on it being parseable.
+    parsePartnerProfileConfig(row.transportProtocol as TransportProtocol, row.config);
+    return row;
   }
 
   async findAll(
