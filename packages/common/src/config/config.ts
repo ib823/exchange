@@ -113,6 +113,15 @@ const ConfigSchema = z.object({
     // Historical: submission-max per window (used by the submission
     // service rate-limit probe, separate from tenant daily quota in T03).
     submissionMax: z.coerce.number().int().positive().default(50),
+    // M3.A7-T03 — per-tenant daily submission quotas keyed by ServiceTier.
+    // PRIVATE is effectively unlimited (operators can still cap via env
+    // override). Defaults are plan-literal.
+    tenantQuotaStandardPerDay: z.coerce.number().int().positive().default(10_000),
+    tenantQuotaDedicatedPerDay: z.coerce.number().int().positive().default(100_000),
+    // JavaScript's Number.MAX_SAFE_INTEGER is enough to stand in for
+    // "unlimited" — INCR against Redis would still ratchet the counter
+    // but no realistic traffic hits 2^53.
+    tenantQuotaPrivatePerDay: z.coerce.number().int().positive().default(Number.MAX_SAFE_INTEGER),
   }),
 
   webhook: z.object({
@@ -246,6 +255,9 @@ function loadConfig(): AppConfig {
       mfaVerifyTtlMs: process.env['RATE_LIMIT_MFA_VERIFY_TTL_MS'],
       mfaVerifyLimit: process.env['RATE_LIMIT_MFA_VERIFY_LIMIT'],
       submissionMax: process.env['RATE_LIMIT_SUBMISSION_MAX'],
+      tenantQuotaStandardPerDay: process.env['RATE_LIMIT_TENANT_QUOTA_STANDARD_PER_DAY'],
+      tenantQuotaDedicatedPerDay: process.env['RATE_LIMIT_TENANT_QUOTA_DEDICATED_PER_DAY'],
+      tenantQuotaPrivatePerDay: process.env['RATE_LIMIT_TENANT_QUOTA_PRIVATE_PER_DAY'],
     },
     webhook: {
       signingSecret: process.env['WEBHOOK_SIGNING_SECRET'],

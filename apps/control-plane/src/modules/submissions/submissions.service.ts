@@ -8,6 +8,7 @@ import {
   type SubmissionStatus as CommonSubmissionStatus,
 } from '@sep/common';
 import { AuditService } from '../audit/audit.service';
+import { SubmissionQuotaService, type ServiceTier } from './submission-quota.service';
 import type { CreateSubmissionDto } from '@sep/schemas';
 import type { TokenPayload } from '../auth/auth.service';
 
@@ -37,6 +38,7 @@ export class SubmissionsService {
   constructor(
     private readonly audit: AuditService,
     private readonly database: DatabaseService,
+    private readonly quota: SubmissionQuotaService,
   ) {}
 
   private async assertTenantOwnership(
@@ -51,6 +53,25 @@ export class SubmissionsService {
     return submission;
   }
 
+  /**
+   * Look up the tenant's service tier. Uses forSystem() because
+   * the `tenants` table is the root of the multi-tenancy tree — it
+   * isn't tenant-scoped, it defines tenants. Returns a narrowed
+   * ServiceTier type so the quota service's exhaustive switch
+   * catches new tiers at compile time.
+   */
+  private async lookupServiceTier(tenantId: string): Promise<ServiceTier> {
+    const systemDb = this.database.forSystem();
+    const row = await systemDb.tenant.findUnique({
+      where: { id: tenantId },
+      select: { serviceTier: true },
+    });
+    if (row === null) {
+      throw new SepError(ErrorCode.TENANT_NOT_FOUND, { tenantId });
+    }
+    return row.serviceTier as ServiceTier;
+  }
+
   async create(
     dto: CreateSubmissionDto,
     actor: TokenPayload,
@@ -59,6 +80,15 @@ export class SubmissionsService {
     correlationId: string;
     status: string;
   }> {
+    // M3.A7-T03 — per-tenant daily quota. Run BEFORE the RLS tx
+    // so the INCR happens outside the Prisma transaction: a throw
+    // here must not roll the counter back (we want the attempt to
+    // count against the cap). We look up service tier once
+    // up-front using forSystem — tenant row is not tenant-scoped
+    // by itself (tenants.* is the root of the multi-tenancy tree).
+    const tenantTier = await this.lookupServiceTier(dto.tenantId);
+    await this.quota.charge(dto.tenantId, tenantTier);
+
     return this.database.forTenant(dto.tenantId, async (db) => {
       // Check idempotency key uniqueness within tenant
       const existing = await db.submission.findUnique({
@@ -71,6 +101,10 @@ export class SubmissionsService {
       });
 
       if (existing !== null) {
+        // Note: quota INCR already charged above. Idempotency
+        // conflicts still count against the cap — retry-storms
+        // should be bounded by the quota, not by an auto-refund
+        // on every duplicate.
         throw new SepError(ErrorCode.VALIDATION_DUPLICATE, {
           message: 'Submission with this idempotency key already exists',
           existingSubmissionId: existing.id,
