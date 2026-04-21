@@ -245,6 +245,7 @@ model Tenant {
   deliveryAttempts        DeliveryAttempt[]
   webhookDeliveryAttempts WebhookDeliveryAttempt[]
   refreshTokens           RefreshToken[]
+  recoveryCodes           RecoveryCode[]
 
   @@index([status])
   @@map("tenants")
@@ -263,17 +264,70 @@ model User {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
+  // ── M3.A4 auth-lifecycle fields ─────────────────────────────────
+  // passwordHash: argon2id hash of the user's password. Null until the
+  // user sets one (status=PENDING_VERIFICATION or invite-flow users).
+  passwordHash String?
+
+  // mfaSecretRef: Vault KV-v2 path holding the TOTP shared secret.
+  // Format: `platform/mfa-secrets/<userId>` when set. Never the secret
+  // itself — only the reference. Null until MFA is activated.
+  mfaSecretRef String?
+
+  // mfaEnrolledAt: set when the user completes the enroll→activate
+  // round-trip. Null means MFA is not yet active, even if
+  // mfaSecretRef is populated (enrolled but not confirmed).
+  mfaEnrolledAt DateTime?
+
+  // failedLoginAttempts: counts wrong-password attempts in the active
+  // 30-minute window starting at lastFailedAt. Reset to 0 on
+  // successful login. Threshold: 10 → account locked.
+  failedLoginAttempts Int @default(0)
+
+  // lastFailedAt: anchors the 30-minute window used to decide whether
+  // failedLoginAttempts represents recent activity. A failed attempt
+  // more than 30 minutes after lastFailedAt restarts the window at 1.
+  lastFailedAt DateTime?
+
+  // lockedUntil: set by the atomic lockout UPDATE when
+  // failedLoginAttempts crosses threshold within the window. Any
+  // login attempt before this timestamp is refused without
+  // incrementing the counter further.
+  lockedUntil DateTime?
+
   tenant             Tenant           @relation(fields: [tenantId], references: [id])
   roleAssignments    RoleAssignment[]
   // Named relations for Approval — uses only User.id, not compound key
   initiatedApprovals Approval[]       @relation("ApprovalInitiator")
   grantedApprovals   Approval[]       @relation("ApprovalApprover")
   refreshTokens      RefreshToken[]
+  recoveryCodes      RecoveryCode[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
   @@index([authSubject])
   @@map("users")
+}
+
+// ── Recovery codes — M3.A4-T02 ─────────────────────────────────────
+// One-time backup codes issued at MFA enrollment. Each code is
+// argon2id-hashed at generation time and verified on presentation.
+// "One-time" enforced by usedAt — a verified code is marked used and
+// cannot be presented again.
+model RecoveryCode {
+  id       String    @id @default(cuid())
+  tenantId String
+  userId   String
+  codeHash String // argon2id hash of the raw code (user-memorable short code)
+  usedAt   DateTime?
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([tenantId])
+  @@index([userId])
+  @@map("recovery_codes")
 }
 
 // ── Refresh Token — M3.A1-T03, consumed by M3.A4 auth lifecycle ───────────────
