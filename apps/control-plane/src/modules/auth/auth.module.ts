@@ -4,6 +4,8 @@ import { getConfig } from '@sep/common';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { MfaSecretVaultService } from './mfa-secret-vault.service';
+import { MfaService } from './mfa.service';
+import { MfaController } from './mfa.controller';
 
 const cfg = getConfig();
 
@@ -19,8 +21,8 @@ const cfg = getConfig();
       verifyOptions: { algorithms: ['HS256'] },
     }),
   ],
-  providers: [AuthService, MfaSecretVaultService],
-  controllers: [AuthController],
-  exports: [AuthService, MfaSecretVaultService],
+  providers: [AuthService, MfaSecretVaultService, MfaService],
+  controllers: [AuthController, MfaController],
+  exports: [AuthService, MfaSecretVaultService, MfaService],
 })
 export class AuthModule {}
