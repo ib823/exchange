@@ -54,11 +54,30 @@ export class HttpExceptionFilter implements ExceptionFilter {
     } else if (normalised instanceof HttpException) {
       status = normalised.getStatus();
       const resp = normalised.getResponse();
-      message =
-        typeof resp === 'string'
-          ? resp
-          : (((resp as Record<string, unknown>)['message'] as string | undefined) ?? message);
-      logger.warn({ status, message, correlationId }, 'HttpException');
+      if (typeof resp === 'string') {
+        message = resp;
+      } else {
+        const record = resp as Record<string, unknown>;
+        message = (record['message'] as string | undefined) ?? message;
+        // Services sometimes wrap a SepError in an HttpException
+        // (e.g. `new UnauthorizedException(sepError.toClientJson())`).
+        // When that happens the response body already carries the
+        // SepError contract fields; hoist them so clients don't see
+        // the default INTERNAL_ERROR code with the SepError message.
+        const respCode = record['code'];
+        if (typeof respCode === 'string') {
+          code = respCode;
+        }
+        const respRetryable = record['retryable'];
+        if (typeof respRetryable === 'boolean') {
+          retryable = respRetryable;
+        }
+        const respTerminal = record['terminal'];
+        if (typeof respTerminal === 'boolean') {
+          terminal = respTerminal;
+        }
+      }
+      logger.warn({ status, message, code, correlationId }, 'HttpException');
     } else {
       logger.error({ correlationId, err: normalised }, 'Unhandled exception');
     }

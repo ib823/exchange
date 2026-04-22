@@ -29,7 +29,10 @@ export default defineConfig({
     name: '@sep/control-plane-integration',
     globals: true,
     environment: 'node',
-    include: ['**/*.integration.test.ts'],
+    // M3.A8 adds `*.threat.test.ts` alongside `*.integration.test.ts`
+    // for threat-scenario tests that need to poke at control-plane
+    // internals (guards, services). Same env-gate + infra requirements.
+    include: ['**/*.integration.test.ts', '**/*.threat.test.ts'],
     exclude: ['**/node_modules/**', '**/dist/**'],
     // Integration scenarios spawn concurrent DB writes; forks + no file
     // parallelism keeps connection-pool pressure bounded and matches the
