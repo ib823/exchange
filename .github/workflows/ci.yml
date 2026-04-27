@@ -380,7 +380,7 @@ jobs:
         # Local gitleaks via lefthook pre-commit remains the
         # developer-side gate.
         if: github.event_name == 'pull_request'
-        uses: trufflesecurity/trufflehog@580628bb9d5455140899afe2cb981ff5640bf399 # main as of remediation date
+        uses: trufflesecurity/trufflehog@0d5afcefc50330bfd4a58909e85c6223c42ff619 # main as of remediation date
         with:
           path: ./
           base: ${{ github.event.repository.default_branch }}
